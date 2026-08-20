@@ -7,3 +7,4 @@ Before planning or editing, find the row whose globs match the file's path and r
 | * | .ai/rules/general.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | tests/** | .ai/rules/tests.md |
+| resources/views/** | .ai/rules/views.md |

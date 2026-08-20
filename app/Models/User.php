@@ -5,13 +5,16 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +25,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'current_team_id',
     ];
 
     /**
@@ -45,5 +49,25 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * The team this user is currently acting within, used for team-scoped record visibility.
+     *
+     * @return BelongsTo<Team, $this>
+     */
+    public function currentTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'current_team_id');
+    }
+
+    /**
+     * All teams this user is a member of.
+     *
+     * @return BelongsToMany<Team, $this>
+     */
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class);
     }
 }

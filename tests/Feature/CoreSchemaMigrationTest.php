@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,7 +16,18 @@ test('core tables exist with the expected columns after migrating', function () 
 });
 
 test('the core schema migrations roll back cleanly and re-migrate cleanly', function () {
-    Artisan::call('migrate:rollback', ['--step' => 5]);
+    // Invoke these five migrations' up()/down() directly rather than via
+    // `migrate:rollback --step`, whose step count would silently drift out of
+    // sync every time a later migration (e.g. companies) is added.
+    $migrations = collect([
+        '2026_08_20_105233_create_teams_table.php',
+        '2026_08_20_105234_create_team_user_table.php',
+        '2026_08_20_105234_add_current_team_id_to_users_table.php',
+        '2026_08_20_105235_add_data_access_level_to_roles_table.php',
+        '2026_08_20_105235_create_settings_table.php',
+    ])->map(fn (string $file) => require database_path("migrations/{$file}"));
+
+    $migrations->reverse()->each->down();
 
     expect(Schema::hasTable('settings'))->toBeFalse()
         ->and(Schema::hasTable('team_user'))->toBeFalse()
@@ -25,7 +35,7 @@ test('the core schema migrations roll back cleanly and re-migrate cleanly', func
         ->and(Schema::hasColumn('users', 'current_team_id'))->toBeFalse()
         ->and(Schema::hasColumn('roles', 'data_access_level'))->toBeFalse();
 
-    Artisan::call('migrate');
+    $migrations->each->up();
 
     expect(Schema::hasTable('settings'))->toBeTrue()
         ->and(Schema::hasTable('team_user'))->toBeTrue()

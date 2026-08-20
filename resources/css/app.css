@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tom-select/dist/css/tom-select.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -119,4 +120,31 @@
     [x-cloak] {
         display: none !important;
     }
+}
+
+.ts-wrapper .ts-control {
+    background-color: var(--color-background);
+    border-color: var(--color-border);
+    color: var(--color-foreground);
+    border-radius: var(--radius-lg);
+}
+
+.ts-wrapper.focus .ts-control {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.ts-dropdown {
+    background-color: var(--color-card);
+    border-color: var(--color-border);
+    color: var(--color-foreground);
+}
+
+.ts-dropdown .active {
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+}
+
+.ts-control input {
+    color: var(--color-foreground);
 }

@@ -25,7 +25,7 @@
                 <div class="sm:col-span-2">
                     <x-form.label for="logo">Logo</x-form.label>
                     <div class="flex items-center gap-4">
-                        @if ($logo)
+                        @if ($logo && $logo->isPreviewable())
                             <img src="{{ $logo->temporaryUrl() }}" alt="Logo preview" class="h-14 w-14 rounded-lg border border-border object-cover">
                         @elseif ($this->existingLogoUrl())
                             <img src="{{ $this->existingLogoUrl() }}" alt="Company logo" class="h-14 w-14 rounded-lg border border-border object-cover">

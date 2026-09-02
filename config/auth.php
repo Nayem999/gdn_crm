@@ -114,4 +114,18 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | User Invitations
+    |--------------------------------------------------------------------------
+    |
+    | How long an emailed invitation link stays usable. Re-inviting the same
+    | address replaces the outstanding invitation and restarts this window.
+    |
+    */
+
+    'invitations' => [
+        'expire_days' => env('AUTH_INVITATION_EXPIRE_DAYS', 7),
+    ],
+
 ];

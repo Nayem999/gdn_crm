@@ -51,10 +51,10 @@
                     x-on:click="open = ! open"
                     :aria-expanded="open"
                     aria-haspopup="menu"
-                    class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    class="flex rounded-full focus:outline-none focus:ring-2 focus:ring-accent/40"
                     aria-label="Account menu"
                 >
-                    {{ Str::of($user->name)->explode(' ')->take(2)->map(fn ($part) => Str::substr($part, 0, 1))->join('') }}
+                    <x-avatar :user="$user" size="md" />
                 </button>
 
                 <div
@@ -71,6 +71,15 @@
                     </div>
 
                     <a
+                        href="{{ route('profile') }}"
+                        role="menuitem"
+                        class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
+                    >
+                        <x-lucide-user class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                        My profile
+                    </a>
+
+                    <a
                         href="{{ route('settings.company') }}"
                         role="menuitem"
                         class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
@@ -78,6 +87,17 @@
                         <x-lucide-building-2 class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         Company profile
                     </a>
+
+                    @can('viewAny', App\Models\User::class)
+                        <a
+                            href="{{ route('settings.users') }}"
+                            role="menuitem"
+                            class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                            <x-lucide-users class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            Users
+                        </a>
+                    @endcan
 
                     <form method="POST" action="{{ route('logout') }}" class="border-t border-border">
                         @csrf

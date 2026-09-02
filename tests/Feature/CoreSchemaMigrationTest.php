@@ -27,15 +27,21 @@ test('the core schema migrations roll back cleanly and re-migrate cleanly', func
         '2026_08_20_105235_create_settings_table.php',
     ])->map(fn (string $file) => require database_path("migrations/{$file}"));
 
-    $migrations->reverse()->each->down();
+    // Later migrations (user_invitations, ...) hold foreign keys into teams and
+    // roles. A real rollback would unwind those first; this test exercises just
+    // these five, so constraints are suspended rather than enumerating every
+    // future dependent table here.
+    Schema::withoutForeignKeyConstraints(function () use ($migrations) {
+        $migrations->reverse()->each->down();
 
-    expect(Schema::hasTable('settings'))->toBeFalse()
-        ->and(Schema::hasTable('team_user'))->toBeFalse()
-        ->and(Schema::hasTable('teams'))->toBeFalse()
-        ->and(Schema::hasColumn('users', 'current_team_id'))->toBeFalse()
-        ->and(Schema::hasColumn('roles', 'data_access_level'))->toBeFalse();
+        expect(Schema::hasTable('settings'))->toBeFalse()
+            ->and(Schema::hasTable('team_user'))->toBeFalse()
+            ->and(Schema::hasTable('teams'))->toBeFalse()
+            ->and(Schema::hasColumn('users', 'current_team_id'))->toBeFalse()
+            ->and(Schema::hasColumn('roles', 'data_access_level'))->toBeFalse();
 
-    $migrations->each->up();
+        $migrations->each->up();
+    });
 
     expect(Schema::hasTable('settings'))->toBeTrue()
         ->and(Schema::hasTable('team_user'))->toBeTrue()

@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
+use App\Domain\Teams\Policies\TeamPolicy;
 use App\Domain\Users\Policies\UserPolicy;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Event;
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Team::class, TeamPolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

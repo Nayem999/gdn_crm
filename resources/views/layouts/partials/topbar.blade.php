@@ -99,6 +99,17 @@
                         </a>
                     @endcan
 
+                    @can('viewAny', App\Models\Team::class)
+                        <a
+                            href="{{ route('settings.teams') }}"
+                            role="menuitem"
+                            class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                            <x-lucide-network class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            Teams
+                        </a>
+                    @endcan
+
                     <form method="POST" action="{{ route('logout') }}" class="border-t border-border">
                         @csrf
                         <button

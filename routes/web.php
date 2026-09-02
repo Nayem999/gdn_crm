@@ -2,6 +2,8 @@
 
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Profile\ProfileForm;
+use App\Livewire\Roles\RoleForm;
+use App\Livewire\Roles\RolesIndex;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
 use App\Livewire\Users\AcceptInvitation;
@@ -31,4 +33,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/teams', TeamsIndex::class)->name('settings.teams');
     Route::get('/settings/teams/create', TeamForm::class)->name('settings.teams.create');
     Route::get('/settings/teams/{team}/edit', TeamForm::class)->name('settings.teams.edit');
+
+    Route::get('/settings/roles', RolesIndex::class)->name('settings.roles');
+    Route::get('/settings/roles/create', RoleForm::class)->name('settings.roles.create');
+    Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 });

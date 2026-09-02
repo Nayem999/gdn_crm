@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Access\Policies\RolePolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
+        // Super Admin gets its way by holding every permission (kept in sync by
+        // RolesAndPermissionsSeeder) rather than a Gate::before bypass, so
+        // business rules such as "you cannot delete your own account" still hold.
+        Gate::policy(Role::class, RolePolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

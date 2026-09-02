@@ -110,6 +110,17 @@
                         </a>
                     @endcan
 
+                    @can('viewAny', Spatie\Permission\Models\Role::class)
+                        <a
+                            href="{{ route('settings.roles') }}"
+                            role="menuitem"
+                            class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                            <x-lucide-shield-check class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            Roles &amp; permissions
+                        </a>
+                    @endcan
+
                     <form method="POST" action="{{ route('logout') }}" class="border-t border-border">
                         @csrf
                         <button

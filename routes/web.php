@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Profile\ProfileForm;
 use App\Livewire\Roles\RoleForm;
@@ -37,4 +38,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles', RolesIndex::class)->name('settings.roles');
     Route::get('/settings/roles/create', RoleForm::class)->name('settings.roles.create');
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
+
+    Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
 });

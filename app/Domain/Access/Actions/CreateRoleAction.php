@@ -3,7 +3,9 @@
 namespace App\Domain\Access\Actions;
 
 use App\Domain\Access\DTOs\RoleData;
+use App\Domain\Access\PermissionCatalogue;
 use App\Domain\Access\PermissionResolver;
+use App\Domain\Audit\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Guard;
 use Spatie\Permission\Models\Role;
@@ -27,6 +29,12 @@ class CreateRoleAction
             $role->syncPermissions(PermissionResolver::models($data->permissions));
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            AuditLogger::created($role, 'Role', [
+                'name' => $role->name,
+                'data_access_level' => $data->dataAccessLevel->value,
+                'permissions' => PermissionCatalogue::only($data->permissions),
+            ]);
 
             return $role;
         });

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\Access\Policies\RolePolicy;
+use App\Domain\Audit\Policies\ActivityPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         // RolesAndPermissionsSeeder) rather than a Gate::before bypass, so
         // business rules such as "you cannot delete your own account" still hold.
         Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Activity::class, ActivityPolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

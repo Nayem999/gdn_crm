@@ -62,6 +62,13 @@ final class PermissionCatalogue
                     'roles.delete' => 'Remove roles',
                 ],
             ],
+            'audit' => [
+                'label' => 'Audit log',
+                'icon' => 'scroll-text',
+                'permissions' => [
+                    'audit.view' => 'View the audit log',
+                ],
+            ],
         ];
     }
 

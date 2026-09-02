@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Auth\Models\LoginHistory;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements HasMedia
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, InteractsWithMedia, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, InteractsWithMedia, Notifiable, RecordsActivity, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -88,6 +89,17 @@ class User extends Authenticatable implements HasMedia
     public function loginHistories(): HasMany
     {
         return $this->hasMany(LoginHistory::class)->latest();
+    }
+
+    /**
+     * Deliberately excludes password, remember_token and the two_factor_*
+     * columns — an audit trail must never carry credentials.
+     *
+     * @return list<string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['name', 'email', 'current_team_id', 'email_verified_at'];
     }
 
     public function registerMediaCollections(): void

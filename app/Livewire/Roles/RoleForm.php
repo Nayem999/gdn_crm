@@ -36,7 +36,7 @@ class RoleForm extends Component
             $this->authorize('update', $this->role);
 
             $this->name = $this->role->name;
-            $this->dataAccessLevel = (string) ($this->role->data_access_level ?? DataAccessLevel::Own->value);
+            $this->dataAccessLevel = (string) ($this->role->getAttribute('data_access_level') ?? DataAccessLevel::Own->value);
             $this->permissions = $this->role->permissions->pluck('name')->all();
 
             return;

@@ -30,7 +30,9 @@ return [
     /*
      * If set to true, the subject returns soft deleted models.
      */
-    'subject_returns_soft_deleted_models' => false,
+    // An audit trail must still resolve the record it refers to after a soft
+    // delete, which users now are.
+    'subject_returns_soft_deleted_models' => true,
 
     /*
      * This model will be used to log activity.

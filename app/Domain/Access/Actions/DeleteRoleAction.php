@@ -3,6 +3,7 @@
 namespace App\Domain\Access\Actions;
 
 use App\Domain\Access\PermissionCatalogue;
+use App\Domain\Audit\AuditLogger;
 use RuntimeException;
 use Spatie\Permission\Models\Role;
 
@@ -27,6 +28,14 @@ class DeleteRoleAction
                 'This role is still assigned to '.$assigned.' '.str('user')->plural($assigned).'. Reassign them first.'
             );
         }
+
+        // Logged before the row disappears, so the entry still carries what was
+        // removed even though the subject no longer resolves.
+        AuditLogger::deleted($role, 'Role', [
+            'name' => $role->name,
+            'data_access_level' => (string) $role->getAttribute('data_access_level'),
+            'permissions' => $role->permissions->pluck('name')->sort()->values()->all(),
+        ]);
 
         $role->delete();
     }

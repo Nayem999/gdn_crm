@@ -2,6 +2,7 @@
 
 namespace App\Domain\Company\Models;
 
+use App\Domain\Audit\Concerns\RecordsActivity;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class Company extends Model implements HasMedia
 {
     /** @use HasFactory<CompanyFactory> */
-    use HasFactory, InteractsWithMedia;
+    use HasFactory, InteractsWithMedia, RecordsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +37,14 @@ class Company extends Model implements HasMedia
         return [
             'fiscal_year_start_month' => 'integer',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityAttributes(): array
+    {
+        return $this->fillable;
     }
 
     /**

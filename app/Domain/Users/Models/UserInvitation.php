@@ -2,6 +2,7 @@
 
 namespace App\Domain\Users\Models;
 
+use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Models\Team;
 use App\Models\User;
 use Database\Factories\UserInvitationFactory;
@@ -25,7 +26,7 @@ use Spatie\Permission\Models\Role;
 class UserInvitation extends Model
 {
     /** @use HasFactory<UserInvitationFactory> */
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -58,6 +59,16 @@ class UserInvitation extends Model
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The token is a credential, so it never reaches the audit trail.
+     *
+     * @return list<string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['email', 'name', 'role_id', 'team_id', 'invited_by', 'expires_at', 'accepted_at'];
     }
 
     /**

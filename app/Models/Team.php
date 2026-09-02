@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Audit\Concerns\RecordsActivity;
 use Database\Factories\TeamFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +20,7 @@ use Illuminate\Support\Collection;
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +32,14 @@ class Team extends Model
         'name',
         'description',
     ];
+
+    /**
+     * @return list<string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['name', 'description', 'parent_id'];
+    }
 
     /**
      * @return BelongsTo<Team, $this>

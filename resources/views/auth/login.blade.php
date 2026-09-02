@@ -28,10 +28,9 @@
 
         <div>
             <x-form.label for="password" required>Password</x-form.label>
-            <x-form.input
+            <x-form.password
                 id="password"
                 name="password"
-                type="password"
                 :invalid="$errors->has('password')"
                 autocomplete="current-password"
                 required

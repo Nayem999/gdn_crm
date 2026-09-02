@@ -32,10 +32,9 @@
 
         <div>
             <x-form.label for="password" required>Password</x-form.label>
-            <x-form.input
+            <x-form.password
                 id="password"
                 name="password"
-                type="password"
                 :invalid="$errors->has('password')"
                 autocomplete="new-password"
                 required
@@ -46,10 +45,9 @@
 
         <div>
             <x-form.label for="password_confirmation" required>Confirm password</x-form.label>
-            <x-form.input
+            <x-form.password
                 id="password_confirmation"
                 name="password_confirmation"
-                type="password"
                 :invalid="$errors->has('password_confirmation')"
                 autocomplete="new-password"
                 required

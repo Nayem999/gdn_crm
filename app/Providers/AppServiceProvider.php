@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,5 +26,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Company::class, CompanyPolicy::class);
+
+        Event::subscribe(RecordLoginHistory::class);
+
+        // Models live under app/Domain/{Module}/Models, which Laravel's default
+        // resolver would map to Database\Factories\Domain\{Module}\Models\...
+        // All factories live flat in Database\Factories instead.
+        Factory::guessFactoryNamesUsing(
+            fn (string $modelName) => 'Database\\Factories\\'.class_basename($modelName).'Factory'
+        );
     }
 }

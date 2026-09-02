@@ -43,8 +43,55 @@
             <x-lucide-bell class="h-5 w-5" aria-hidden="true" />
         </button>
 
-        <div class="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
-            {{ Str::of(auth()->user()->name ?? 'Guest')->explode(' ')->map(fn ($part) => Str::substr($part, 0, 1))->join('') }}
-        </div>
+        @auth
+            @php($user = auth()->user())
+            <div class="relative ml-1" x-data="{ open: false }" x-on:keydown.escape="open = false">
+                <button
+                    type="button"
+                    x-on:click="open = ! open"
+                    :aria-expanded="open"
+                    aria-haspopup="menu"
+                    class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    aria-label="Account menu"
+                >
+                    {{ Str::of($user->name)->explode(' ')->take(2)->map(fn ($part) => Str::substr($part, 0, 1))->join('') }}
+                </button>
+
+                <div
+                    x-show="open"
+                    x-cloak
+                    x-transition
+                    x-on:click.outside="open = false"
+                    role="menu"
+                    class="absolute right-0 z-40 mt-2 w-60 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+                >
+                    <div class="border-b border-border px-4 py-3">
+                        <p class="truncate text-sm font-semibold text-card-foreground">{{ $user->name }}</p>
+                        <p class="truncate text-xs text-muted-foreground">{{ $user->email }}</p>
+                    </div>
+
+                    <a
+                        href="{{ route('settings.company') }}"
+                        role="menuitem"
+                        class="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
+                    >
+                        <x-lucide-building-2 class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                        Company profile
+                    </a>
+
+                    <form method="POST" action="{{ route('logout') }}" class="border-t border-border">
+                        @csrf
+                        <button
+                            type="submit"
+                            role="menuitem"
+                            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-foreground hover:bg-muted"
+                        >
+                            <x-lucide-log-out class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            Sign out
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endauth
     </div>
 </header>

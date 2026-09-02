@@ -54,8 +54,12 @@
 
     <div class="border-t border-sidebar-border px-3 py-4">
         <a
-            href="#"
-            class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-active hover:text-white"
+            href="{{ route('settings.company') }}"
+            @class([
+                'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-active hover:text-white',
+                'bg-sidebar-active text-white' => request()->routeIs('settings.*'),
+                'text-sidebar-foreground' => ! request()->routeIs('settings.*'),
+            ])
         >
             <x-lucide-settings class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
             Settings

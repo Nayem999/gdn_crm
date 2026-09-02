@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'home' => '/home',
+    'home' => '/',
 
     /*
     |--------------------------------------------------------------------------
@@ -112,12 +112,19 @@ return [
     | every email and IP address combination. However, if you would like to
     | specify a custom rate limiter to call then you may specify it here.
     |
+    | `login` is deliberately null. Naming a limiter here makes Fortify throttle
+    | the login route with the `throttle` middleware, which aborts with a bare
+    | 429 and never fires `Illuminate\Auth\Events\Lockout`. Leaving it null
+    | routes throttling through Fortify's own EnsureLoginIsNotThrottled pipe
+    | instead, which still caps attempts at five per minute per email + IP but
+    | reports the failure inline on the login form and fires `Lockout` so it
+    | lands in the login history audit trail.
+    |
     */
 
     'limiters' => [
-        'login' => 'login',
+        'login' => null,
         'two-factor' => 'two-factor',
-        'passkeys' => 'passkeys',
     ],
 
     /*
@@ -172,9 +179,12 @@ return [
             'confirmPassword' => true,
             // 'window' => 0,
         ]),
-        Features::passkeys([
-            'confirmPassword' => true,
-        ]),
+        // Passkeys ship enabled by default in Fortify but are not part of this
+        // project's auth spec. Re-publish Fortify's migrations to get the
+        // `passkeys` table back if this is ever enabled.
+        // Features::passkeys([
+        //     'confirmPassword' => true,
+        // ]),
     ],
 
 ];

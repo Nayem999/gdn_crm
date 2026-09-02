@@ -3,18 +3,21 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Domain\Auth\Models\LoginHistory;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +39,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -69,5 +74,15 @@ class User extends Authenticatable
     public function teams(): BelongsToMany
     {
         return $this->belongsToMany(Team::class);
+    }
+
+    /**
+     * Sign-in, sign-out, failed attempt and lockout audit trail for this user.
+     *
+     * @return HasMany<LoginHistory, $this>
+     */
+    public function loginHistories(): HasMany
+    {
+        return $this->hasMany(LoginHistory::class)->latest();
     }
 }

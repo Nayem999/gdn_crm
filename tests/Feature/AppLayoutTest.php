@@ -1,5 +1,13 @@
 <?php
 
+use App\Models\User;
+
+// The dashboard sits behind `auth` as of task 1.2, so the shell is only
+// reachable as a signed-in user.
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
+
 test('the dashboard renders the app shell with sidebar and topbar', function () {
     $response = $this->get('/');
 

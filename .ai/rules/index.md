@@ -13,6 +13,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Domain/*/Models/*.php | .ai/rules/models.md |
 | app/Domain/*/Policies/*.php | .ai/rules/policies.md |
+| app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |
 | resources/views/livewire/** | .ai/rules/views-livewire.md |
 | resources/views/** | .ai/rules/views.md |

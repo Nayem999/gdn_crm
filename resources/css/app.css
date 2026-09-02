@@ -120,6 +120,14 @@
     [x-cloak] {
         display: none !important;
     }
+
+    /* Edge/IE draw their own reveal + clear buttons inside password and search
+       inputs, which land on top of our <x-form.password> toggle and swallow the
+       click. Hide them so the custom control is the only one. */
+    input::-ms-reveal,
+    input::-ms-clear {
+        display: none;
+    }
 }
 
 .ts-wrapper .ts-control {

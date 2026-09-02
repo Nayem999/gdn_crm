@@ -6,10 +6,18 @@ test('the password field renders a masked input with a visibility toggle', funct
     $view = $this->blade('<x-form.password id="password" name="password" />');
 
     $view->assertSee('type="password"', escape: false)
-        // Alpine flips the input between password and text on click.
-        ->assertSee('x-bind:type="show ? \'text\' : \'password\'"', escape: false)
         ->assertSee('x-data="{ show: false }"', escape: false)
-        ->assertSee('aria-label="Show password"', escape: false);
+        ->assertSee('aria-label="Show password"', escape: false)
+        // The handler assigns the type on the element directly, so revealing the
+        // password never waits on Alpine flushing an attribute binding.
+        ->assertSee('x-ref="input"', escape: false)
+        ->assertSee("\$refs.input.type = show ? 'text' : 'password'", escape: false);
+});
+
+test('the toggle icons do not swallow the click meant for the button', function () {
+    // Without pointer-events-none the click target is the svg, not the button.
+    $this->blade('<x-form.password id="password" name="password" />')
+        ->assertSee('pointer-events-none', escape: false);
 });
 
 test('the password field forwards attributes to the underlying input', function () {

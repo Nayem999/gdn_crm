@@ -5,8 +5,12 @@ namespace App\Livewire\Leads;
 use App\Domain\Leads\Actions\AssignLeadAction;
 use App\Domain\Leads\Actions\ChangeLeadStatusAction;
 use App\Domain\Leads\Actions\DeleteLeadAction;
+use App\Domain\Leads\DTOs\LeadScore;
+use App\Domain\Leads\DTOs\QualificationCheck;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Services\LeadQualification;
+use App\Domain\Leads\Services\LeadScoring;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -53,6 +57,20 @@ class LeadShow extends Component
     public function availableTransitions(): array
     {
         return $this->lead()->allowedTransitions();
+    }
+
+    /**
+     * The score with the rules that produced it, so a number on the page is
+     * never left unexplained.
+     */
+    public function scoreBreakdown(): LeadScore
+    {
+        return app(LeadScoring::class)->scoreFor($this->lead());
+    }
+
+    public function qualification(): QualificationCheck
+    {
+        return app(LeadQualification::class)->for($this->lead());
     }
 
     public function changeStatus(string $value): void
@@ -136,6 +154,8 @@ class LeadShow extends Component
             'lead' => $lead,
             'transitions' => $this->availableTransitions(),
             'owners' => $this->ownerOptions(),
+            'breakdown' => $this->scoreBreakdown(),
+            'qualification' => $this->qualification(),
         ])->title($lead->fullName());
     }
 }

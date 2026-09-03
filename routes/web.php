@@ -10,6 +10,7 @@ use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\Leads\LeadForm;
+use App\Livewire\Leads\LeadScoringRules;
 use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Notifications\NotificationLogIndex;
@@ -67,6 +68,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles', RolesIndex::class)->name('settings.roles');
     Route::get('/settings/roles/create', RoleForm::class)->name('settings.roles.create');
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
+
+    Route::get('/settings/lead-scoring', LeadScoringRules::class)->name('settings.lead-scoring');
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
 

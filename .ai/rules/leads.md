@@ -2,6 +2,8 @@
 paths:
   - 'app/Domain/Leads/**'
   - 'app/Livewire/Leads/**'
+  - 'app/Jobs/RescoreLeads.php'
+  - 'database/seeders/LeadScoringRulesSeeder.php'
   - 'resources/views/livewire/leads/**'
 ---
 
@@ -53,3 +55,60 @@ neither cannot be followed up.
 `dataViewKanbanField()` is `status` and `dataViewKanbanSumField()` is
 `estimated_value`, which is what drove the per-column counting and lazy loading
 in the shared kit — see the kanban section of .ai/rules/data-view.md.
+
+## Scoring and qualification are the filter engine, not a second evaluator
+A `LeadScoringRule` is one `FilterCondition` plus a meaning: points (kind
+`score`) or a requirement for qualifying (kind `qualification`). Rules are
+evaluated by handing the condition to `FilterApplier` against a `Lead` query —
+`LeadRuleMatcher` is the only place that happens.
+
+Evaluating in SQL rather than in PHP is deliberate. It means a rule saying
+"estimated value is at least 5000" matches exactly the leads the filter chip
+with the same condition returns, including the awkward parts: NULL-aware
+negation, collation-driven case handling, date boundaries. Do not add an
+in-memory evaluator "for speed" — there is a test asserting the two agree, and
+a second implementation is a second set of edge cases.
+
+`LeadRuleMatcher` never applies `visibleTo()`. A score belongs to the lead, not
+to whoever is looking at it.
+
+A rule whose field is no longer in `LeadFields::filters()`, or which lacks the
+value its operator needs, matches **nothing** (`isUsable()` is false). It must
+never fall through to matching everything.
+
+## Scores are written by the query builder, never the model
+`ScoreLeadsAction` updates through `toBase()`, so a rescore of the whole
+database writes no audit entries and does not bump `updated_at`. `score` is also
+absent from `Lead::$fillable` and from `activityAttributes()`: it is derived from
+the rules, and the rules are what gets audited. Bulk scoring costs one query per
+rule plus one id sweep — never one round trip per lead.
+
+Rescoring happens after every write that could change a scoring input:
+`CreateLeadAction`, `UpdateLeadAction` and both paths of
+`ChangeLeadStatusAction` (status is itself a field a rule may read).
+
+## Qualification defaults to open, and gates only the qualifying move
+With no active `qualification` rules, `QualificationCheck::passes()` is true and
+`ChangeLeadStatusAction` behaves exactly as it did before task 2.4. That is why
+the seeder installs scoring rules but no requirements — gating the pipeline is
+an opt-in decision, not a default that silently blocks a fresh installation.
+
+A minimum score is expressed as an ordinary requirement on the `score` field, so
+there is no special case for it. `guardQualification()` rescores before checking
+precisely so that requirement is judged on a fresh score. A **scoring** rule may
+not read `score` (`LeadFields::SCORE`) — that would define the score in terms of
+itself, and `SaveLeadScoringRulesAction` drops such a row.
+
+Status is a scoring input, so a rule listing only the earlier statuses would
+penalise progress. The seeded "somebody has already worked it" rule therefore
+includes Qualified.
+
+## x-select behind wire:ignore needs a wire:key that tracks its options
+On the scoring screen the Comparison dropdown's options depend on the chosen
+field. `<x-select>` wraps Tom Select in `wire:ignore`, so a re-render cannot
+update those options in place — the dropdown kept the previous field type's
+comparisons and lost its selection. The fix is a `wire:key` on the wrapping div
+that includes the field (and, for the value picker, the operator), so Livewire
+replaces the node and Tom Select rebuilds. Any dependent `<x-select>` added
+later needs the same treatment; tests can only assert the key is present and
+changes, because the staleness itself is client-side.

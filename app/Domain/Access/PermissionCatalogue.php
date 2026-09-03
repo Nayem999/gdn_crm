@@ -83,6 +83,9 @@ final class PermissionCatalogue
                     'leads.assign' => 'Hand a lead to someone else',
                     'leads.delete' => 'Remove leads',
                     'leads.export' => 'Export leads',
+                    // Configuring how every lead is scored is administration,
+                    // not lead work, so it stands apart from leads.update.
+                    'leads.scoring' => 'Configure lead scoring and qualification rules',
                 ],
             ],
             'contacts' => [

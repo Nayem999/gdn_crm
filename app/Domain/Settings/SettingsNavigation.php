@@ -55,6 +55,12 @@ final class SettingsNavigation
                 ],
             ],
             [
+                'label' => 'Modules',
+                'items' => [
+                    ['label' => 'Lead scoring', 'icon' => 'gauge', 'route' => 'settings.lead-scoring', 'params' => [], 'permission' => 'leads.scoring'],
+                ],
+            ],
+            [
                 'label' => 'System',
                 'items' => [
                     ['label' => 'Notification rules', 'icon' => 'bell-ring', 'route' => 'settings.notifications', 'params' => [], 'permission' => 'notifications.view'],

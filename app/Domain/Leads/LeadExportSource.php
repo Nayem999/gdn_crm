@@ -61,6 +61,8 @@ class LeadExportSource implements DataViewExportSource
             'source' => $record->source()?->label(),
             'owner' => $record->owner?->name,
             'days_in_status' => $record->daysInStatus(),
+            // The number on its own says little outside the app.
+            'score' => $record->score.' ('.$record->grade()->label().')',
             'created_at' => $record->created_at?->format('Y-m-d'),
             default => $record->getAttribute($key),
         }, $request->columnKeys());

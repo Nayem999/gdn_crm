@@ -14,7 +14,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | database/factories/** | .ai/rules/factories.md |
 | * | .ai/rules/general.md |
 | resources/views/components/layouts/** | .ai/rules/layouts.md |
-| app/Domain/Leads/**, app/Livewire/Leads/** | .ai/rules/leads.md |
+| app/Domain/Leads/**, app/Livewire/Leads/**, app/Jobs/RescoreLeads.php | .ai/rules/leads.md |
 | app/Livewire/** | .ai/rules/livewire.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Domain/*/Models/*.php | .ai/rules/models.md |

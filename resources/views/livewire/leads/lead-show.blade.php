@@ -45,6 +45,10 @@
                         <x-status-chip :color="$lead->source()->color()">{{ $lead->source()->label() }}</x-status-chip>
                     @endif
 
+                    <x-status-chip :color="$lead->grade()->color()" dot>
+                        Score {{ $lead->score }} &middot; {{ $lead->grade()->label() }}
+                    </x-status-chip>
+
                     <span class="text-xs text-muted-foreground">
                         {{ $lead->daysInStatus() }} {{ Str::plural('day', $lead->daysInStatus()) }} in this status
                     </span>
@@ -98,6 +102,28 @@
                         <p class="mt-1 text-sm text-muted-foreground">
                             From <strong>{{ $lead->status()->label() }}</strong>, these are the moves available.
                         </p>
+
+                        @if ($qualification->requirements !== [])
+                            <div class="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Before qualifying
+                                </p>
+
+                                <ul class="mt-2 space-y-1">
+                                    @foreach ($qualification->requirements as $requirement)
+                                        <li class="flex items-start gap-2 text-sm">
+                                            @if ($requirement['met'])
+                                                <x-icon name="lucide-circle-check" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                <span class="text-foreground">{{ $requirement['label'] }}</span>
+                                            @else
+                                                <x-icon name="lucide-circle" class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                                <span class="text-muted-foreground">{{ $requirement['label'] }}</span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             @foreach ($transitions as $target)
@@ -232,6 +258,43 @@
                         </x-button>
                     </div>
                 @endcan
+            </section>
+            <section class="rounded-xl border border-border bg-card p-5">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-semibold text-foreground">Score</h2>
+                    <x-status-chip :color="$lead->grade()->color()" dot>{{ $lead->grade()->label() }}</x-status-chip>
+                </div>
+
+                <p class="mt-2 text-3xl font-semibold text-foreground">{{ $lead->score }}<span class="text-base text-muted-foreground">/100</span></p>
+
+                @if ($breakdown->matched === [])
+                    <p class="mt-2 text-sm text-muted-foreground">
+                        No scoring rule matched this lead.
+                    </p>
+                @else
+                    <ul class="mt-3 space-y-1.5">
+                        @foreach ($breakdown->matched as $rule)
+                            <li class="flex items-start justify-between gap-3 text-sm">
+                                <span class="text-muted-foreground">{{ $rule['label'] }}</span>
+                                <span class="shrink-0 font-medium {{ $rule['points'] < 0 ? 'text-destructive' : 'text-foreground' }}">
+                                    {{ $rule['points'] > 0 ? '+' : '' }}{{ $rule['points'] }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+
+                    @if ($breakdown->wasClamped())
+                        <p class="mt-2 text-xs text-muted-foreground">
+                            The rules total {{ $breakdown->points }}, held to {{ $breakdown->score }}.
+                        </p>
+                    @endif
+                @endif
+
+                @if ($lead->scored_at)
+                    <p class="mt-3 text-xs text-muted-foreground">
+                        Last scored {{ $lead->scored_at->diffForHumans() }}.
+                    </p>
+                @endif
             </section>
         </aside>
     </div>

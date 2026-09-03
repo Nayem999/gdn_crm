@@ -9,6 +9,8 @@ use App\Models\User;
 
 class CreateLeadAction
 {
+    public function __construct(private readonly ScoreLeadAction $scoreLead) {}
+
     /**
      * Capture a lead.
      *
@@ -26,6 +28,8 @@ class CreateLeadAction
         // scoping springs a leak.
         $attributes['owner_id'] = $data->ownerId ?? $actor->id;
 
-        return Lead::create($attributes);
+        $lead = Lead::create($attributes);
+
+        return ($this->scoreLead)($lead);
     }
 }

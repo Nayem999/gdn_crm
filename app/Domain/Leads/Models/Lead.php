@@ -3,6 +3,7 @@
 namespace App\Domain\Leads\Models;
 
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Leads\Enums\LeadGrade;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
@@ -36,6 +37,8 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property string|null $source
  * @property string|null $estimated_value
+ * @property int $score
+ * @property Carbon|null $scored_at
  * @property string|null $description
  * @property Carbon|null $status_changed_at
  * @property int $owner_id
@@ -79,13 +82,19 @@ class Lead extends Model
     {
         return [
             'estimated_value' => 'decimal:2',
+            'score' => 'integer',
             'status_changed_at' => 'datetime',
+            'scored_at' => 'datetime',
         ];
     }
 
     /**
      * An explicit allowlist, never logAll(). Status is here on purpose: the
      * trail is where "who moved this and when" is answered.
+     *
+     * `score` is deliberately absent. It is derived from the scoring rules, not
+     * decided by a person, and a rescore of the database would otherwise write
+     * one entry per lead. The rules themselves are what gets audited.
      *
      * @return array<int, string>
      */
@@ -132,6 +141,11 @@ class Lead extends Model
     public function source(): ?LeadSource
     {
         return $this->source === null ? null : LeadSource::tryFrom($this->source);
+    }
+
+    public function grade(): LeadGrade
+    {
+        return LeadGrade::forScore($this->score);
     }
 
     /**

@@ -16,6 +16,15 @@ use App\Domain\Shared\Filters\FilterField;
 final class LeadFields
 {
     /**
+     * The computed score, as a field key.
+     *
+     * A qualification requirement may read it ("score is at least 50"), but a
+     * scoring rule may not: a rule that scored on the score would define the
+     * score in terms of itself.
+     */
+    public const SCORE = 'score';
+
+    /**
      * @return array<int, Column>
      */
     public static function columns(): array
@@ -27,6 +36,7 @@ final class LeadFields
             Column::make('status', 'Status'),
             Column::make('source', 'Source'),
             new Column('estimated_value', 'Estimated value', numeric: true),
+            new Column('score', 'Score', numeric: true),
             Column::make('email', 'Email'),
             Column::make('phone', 'Phone'),
             new Column('owner', 'Owner', sortable: false),
@@ -50,6 +60,7 @@ final class LeadFields
             FilterField::select('status', 'Status', LeadStatus::options()),
             FilterField::select('source', 'Source', LeadSource::options()),
             FilterField::number('estimated_value', 'Estimated value'),
+            FilterField::number('score', 'Score'),
             FilterField::text('email', 'Email'),
             FilterField::text('phone', 'Phone'),
             FilterField::text('job_title', 'Job title'),

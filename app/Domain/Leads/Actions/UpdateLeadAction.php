@@ -7,6 +7,8 @@ use App\Domain\Leads\Models\Lead;
 
 class UpdateLeadAction
 {
+    public function __construct(private readonly ScoreLeadAction $scoreLead) {}
+
     /**
      * Update a lead's details.
      *
@@ -25,6 +27,7 @@ class UpdateLeadAction
 
         $lead->update($attributes);
 
-        return $lead->refresh();
+        // The edit may have changed something a scoring rule reads.
+        return ($this->scoreLead)($lead);
     }
 }

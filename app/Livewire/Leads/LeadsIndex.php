@@ -173,6 +173,10 @@ class LeadsIndex extends Component
                 ),
             'owner' => $record->owner === null ? $this->blank() : $record->owner->name,
             'days_in_status' => (string) $record->daysInStatus(),
+            'score' => new HtmlString(ChipPalette::chip(
+                $record->score.' · '.$record->grade()->label(),
+                $record->grade()->color()
+            )),
             default => $this->defaultCellFor($record, $column),
         };
     }

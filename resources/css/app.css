@@ -156,3 +156,89 @@
 .ts-control input {
     color: var(--color-foreground);
 }
+
+/* Rich option rows: a colour dot, a label and an optional second line. */
+.ts-rich {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.ts-labels {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ts-label {
+    color: var(--color-foreground);
+}
+
+.ts-description {
+    font-size: 0.75rem;
+    line-height: 1.1rem;
+    color: var(--color-muted-foreground);
+}
+
+.ts-dot {
+    margin-top: 0.4rem;
+    height: 0.5rem;
+    width: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background-color: var(--color-muted-foreground);
+}
+
+.ts-item .ts-dot {
+    margin-top: 0;
+}
+
+.ts-dot-amber { background-color: var(--color-amber-500); }
+.ts-dot-blue { background-color: var(--color-blue-500); }
+.ts-dot-indigo { background-color: var(--color-indigo-500); }
+.ts-dot-emerald { background-color: var(--color-emerald-500); }
+.ts-dot-violet { background-color: var(--color-violet-500); }
+.ts-dot-orange { background-color: var(--color-orange-500); }
+.ts-dot-cyan { background-color: var(--color-cyan-500); }
+.ts-dot-rose { background-color: var(--color-rose-500); }
+.ts-dot-teal { background-color: var(--color-teal-500); }
+.ts-dot-fuchsia { background-color: var(--color-fuchsia-500); }
+.ts-dot-slate { background-color: var(--color-slate-500); }
+
+.ts-dropdown .create,
+.ts-dropdown .no-results {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-muted-foreground);
+}
+
+/* Only the print layout survives printing; the app chrome does not. */
+@media print {
+    .print\:hidden,
+    aside,
+    header {
+        display: none !important;
+    }
+
+    main {
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    .print-sheet {
+        box-shadow: none !important;
+        border: 0 !important;
+    }
+
+    table {
+        page-break-inside: auto;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tr {
+        page-break-inside: avoid;
+    }
+}

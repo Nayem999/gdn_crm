@@ -44,25 +44,34 @@ test('the sidebar lists every core module with an icon', function () {
     $response->assertSuccessful();
 
     // Modules whose phase has not landed are inert placeholders, not links.
-    foreach (['Leads', 'Contacts', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
+    foreach (['Leads', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
         $response->assertSee($module);
     }
 
     $response->assertSee('aria-disabled="true"', false);
 });
 
-test('a module with a route is only offered to someone who may open it', function () {
-    // Task 2.1: Accounts is the first module with a real screen, and it is
-    // permission-gated the same way Settings is.
-    $this->get('/')->assertSuccessful()->assertDontSee('Accounts');
+/**
+ * A module with a real screen is offered only to someone who may open it — the
+ * same rule the Settings link follows. Add a row here as each module lands.
+ */
+test('a module with a route is only offered to someone who may open it', function (
+    string $label,
+    string $permission,
+    string $route,
+) {
+    $this->get('/')->assertSuccessful()->assertDontSee($label);
 
-    $this->actingAs(settingsAwareUser('accounts.view'));
+    $this->actingAs(settingsAwareUser($permission));
 
     $this->get('/')
         ->assertSuccessful()
-        ->assertSee('Accounts')
-        ->assertSee(route('accounts.index'), false);
-});
+        ->assertSee($label)
+        ->assertSee(route($route), false);
+})->with([
+    'accounts' => ['Accounts', 'accounts.view', 'accounts.index'],
+    'contacts' => ['Contacts', 'contacts.view', 'contacts.index'],
+]);
 
 test('the sidebar offers Settings only to someone who can open something there', function () {
     // Task 1.8: the link used to point at Company for everyone, which meant a

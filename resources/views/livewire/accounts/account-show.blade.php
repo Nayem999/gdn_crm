@@ -121,6 +121,60 @@
             </section>
 
             <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="text-base font-semibold text-foreground">Contacts</h2>
+
+                    <div class="flex items-center gap-3">
+                        @if ($contacts->isNotEmpty())
+                            <a href="{{ route('contacts.index', ['account' => $account->id]) }}" wire:navigate
+                               class="text-xs font-medium text-accent hover:underline">
+                                View all {{ $contacts->count() }}
+                            </a>
+                        @endif
+
+                        @can('create', App\Domain\Contacts\Models\Contact::class)
+                            <a href="{{ route('contacts.create', ['account' => $account->id]) }}" wire:navigate
+                               class="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+                                <x-icon name="lucide-plus" class="h-3.5 w-3.5" />
+                                Add contact
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+
+                @if ($contacts->isEmpty())
+                    <p class="mt-3 text-sm text-muted-foreground">
+                        No contacts here yet. The first one added becomes the primary contact.
+                    </p>
+                @else
+                    <ul class="mt-3 divide-y divide-border">
+                        @foreach ($contacts as $contact)
+                            <li class="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                                <div class="min-w-0">
+                                    <a href="{{ route('contacts.show', $contact) }}" wire:navigate class="text-sm font-medium text-foreground hover:text-accent hover:underline">
+                                        {{ $contact->fullName() }}
+                                    </a>
+                                    @if ($contact->job_title)
+                                        <p class="truncate text-xs text-muted-foreground">{{ $contact->job_title }}</p>
+                                    @endif
+                                </div>
+
+                                <span class="flex items-center gap-2">
+                                    @if ($contact->is_primary)
+                                        <x-status-chip color="emerald" dot>Primary</x-status-chip>
+                                    @endif
+
+                                    @if ($contact->department())
+                                        <x-status-chip :color="$contact->department()->color()">{{ $contact->department()->label() }}</x-status-chip>
+                                    @endif
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </section>
+
+            <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
                 <div class="flex items-center justify-between gap-3">
                     <h2 class="text-base font-semibold text-foreground">Subsidiaries</h2>
                     <span class="text-xs text-muted-foreground">{{ $children->count() }}</span>

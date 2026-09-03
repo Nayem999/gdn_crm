@@ -4,7 +4,7 @@
     $navigation = [
         ['label' => 'Dashboard', 'icon' => 'layout-dashboard', 'route' => 'dashboard'],
         ['label' => 'Leads', 'icon' => 'target'],
-        ['label' => 'Contacts', 'icon' => 'users'],
+        ['label' => 'Contacts', 'icon' => 'contact', 'route' => 'contacts.index', 'permission' => 'contacts.view'],
         ['label' => 'Accounts', 'icon' => 'building-2', 'route' => 'accounts.index', 'permission' => 'accounts.view'],
         ['label' => 'Deals', 'icon' => 'handshake'],
         ['label' => 'Activities', 'icon' => 'calendar-clock'],

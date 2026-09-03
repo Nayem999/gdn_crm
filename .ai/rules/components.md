@@ -44,6 +44,16 @@ Livewire component, so authorization travels with the component rather than
 needing a new open endpoint. Prefer it over `search-url`; if a module does add a
 search route, that route owns its own authorization and scoping.
 
+### A search-method's parameters come from the browser
+Tom Select sends the query as `null` on a preload and on a cleared box, so a
+`string $term` parameter produces a 500 that `loadPage`'s catch turns into a
+silent "No matches found". Type them `?string $term = null, mixed $page` and
+coerce. See .ai/rules/contacts.md for the case that found this.
+
+`TomSelect.load()` takes the **query string**, never a callback. Paged loads are
+appended with `addOptions()`; `load()` routes through `setupOptions`, which
+replaces the whole list.
+
 Alpine's `tomSelectField()` lives in resources/js/app.js and dispatches a native
 `change` event so `wire:model` keeps working through Tom Select. `sortableList()`
 and `kanbanColumn()` live beside it and report back via `$wire.call()`.

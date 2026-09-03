@@ -61,5 +61,5 @@ test('every permission a policy checks is present in the catalogue', function ()
 
 test('the catalogue covers the modules built so far', function () {
     expect(array_keys(PermissionCatalogue::groups()))
-        ->toEqualCanonicalizing(['company', 'users', 'teams', 'roles', 'accounts', 'settings', 'notifications', 'audit']);
+        ->toEqualCanonicalizing(['company', 'users', 'teams', 'roles', 'accounts', 'contacts', 'settings', 'notifications', 'audit']);
 });

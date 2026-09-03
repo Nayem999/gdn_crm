@@ -73,6 +73,17 @@ final class PermissionCatalogue
                     'accounts.export' => 'Export accounts',
                 ],
             ],
+            'contacts' => [
+                'label' => 'Contacts',
+                'icon' => 'contact',
+                'permissions' => [
+                    'contacts.view' => 'View contacts',
+                    'contacts.create' => 'Create contacts',
+                    'contacts.update' => 'Update contacts',
+                    'contacts.delete' => 'Remove contacts',
+                    'contacts.export' => 'Export contacts',
+                ],
+            ],
             'settings' => [
                 'label' => 'Settings',
                 'icon' => 'settings',

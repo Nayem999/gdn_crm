@@ -6,6 +6,9 @@ use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
+use App\Livewire\Contacts\ContactForm;
+use App\Livewire\Contacts\ContactShow;
+use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -36,6 +39,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/accounts/create', AccountForm::class)->name('accounts.create');
     Route::get('/accounts/{account}', AccountShow::class)->name('accounts.show');
     Route::get('/accounts/{account}/edit', AccountForm::class)->name('accounts.edit');
+
+    Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
+    Route::get('/contacts/create', ContactForm::class)->name('contacts.create');
+    Route::get('/contacts/{contact}', ContactShow::class)->name('contacts.show');
+    Route::get('/contacts/{contact}/edit', ContactForm::class)->name('contacts.edit');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
 

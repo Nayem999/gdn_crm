@@ -4,6 +4,7 @@ namespace App\Livewire\Accounts;
 
 use App\Domain\Accounts\Actions\DeleteAccountAction;
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Contacts\Models\Contact;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
@@ -64,6 +65,25 @@ class AccountShow extends Component
             ->get();
     }
 
+    /**
+     * The people at this account, primary first.
+     *
+     * Scoped: a contact owned by someone outside the viewer's access level must
+     * not become visible just because their account is.
+     *
+     * @return Collection<int, Contact>
+     */
+    public function contacts(): Collection
+    {
+        return Contact::query()
+            ->visibleTo(auth()->user())
+            ->where('account_id', $this->accountId)
+            ->with('owner:id,name')
+            ->orderByDesc('is_primary')
+            ->orderBy('last_name')
+            ->get();
+    }
+
     public function delete(): void
     {
         $account = $this->account();
@@ -85,6 +105,7 @@ class AccountShow extends Component
             'account' => $account,
             'lineage' => $this->lineage(),
             'children' => $this->children(),
+            'contacts' => $this->contacts(),
         ])->title($account->name);
     }
 }

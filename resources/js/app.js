@@ -18,6 +18,9 @@ document.addEventListener('alpine:init', () => {
         instance: null,
         page: 1,
         exhausted: false,
+        // Our own in-flight flag: instance.loading only tracks loads Tom
+        // Select started itself, not the paged ones we drive.
+        fetching: false,
 
         init() {
             const remote = Boolean(options.searchMethod || options.searchUrl);
@@ -114,12 +117,16 @@ document.addEventListener('alpine:init', () => {
          */
         async loadPage(query, page, callback) {
             try {
+                // Tom Select hands over undefined on a preload and on an empty
+                // box; send what the server can actually type-hint.
+                const term = query ?? '';
+
                 const payload = options.searchMethod
-                    ? await this.$wire.call(options.searchMethod, query, page)
+                    ? await this.$wire.call(options.searchMethod, term, page)
                     : await fetch(
                           options.searchUrl +
                               '?q=' +
-                              encodeURIComponent(query) +
+                              encodeURIComponent(term) +
                               '&page=' +
                               page,
                           { headers: { Accept: 'application/json' } }
@@ -137,22 +144,39 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        /**
+         * Infinite scroll inside the dropdown.
+         *
+         * Deliberately not instance.load(): that takes the *query string* and
+         * replaces the whole option list through setupOptions, which would
+         * throw away page one every time page two arrived. Pages are appended
+         * with addOptions() instead.
+         */
         watchForMoreResults() {
             const dropdown = this.instance.dropdown_content;
 
             dropdown.addEventListener('scroll', () => {
-                if (this.exhausted || this.instance.loading) {
+                if (this.exhausted || this.fetching) {
                     return;
                 }
 
                 const remaining =
                     dropdown.scrollHeight - dropdown.scrollTop - dropdown.clientHeight;
 
-                if (remaining < 80) {
-                    this.instance.load((callback) =>
-                        this.loadPage(this.instance.lastValue ?? '', this.page + 1, callback)
-                    );
+                if (remaining >= 80) {
+                    return;
                 }
+
+                this.fetching = true;
+
+                this.loadPage(this.instance.lastValue ?? '', this.page + 1, (rows) => {
+                    this.fetching = false;
+
+                    if (rows && rows.length) {
+                        this.instance.addOptions(rows);
+                        this.instance.refreshOptions(false);
+                    }
+                });
             });
         },
 
@@ -177,7 +201,8 @@ document.addEventListener('alpine:init', () => {
                 this.instance.enable();
 
                 if (reload && (options.searchMethod || options.searchUrl)) {
-                    this.instance.load((callback) => this.loadPage('', 1, callback));
+                    // A string: instance.load() takes the query, not a callback.
+                    this.instance.load('');
                 }
             };
 

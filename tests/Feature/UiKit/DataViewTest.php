@@ -275,6 +275,179 @@ test('removing a condition by chip index drops just that condition', function ()
         ->assertSee('Acme Corporation');
 });
 
+// -- The filter builder uses x-select, not plain dropdowns ---------------------
+
+/**
+ * The builder rendered on its own, so a count of dropdowns is a count of the
+ * builder's dropdowns and not of whatever else the page happens to show.
+ *
+ * @param  array<int, array<string, mixed>>  $conditions
+ * @param  array<int, array<string, mixed>>  $groups
+ */
+function filterBuilderHtml(array $conditions = [], array $groups = []): string
+{
+    $fields = collect((new DataViewHarness)->dataViewFilterFields())->keyBy('key')->all();
+
+    return (string) test()->blade(
+        '<x-filter-builder :fields="$fields" :filters="$filters" :count="1" />',
+        [
+            'fields' => $fields,
+            'filters' => ['match' => 'all', 'conditions' => $conditions, 'groups' => $groups],
+        ]
+    );
+}
+
+test('every dropdown in the filter builder is the searchable select', function () {
+    $html = filterBuilderHtml([
+        ['field' => 'stage', 'operator' => 'equals', 'value' => 'won', 'second_value' => null, 'selected' => []],
+    ]);
+
+    // Each <x-select> renders exactly one native <select> for Tom Select to
+    // take over, so equal counts mean nothing is a plain dropdown. The match
+    // switch, the field, the comparison and the value make four.
+    expect(substr_count($html, '<select'))->toBe(4)
+        ->and(substr_count($html, 'tomSelectField('))->toBe(4);
+});
+
+test('a nested group adds its own match select and none of them are plain', function () {
+    $html = filterBuilderHtml(
+        [['field' => 'name', 'operator' => 'contains', 'value' => 'Acme', 'second_value' => null, 'selected' => []]],
+        [[
+            'match' => 'any',
+            'conditions' => [
+                ['field' => 'stage', 'operator' => 'equals', 'value' => 'won', 'second_value' => null, 'selected' => []],
+            ],
+            'groups' => [],
+        ]],
+    );
+
+    // Two match switches, two field and two comparison dropdowns, plus the
+    // grouped condition's value. The text condition's value is an input.
+    expect(substr_count($html, '<select'))->toBe(7)
+        ->and(substr_count($html, 'tomSelectField('))->toBe(7);
+});
+
+test('a text condition uses an input, not a dropdown, for its value', function () {
+    $html = filterBuilderHtml([
+        ['field' => 'name', 'operator' => 'contains', 'value' => null, 'second_value' => null, 'selected' => []],
+    ]);
+
+    // Match, field and comparison only: the value is free text.
+    expect(substr_count($html, 'tomSelectField('))->toBe(3)
+        ->and($html)->toContain('wire:model.live.debounce.400ms="filters.conditions.0.value"');
+});
+
+test('an operator needing no value renders no third control at all', function () {
+    $html = filterBuilderHtml([
+        ['field' => 'name', 'operator' => 'is_empty', 'value' => null, 'second_value' => null, 'selected' => []],
+    ]);
+
+    expect(substr_count($html, 'tomSelectField('))->toBe(3)
+        ->and($html)->not->toContain('filters.conditions.0.value');
+});
+
+test('a range condition renders both ends as inputs', function () {
+    $html = filterBuilderHtml([
+        ['field' => 'value', 'operator' => 'between', 'value' => '1000', 'second_value' => '9000', 'selected' => []],
+    ]);
+
+    expect($html)->toContain('wire:model.live.debounce.400ms="filters.conditions.0.value"')
+        ->and($html)->toContain('wire:model.live.debounce.400ms="filters.conditions.0.second_value"')
+        ->and(substr_count($html, 'tomSelectField('))->toBe(3);
+});
+
+test('the dropdowns carry the labels they had as plain selects', function () {
+    $html = filterBuilderHtml([
+        ['field' => 'stage', 'operator' => 'equals', 'value' => 'won', 'second_value' => null, 'selected' => []],
+    ]);
+
+    // Tom Select copies aria-label from the original select onto its own
+    // control, so passing it through keeps the controls named.
+    expect($html)->toContain('aria-label="Filter field"')
+        ->and($html)->toContain('aria-label="Filter operator"')
+        ->and($html)->toContain('aria-label="Filter value"')
+        ->and($html)->toContain('aria-label="Match all or any condition"');
+});
+
+test('the comparison dropdown is keyed on the field so Tom Select rebuilds', function () {
+    $component = Livewire::test(DataViewHarness::class)
+        ->call('addCondition')
+        ->set('filters.conditions.0.field', 'name');
+
+    // wire:ignore stops Livewire updating the options in place; changing the
+    // key is what makes it replace the node.
+    expect($component->html())->toContain('wire:key="filters.conditions.0-1-op-name"');
+
+    $component->set('filters.conditions.0.field', 'value');
+
+    expect($component->html())->toContain('wire:key="filters.conditions.0-1-op-value"')
+        ->and($component->html())->not->toContain('-op-name"');
+});
+
+test('the value area is keyed on the field and comparison, since its shape changes', function () {
+    $component = Livewire::test(DataViewHarness::class)
+        ->call('addCondition')
+        ->set('filters.conditions.0.field', 'value')
+        ->set('filters.conditions.0.operator', 'gt');
+
+    expect($component->html())->toContain('wire:key="filters.conditions.0-1-val-value-gt"');
+
+    $component->set('filters.conditions.0.operator', 'between');
+
+    expect($component->html())->toContain('wire:key="filters.conditions.0-1-val-value-between"');
+});
+
+test('editing a value does not re-key its dropdown, so the list stays open', function () {
+    // Keying a dropdown on its own selection tears the node down on every pick,
+    // which for "is any of" means reopening the list once per value.
+    $component = Livewire::test(DataViewHarness::class)
+        ->call('addCondition')
+        ->set('filters.conditions.0.field', 'stage')
+        ->set('filters.conditions.0.operator', 'in');
+
+    $before = $component->html();
+
+    $component->set('filters.conditions.0.selected', ['won', 'lost']);
+
+    expect($before)->toContain('wire:key="filters.conditions.0-1-val-stage-in"')
+        ->and($component->html())->toContain('wire:key="filters.conditions.0-1-val-stage-in"')
+        ->and($component->html())->toContain('multiple');
+});
+
+test('the match switches are keyed on their value', function () {
+    $component = Livewire::test(DataViewHarness::class)->call('addFilterGroup');
+
+    expect($component->html())->toContain('wire:key="filters-match-all"')
+        ->and($component->html())->toContain('wire:key="filters-group-0-match-any"');
+
+    $component->set('filters.match', 'any')->set('filters.groups.0.match', 'all');
+
+    expect($component->html())->toContain('wire:key="filters-match-any"')
+        ->and($component->html())->toContain('wire:key="filters-group-0-match-all"');
+});
+
+test('removing a condition re-keys the row that takes its place', function () {
+    // Rows are keyed by index, so dropping the first hands row 0's DOM to what
+    // used to be row 1. Without a key that moves, the ignored Tom Select
+    // subtree would keep showing the removed condition.
+    $component = Livewire::test(DataViewHarness::class)
+        ->call('addCondition')
+        ->set('filters.conditions.0.field', 'name')
+        ->call('addCondition')
+        ->set('filters.conditions.1.field', 'stage');
+
+    expect($component->html())->toContain('wire:key="filters.conditions.0-2-field"')
+        ->and($component->html())->toContain('wire:key="filters.conditions.1-2-field"');
+
+    $component->call('removeCondition', 0);
+
+    // The sibling count fell to one, so every remaining row is re-keyed and
+    // Tom Select rebuilds from the condition the row actually holds now.
+    expect($component->html())->toContain('wire:key="filters.conditions.0-1-field"')
+        ->and($component->html())->not->toContain('-2-field"')
+        ->and($component->instance()->filters['conditions'][0]['field'])->toBe('stage');
+});
+
 test('selecting rows drives the bulk actions bar', function () {
     $first = DataViewRecord::query()->first();
 

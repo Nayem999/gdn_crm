@@ -3,7 +3,10 @@
 @php
     use App\Domain\Shared\Filters\FilterGroup;
 
-    $joinClass = 'rounded-lg border border-border bg-background px-2 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-accent/40';
+    $matchOptions = [
+        FilterGroup::MATCH_ALL => 'all conditions',
+        FilterGroup::MATCH_ANY => 'any condition',
+    ];
 @endphp
 
 <div x-data="{ open: @js($count > 0) }" class="relative">
@@ -26,8 +29,11 @@
     <div
         x-show="open"
         x-cloak
-        x-transition.origin.top.left
-        class="absolute left-0 z-30 mt-2 w-[min(46rem,calc(100vw-2rem))] rounded-xl border border-border bg-card p-4 shadow-lg"
+        x-transition.origin.top.right
+        {{-- Anchored to the right: the toolbar sits at the right edge of the
+             list, so a left-anchored panel this wide runs off the viewport and
+             takes the remove buttons with it. --}}
+        class="absolute right-0 z-30 mt-2 w-[min(46rem,calc(100vw-2rem))] rounded-xl border border-border bg-card p-4 shadow-lg"
         role="dialog"
         aria-label="Build filters"
     >
@@ -37,10 +43,17 @@
             <div class="flex items-center gap-2">
                 <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Match</span>
 
-                <select class="{{ $joinClass }}" wire:model.live="filters.match" aria-label="Match all or any condition">
-                    <option value="{{ FilterGroup::MATCH_ALL }}">all conditions</option>
-                    <option value="{{ FilterGroup::MATCH_ANY }}">any condition</option>
-                </select>
+                {{-- Keyed on the value: Tom Select sits behind wire:ignore, so
+                     Livewire cannot move the selection for it. --}}
+                <div class="w-44" wire:key="filters-match-{{ $filters['match'] ?? FilterGroup::MATCH_ALL }}">
+                    <x-select
+                        name="filters.match"
+                        :options="$matchOptions"
+                        :selected="$filters['match'] ?? FilterGroup::MATCH_ALL"
+                        aria-label="Match all or any condition"
+                        wire:model.live="filters.match"
+                    />
+                </div>
             </div>
 
             <div class="mt-3 space-y-2">
@@ -49,6 +62,7 @@
                         <x-filter-builder.condition
                             :condition="$condition"
                             :index="$index"
+                            :siblings="count($filters['conditions'] ?? [])"
                             :fields="$fields"
                         />
                     </div>
@@ -67,14 +81,15 @@
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Group &mdash; match</span>
 
-                        <select
-                            class="{{ $joinClass }}"
-                            wire:model.live="filters.groups.{{ $groupIndex }}.match"
-                            aria-label="Match all or any condition in this group"
-                        >
-                            <option value="{{ FilterGroup::MATCH_ALL }}">all</option>
-                            <option value="{{ FilterGroup::MATCH_ANY }}">any</option>
-                        </select>
+                        <div class="w-44" wire:key="filters-group-{{ $groupIndex }}-match-{{ $group['match'] ?? FilterGroup::MATCH_ANY }}">
+                            <x-select
+                                name="filters.groups.{{ $groupIndex }}.match"
+                                :options="$matchOptions"
+                                :selected="$group['match'] ?? FilterGroup::MATCH_ANY"
+                                aria-label="Match all or any condition in this group"
+                                wire:model.live="filters.groups.{{ $groupIndex }}.match"
+                            />
+                        </div>
 
                         <button
                             type="button"
@@ -92,6 +107,7 @@
                                 <x-filter-builder.condition
                                     :condition="$condition"
                                     :index="$index"
+                                    :siblings="count($group['conditions'] ?? [])"
                                     :group-index="$groupIndex"
                                     :fields="$fields"
                                 />

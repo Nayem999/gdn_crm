@@ -63,8 +63,13 @@ test('a contact may exist with no account', function () {
 });
 
 test('search matches either name, the two together, email and phone', function () {
-    Contact::factory()->named('Dana', 'Scully')->create(['email' => 'dana@example.test', 'phone' => '0113 111']);
-    Contact::factory()->named('Fox', 'Mulder')->create(['email' => 'fox@example.test', 'phone' => '0113 222']);
+    // The job titles are pinned, not left to faker: jobTitle() can itself
+    // produce something containing "Assistant", which made the count below
+    // depend on the seed.
+    Contact::factory()->named('Dana', 'Scully')
+        ->create(['email' => 'dana@example.test', 'phone' => '0113 111', 'job_title' => 'Field Agent']);
+    Contact::factory()->named('Fox', 'Mulder')
+        ->create(['email' => 'fox@example.test', 'phone' => '0113 222', 'job_title' => 'Field Agent']);
     Contact::factory()->named('Walter', 'Skinner')->create(['job_title' => 'Assistant Director']);
 
     expect(Contact::query()->search('Dana')->count())->toBe(1)

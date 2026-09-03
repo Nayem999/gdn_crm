@@ -99,3 +99,29 @@ Implement `dataViewKanbanSumField()` to get a summed money figure in the header
 (`LeadsIndex::KANBAN_PAGE`) — PHP 8.2 forbids `WithDataView::KANBAN_PAGE`.
 
 The paginator is hidden in kanban mode; the per-column footers are the pager.
+
+## The filter builder's dropdowns are x-select, and need keys that move
+Every dropdown in `<x-filter-builder>` is `<x-select>` — the UI standard allows
+no plain `<select>` anywhere. That puts Tom Select behind `wire:ignore`, so
+Livewire can neither refresh a dropdown's options nor move its selection, and a
+`wire:key` that changes is the only thing that makes it rebuild. Two situations
+need one, and they want different keys:
+
+- **The options or the value's shape changed.** The comparison list depends on
+  the chosen field, so its key carries the field; the value area's key carries
+  field *and* operator, because the shape switches between an input, a pair of
+  inputs, a single dropdown and a multi-select.
+- **The row is holding a different condition.** Rows are keyed by index and
+  `removeCondition()` re-indexes, so row 0's DOM gets handed whatever slid into
+  index 0. The key therefore also carries a generation token — the sibling
+  condition count, passed in as `:siblings` — which changes exactly when
+  indices shift.
+
+Do **not** key a dropdown on its own selected value. It works, but it tears the
+node down on every pick, so an "is any of" list closes after each value and has
+to be reopened. The sibling count rebuilds on add/remove only, which is when a
+rebuild is actually needed.
+
+The panel is anchored `right-0`: the toolbar sits at the right edge of the list,
+and a left-anchored panel this wide runs off the viewport, taking the per-row
+remove buttons with it and forcing a page-wide horizontal scrollbar.

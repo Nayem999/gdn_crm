@@ -1,0 +1,95 @@
+<?php
+
+namespace App\Domain\Leads\DTOs;
+
+/**
+ * The fields a create or update carries, already validated.
+ */
+readonly class LeadData
+{
+    public function __construct(
+        public string $firstName,
+        public string $lastName,
+        public ?string $jobTitle = null,
+        public ?string $companyName = null,
+        public ?string $email = null,
+        public ?string $phone = null,
+        public ?string $mobile = null,
+        public ?string $website = null,
+        public ?string $addressLine1 = null,
+        public ?string $addressLine2 = null,
+        public ?string $city = null,
+        public ?string $state = null,
+        public ?string $postalCode = null,
+        public ?string $country = null,
+        public ?string $source = null,
+        public ?string $estimatedValue = null,
+        public ?string $description = null,
+        public ?int $ownerId = null,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function fromArray(array $attributes): self
+    {
+        $value = fn (string $key): ?string => match (true) {
+            ! array_key_exists($key, $attributes) => null,
+            $attributes[$key] === null || $attributes[$key] === '' => null,
+            default => (string) $attributes[$key],
+        };
+
+        return new self(
+            firstName: trim((string) ($attributes['first_name'] ?? '')),
+            lastName: trim((string) ($attributes['last_name'] ?? '')),
+            jobTitle: $value('job_title'),
+            companyName: $value('company_name'),
+            email: $value('email'),
+            phone: $value('phone'),
+            mobile: $value('mobile'),
+            website: $value('website'),
+            addressLine1: $value('address_line_1'),
+            addressLine2: $value('address_line_2'),
+            city: $value('city'),
+            state: $value('state'),
+            postalCode: $value('postal_code'),
+            country: $value('country'),
+            source: $value('source'),
+            estimatedValue: $value('estimated_value'),
+            description: $value('description'),
+            ownerId: isset($attributes['owner_id']) && $attributes['owner_id'] !== ''
+                ? (int) $attributes['owner_id']
+                : null,
+        );
+    }
+
+    /**
+     * The stored columns, keeping nulls so an update clears a field the user
+     * emptied. Status is absent on purpose: it belongs to
+     * ChangeLeadStatusAction, which is the only thing that may move it.
+     *
+     * @return array<string, mixed>
+     */
+    public function toAttributes(): array
+    {
+        return [
+            'first_name' => $this->firstName,
+            'last_name' => $this->lastName,
+            'job_title' => $this->jobTitle,
+            'company_name' => $this->companyName,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'mobile' => $this->mobile,
+            'website' => $this->website,
+            'address_line_1' => $this->addressLine1,
+            'address_line_2' => $this->addressLine2,
+            'city' => $this->city,
+            'state' => $this->state,
+            'postal_code' => $this->postalCode,
+            'country' => $this->country,
+            'source' => $this->source,
+            'estimated_value' => $this->estimatedValue,
+            'description' => $this->description,
+        ];
+    }
+}

@@ -73,6 +73,18 @@ final class PermissionCatalogue
                     'accounts.export' => 'Export accounts',
                 ],
             ],
+            'leads' => [
+                'label' => 'Leads',
+                'icon' => 'target',
+                'permissions' => [
+                    'leads.view' => 'View leads',
+                    'leads.create' => 'Capture leads',
+                    'leads.update' => 'Update leads and move their status',
+                    'leads.assign' => 'Hand a lead to someone else',
+                    'leads.delete' => 'Remove leads',
+                    'leads.export' => 'Export leads',
+                ],
+            ],
             'contacts' => [
                 'label' => 'Contacts',
                 'icon' => 'contact',

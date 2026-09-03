@@ -44,7 +44,7 @@ test('the sidebar lists every core module with an icon', function () {
     $response->assertSuccessful();
 
     // Modules whose phase has not landed are inert placeholders, not links.
-    foreach (['Leads', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
+    foreach (['Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
         $response->assertSee($module);
     }
 
@@ -60,7 +60,10 @@ test('a module with a route is only offered to someone who may open it', functio
     string $permission,
     string $route,
 ) {
-    $this->get('/')->assertSuccessful()->assertDontSee($label);
+    // Asserted on the link's URL rather than the label: the dashboard has its
+    // own "Leads" and "Deals" tiles, so a label alone proves nothing about the
+    // sidebar.
+    $this->get('/')->assertSuccessful()->assertDontSee(route($route), false);
 
     $this->actingAs(settingsAwareUser($permission));
 
@@ -71,6 +74,7 @@ test('a module with a route is only offered to someone who may open it', functio
 })->with([
     'accounts' => ['Accounts', 'accounts.view', 'accounts.index'],
     'contacts' => ['Contacts', 'contacts.view', 'contacts.index'],
+    'leads' => ['Leads', 'leads.view', 'leads.index'],
 ]);
 
 test('the sidebar offers Settings only to someone who can open something there', function () {

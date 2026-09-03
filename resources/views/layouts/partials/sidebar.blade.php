@@ -3,7 +3,7 @@
     // placeholders rather than pretending to be links.
     $navigation = [
         ['label' => 'Dashboard', 'icon' => 'layout-dashboard', 'route' => 'dashboard'],
-        ['label' => 'Leads', 'icon' => 'target'],
+        ['label' => 'Leads', 'icon' => 'target', 'route' => 'leads.index', 'permission' => 'leads.view'],
         ['label' => 'Contacts', 'icon' => 'contact', 'route' => 'contacts.index', 'permission' => 'contacts.view'],
         ['label' => 'Accounts', 'icon' => 'building-2', 'route' => 'accounts.index', 'permission' => 'accounts.view'],
         ['label' => 'Deals', 'icon' => 'handshake'],

@@ -70,3 +70,32 @@ notify the user; at or below it they download inline.
 One row per user per module holds view mode, column order, pinned columns and
 per-page. A stored layout is re-checked against the columns the screen offers
 now, so a removed or renamed column cannot come back from an old saved layout.
+
+## The kanban board queries per column, it never groups a page
+`<x-data-view-kanban>` is not given `$records`. Grouping the current page would
+mean a column's header count and total described one page rather than the data,
+and a column with 200 cards would starve every other column of its share of the
+page.
+
+Instead the board asks the screen three things, each of which runs its own SQL
+over the whole filtered set:
+
+- `kanbanTotals()` — one grouped query returning
+  `['<column value>' => ['count' => int, 'sum' => float|null]]`. It clones the
+  filtered query *without* columns, orders, limit and offset, then groups by
+  `dataViewKanbanField()`. This is what the header count and total come from,
+  so they are true regardless of what is rendered.
+- `kanbanCards($value)` — that column's cards only, newest first, limited to
+  `kanbanLimitFor($value)`.
+- `hasMoreKanbanCards($value)` / `loadMoreKanban($value)` — the footer button.
+  `loadMoreKanban()` raises **only that column's** limit by `KANBAN_PAGE` (20),
+  so loading more in one column leaves the others alone. It ignores a value that
+  is not in `dataViewKanbanColumns()`.
+
+Implement `dataViewKanbanSumField()` to get a summed money figure in the header
+(leads sum `estimated_value`); return `null` and the header shows a count only.
+
+`KANBAN_PAGE` is a trait constant, so tests must read it through the using class
+(`LeadsIndex::KANBAN_PAGE`) — PHP 8.2 forbids `WithDataView::KANBAN_PAGE`.
+
+The paginator is hidden in kanban mode; the per-column footers are the pager.

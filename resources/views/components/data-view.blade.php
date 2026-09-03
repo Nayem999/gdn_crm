@@ -108,7 +108,6 @@
                     @case (\App\Domain\Shared\Enums\ViewMode::Kanban)
                         <x-data-view.kanban
                             :view="$view"
-                            :records="$records"
                             :columns="$columns"
                             :board-columns="$view->dataViewKanbanColumns()"
                         />
@@ -137,8 +136,9 @@
         </div>
     </div>
 
-    {{-- Paging --}}
-    @if ($records->total() > 0)
+    {{-- Paging. Kanban does its own per-column loading, so a row pager there
+         would page something the board is not showing. --}}
+    @if ($records->total() > 0 && $view->currentViewMode() !== \App\Domain\Shared\Enums\ViewMode::Kanban)
         <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
                 <label for="{{ $view->dataViewModule() }}-per-page" class="sr-only">Rows per page</label>

@@ -14,6 +14,7 @@ use App\Domain\Shared\Models\UserViewPreference;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Url;
@@ -557,6 +558,126 @@ trait WithDataView
     public function dataViewKanbanColumns(): array
     {
         return [];
+    }
+
+    /**
+     * How many cards each kanban column has loaded so far.
+     *
+     * @var array<string, int>
+     */
+    public array $kanbanLimits = [];
+
+    /**
+     * Cards added each time a column's "load more" is used.
+     */
+    public const KANBAN_PAGE = 20;
+
+    /**
+     * A money-ish column to total per kanban column, or null when a sum would
+     * mean nothing. Shown in the column header beside the count.
+     */
+    public function dataViewKanbanSumField(): ?string
+    {
+        return null;
+    }
+
+    public function kanbanLimitFor(string $value): int
+    {
+        return $this->kanbanLimits[$value] ?? self::KANBAN_PAGE;
+    }
+
+    /**
+     * One column's cards.
+     *
+     * Queried per column rather than grouping the current page: a board built
+     * from one page of 25 shows an arbitrary slice of each column and its
+     * counts are simply wrong.
+     *
+     * @return Collection<int, Model>
+     */
+    public function kanbanCards(string $value)
+    {
+        $field = $this->dataViewKanbanField();
+
+        if ($field === null) {
+            return $this->dataViewModel()->newCollection();
+        }
+
+        $model = $this->dataViewModel();
+
+        return $this->kanbanColumnQuery($value)
+            ->orderByDesc($model->qualifyColumn($model->getKeyName()))
+            ->limit($this->kanbanLimitFor($value))
+            ->get();
+    }
+
+    /**
+     * Count and total for every column, in one grouped query rather than one
+     * per column.
+     *
+     * @return array<string, array{count: int, sum: float|null}>
+     */
+    public function kanbanTotals(): array
+    {
+        $field = $this->dataViewKanbanField();
+
+        if ($field === null) {
+            return [];
+        }
+
+        $model = $this->dataViewModel();
+        $column = $model->qualifyColumn($field);
+        $sumField = $this->dataViewKanbanSumField();
+
+        $query = $this->dataViewQuery()
+            ->getQuery()
+            ->cloneWithout(['columns', 'orders', 'limit', 'offset'])
+            ->select($column)
+            ->selectRaw('COUNT(*) as aggregate_count')
+            ->groupBy($column);
+
+        if ($sumField !== null) {
+            $query->selectRaw('SUM('.$model->qualifyColumn($sumField).') as aggregate_sum');
+        }
+
+        $totals = [];
+
+        foreach ($query->get() as $row) {
+            $totals[(string) $row->{$field}] = [
+                'count' => (int) $row->aggregate_count,
+                'sum' => $sumField === null ? null : (float) ($row->aggregate_sum ?? 0),
+            ];
+        }
+
+        return $totals;
+    }
+
+    public function hasMoreKanbanCards(string $value): bool
+    {
+        return ($this->kanbanTotals()[$value]['count'] ?? 0) > $this->kanbanLimitFor($value);
+    }
+
+    /**
+     * Show the next batch in one column, leaving the others alone.
+     */
+    public function loadMoreKanban(string $value): void
+    {
+        if (! in_array($value, array_column($this->dataViewKanbanColumns(), 'value'), true)) {
+            return;
+        }
+
+        $this->kanbanLimits[$value] = $this->kanbanLimitFor($value) + self::KANBAN_PAGE;
+    }
+
+    /**
+     * @return Builder<covariant Model>
+     */
+    private function kanbanColumnQuery(string $value)
+    {
+        $field = (string) $this->dataViewKanbanField();
+        $model = $this->dataViewModel();
+
+        return $this->dataViewQuery()->where($model->qualifyColumn($field), $value);
     }
 
     /**

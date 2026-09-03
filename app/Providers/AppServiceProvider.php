@@ -11,6 +11,8 @@ use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Contacts\Policies\ContactPolicy;
+use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Policies\LeadPolicy;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationMatrix;
@@ -61,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(Contact::class, ContactPolicy::class);
+        Gate::policy(Lead::class, LeadPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
 

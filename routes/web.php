@@ -9,6 +9,9 @@ use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
+use App\Livewire\Leads\LeadForm;
+use App\Livewire\Leads\LeadShow;
+use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -44,6 +47,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');
     Route::get('/contacts/{contact}', ContactShow::class)->name('contacts.show');
     Route::get('/contacts/{contact}/edit', ContactForm::class)->name('contacts.edit');
+
+    Route::get('/leads', LeadsIndex::class)->name('leads.index');
+    Route::get('/leads/create', LeadForm::class)->name('leads.create');
+    Route::get('/leads/{lead}', LeadShow::class)->name('leads.show');
+    Route::get('/leads/{lead}/edit', LeadForm::class)->name('leads.edit');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
 

@@ -62,6 +62,17 @@ final class PermissionCatalogue
                     'roles.delete' => 'Remove roles',
                 ],
             ],
+            'accounts' => [
+                'label' => 'Accounts',
+                'icon' => 'building-2',
+                'permissions' => [
+                    'accounts.view' => 'View accounts',
+                    'accounts.create' => 'Create accounts',
+                    'accounts.update' => 'Update accounts',
+                    'accounts.delete' => 'Remove accounts',
+                    'accounts.export' => 'Export accounts',
+                ],
+            ],
             'settings' => [
                 'label' => 'Settings',
                 'icon' => 'settings',

@@ -1,6 +1,9 @@
 <?php
 
 use App\Domain\Settings\SettingsRegistry;
+use App\Livewire\Accounts\AccountForm;
+use App\Livewire\Accounts\AccountShow;
+use App\Livewire\Accounts\AccountsIndex;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Notifications\NotificationLogIndex;
@@ -28,6 +31,11 @@ Route::middleware('auth')->group(function () {
     })->name('dashboard');
 
     Route::get('/profile', ProfileForm::class)->name('profile');
+
+    Route::get('/accounts', AccountsIndex::class)->name('accounts.index');
+    Route::get('/accounts/create', AccountForm::class)->name('accounts.create');
+    Route::get('/accounts/{account}', AccountShow::class)->name('accounts.show');
+    Route::get('/accounts/{account}/edit', AccountForm::class)->name('accounts.edit');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
 

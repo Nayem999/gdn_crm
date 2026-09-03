@@ -43,9 +43,25 @@ test('the sidebar lists every core module with an icon', function () {
 
     $response->assertSuccessful();
 
-    foreach (['Leads', 'Contacts', 'Accounts', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
+    // Modules whose phase has not landed are inert placeholders, not links.
+    foreach (['Leads', 'Contacts', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
         $response->assertSee($module);
     }
+
+    $response->assertSee('aria-disabled="true"', false);
+});
+
+test('a module with a route is only offered to someone who may open it', function () {
+    // Task 2.1: Accounts is the first module with a real screen, and it is
+    // permission-gated the same way Settings is.
+    $this->get('/')->assertSuccessful()->assertDontSee('Accounts');
+
+    $this->actingAs(settingsAwareUser('accounts.view'));
+
+    $this->get('/')
+        ->assertSuccessful()
+        ->assertSee('Accounts')
+        ->assertSee(route('accounts.index'), false);
 });
 
 test('the sidebar offers Settings only to someone who can open something there', function () {

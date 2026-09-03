@@ -11,10 +11,3 @@ parameters:
     excludePaths:
         - app/Providers/*
 
-    ignoreErrors:
-        -
-            # ScopesByAccessLevel is shared infrastructure for Phase 2+ business
-            # models (Leads, Deals, ...) that don't exist yet. Remove this once a
-            # real app/ model uses the trait.
-            identifier: trait.unused
-            path: app/Domain/Shared/Concerns/ScopesByAccessLevel.php

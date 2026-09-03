@@ -6,6 +6,7 @@ use App\Domain\Shared\Enums\ExportFormat;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Jobs\GenerateDataViewExport;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +17,10 @@ use Tests\Fixtures\DataViewHarnessExportSource;
 use Tests\Fixtures\DataViewRecord;
 
 beforeEach(function () {
+    // Frozen: an export's filename is stamped when it is built, so a test that
+    // recomputes now() races the second boundary.
+    Carbon::setTestNow(Carbon::parse('2026-01-01 09:00:00'));
+
     DataViewRecord::createTable();
     DataViewRecord::query()->delete();
 
@@ -229,4 +234,8 @@ test('a screen with no export source hides the menu and refuses to export', func
         ->and($component->export(ExportFormat::Csv->value))->toBeNull();
 
     Queue::assertNothingPushed();
+});
+
+afterEach(function () {
+    Carbon::setTestNow();
 });

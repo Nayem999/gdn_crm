@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domain\Access\Policies\RolePolicy;
+use App\Domain\Accounts\Models\Account;
+use App\Domain\Accounts\Policies\AccountPolicy;
 use App\Domain\Audit\Policies\ActivityPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
@@ -55,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         // business rules such as "you cannot delete your own account" still hold.
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
 

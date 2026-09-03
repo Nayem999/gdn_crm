@@ -5,6 +5,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | app/Domain/Access/** | .ai/rules/access.md |
+| app/Domain/Accounts/**, app/Livewire/Accounts/** | .ai/rules/accounts.md |
 | app/Domain/Audit/** | .ai/rules/audit.md |
 | resources/views/components/select.blade.php, resources/views/components/status-chip.blade.php | .ai/rules/components.md |
 | config/fortify.php | .ai/rules/config.md |

@@ -42,3 +42,16 @@ Do NOT add `resources/views/components/icon.blade.php`. A class-registered
 component wins over an anonymous one, so blade-icons' `<x-icon>` shadows it and
 the wrapper silently never runs — it fails with `Svg by name "search" from set
 "default" not found`.
+
+### Icons get their default size from config, not a wrapper
+Lucide's SVGs carry no `width`/`height`, and blade-icons applies no default, so
+`<x-icon name="lucide-x" />` written without a class rendered a **0x0** SVG —
+invisible, and it collapsed its button's width too. Task 2.1 caught this in the
+browser: the whole data-view toolbar had no icons.
+
+`config/blade-lucide-icons.php` now sets `attributes => ['width' => 16,
+'height' => 16]`. Attributes rather than the `class` option on purpose:
+blade-icons *appends* a default class to whatever the call site passes, and
+Tailwind picks the winner by its own stylesheet order — a default `h-4` would
+beat an explicit `h-3.5`. A presentation attribute loses to any CSS rule, so
+every `h-*`/`w-*` at a call site still wins.

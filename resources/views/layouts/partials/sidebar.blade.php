@@ -1,9 +1,11 @@
 @php
+    // Modules gain a route as their phase lands; the rest stay inert
+    // placeholders rather than pretending to be links.
     $navigation = [
-        ['label' => 'Dashboard', 'icon' => 'layout-dashboard'],
+        ['label' => 'Dashboard', 'icon' => 'layout-dashboard', 'route' => 'dashboard'],
         ['label' => 'Leads', 'icon' => 'target'],
         ['label' => 'Contacts', 'icon' => 'users'],
-        ['label' => 'Accounts', 'icon' => 'building-2'],
+        ['label' => 'Accounts', 'icon' => 'building-2', 'route' => 'accounts.index', 'permission' => 'accounts.view'],
         ['label' => 'Deals', 'icon' => 'handshake'],
         ['label' => 'Activities', 'icon' => 'calendar-clock'],
         ['label' => 'Products', 'icon' => 'package'],
@@ -42,9 +44,26 @@
 
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         @foreach ($navigation as $item)
+            @continue(isset($item['permission']) && ! auth()->user()?->can($item['permission']))
+
+            @php
+                $url = isset($item['route']) ? route($item['route']) : null;
+                $active = isset($item['route']) && request()->routeIs(str($item['route'])->before('.')->value() . '*')
+                    && $item['route'] !== 'dashboard';
+            @endphp
+
             <a
-                href="#"
-                class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-active hover:text-white"
+                href="{{ $url ?? '#' }}"
+                @if ($url) wire:navigate @endif
+                @class([
+                    'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-active hover:text-white',
+                    'bg-sidebar-active text-white' => $active,
+                    'text-sidebar-foreground' => ! $active,
+                    // Nothing to click yet: say so rather than offering a dead link.
+                    'cursor-default opacity-60' => $url === null,
+                ])
+                @if ($url === null) aria-disabled="true" title="Coming in a later phase" @endif
+                @if ($active) aria-current="page" @endif
             >
                 <x-dynamic-component :component="'lucide-' . $item['icon']" class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
                 {{ $item['label'] }}

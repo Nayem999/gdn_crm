@@ -18,6 +18,9 @@ trait ScopesByAccessLevel
     /**
      * Scope the query to the records visible to the given user, based on the
      * broadest `data_access_level` (own/team/all) across all of the user's roles.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {

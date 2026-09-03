@@ -224,3 +224,37 @@ test('the newest entries come first', function () {
             return $ids === collect($ids)->sortDesc()->values()->all();
         });
 });
+
+test('clearing the filters actually resets the dropdowns on screen', function () {
+    $this->actingAs(auditViewer());
+    Team::factory()->create();
+
+    $component = Livewire::test(ActivityLogIndex::class)
+        ->set('event', 'deleted')
+        ->set('subjectType', Team::class);
+
+    expect($component->html())->toContain('wire:key="audit-event-deleted"');
+
+    $component->call('clearFilters');
+
+    // <x-select> keeps Tom Select behind wire:ignore, so resetting the property
+    // is not enough — the key has to move for the control to be rebuilt, and
+    // the clear button is how one field is cleared on its own.
+    expect($component->html())->toContain('wire:key="audit-event-"')
+        ->and($component->html())->toContain('wire:key="audit-subject-"')
+        ->and($component->html())->not->toContain('wire:key="audit-event-deleted"')
+        ->and(substr_count($component->html(), 'clearable'))->toBe(2);
+});
+
+test('the entries-per-page picker is a searchable select, keyed on its size', function () {
+    $this->actingAs(auditViewer());
+    Team::factory()->create();
+
+    $component = Livewire::test(ActivityLogIndex::class);
+
+    expect($component->html())->toContain('wire:key="audit-per-page-25"');
+
+    $component->set('perPage', 50);
+
+    expect($component->html())->toContain('wire:key="audit-per-page-50"');
+});

@@ -29,29 +29,44 @@
                     >
                 </div>
 
-                <select wire:model.live="status" aria-label="Filter by status"
-                        class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40">
-                    <option value="">Any status</option>
-                    @foreach ($statuses as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                {{-- Keyed on the chosen value: Tom Select sits behind
+                     wire:ignore, so clearFilters() could not move the selection
+                     back to "any" without the node being replaced. --}}
+                <div class="w-full sm:w-40" wire:key="log-status-{{ $status }}">
+                    <x-select
+                        name="status"
+                        :options="$statuses"
+                        :selected="$status"
+                        placeholder="Any status"
+                        aria-label="Filter by status"
+                        clearable
+                        wire:model.live="status"
+                    />
+                </div>
 
-                <select wire:model.live="channel" aria-label="Filter by channel"
-                        class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40">
-                    <option value="">Any channel</option>
-                    @foreach ($channels as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <div class="w-full sm:w-40" wire:key="log-channel-{{ $channel }}">
+                    <x-select
+                        name="channel"
+                        :options="$channels"
+                        :selected="$channel"
+                        placeholder="Any channel"
+                        aria-label="Filter by channel"
+                        clearable
+                        wire:model.live="channel"
+                    />
+                </div>
 
-                <select wire:model.live="event" aria-label="Filter by event"
-                        class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40">
-                    <option value="">Any event</option>
-                    @foreach ($this->eventOptions() as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <div class="w-full sm:w-56" wire:key="log-event-{{ $event }}">
+                    <x-select
+                        name="event"
+                        :options="$this->eventOptions()"
+                        :selected="$event"
+                        placeholder="Any event"
+                        aria-label="Filter by event"
+                        clearable
+                        wire:model.live="event"
+                    />
+                </div>
 
                 @if ($this->hasFilters())
                     <button type="button" wire:click="clearFilters" class="text-sm font-medium text-accent hover:underline">

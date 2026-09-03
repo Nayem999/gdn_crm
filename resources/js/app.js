@@ -33,7 +33,13 @@ document.addEventListener('alpine:init', () => {
                 // It indexes element.dataset, so the key is "data" (the dataset
                 // name for data-data), not the attribute name.
                 dataAttr: 'data',
-                plugins: options.multiple ? ['remove_button'] : [],
+                // remove_button puts an × on each chip; clear_button puts one on
+                // the control, which is how a single filter dropdown gets back
+                // to "nothing chosen" (Tom Select will not offer an empty
+                // option as a selectable row).
+                plugins: options.multiple
+                    ? ['remove_button']
+                    : (options.clearable ? ['clear_button'] : []),
                 render: {
                     option: (data, escape) => this.renderRow(data, escape),
                     item: (data, escape) => this.renderItem(data, escape),

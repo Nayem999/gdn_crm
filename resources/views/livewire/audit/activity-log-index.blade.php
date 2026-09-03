@@ -19,22 +19,29 @@
                 >
             </div>
 
-            <div class="w-40">
+            {{-- Keyed on the chosen value, and clearable: Tom Select sits
+                 behind wire:ignore, so "Clear all" could not move either
+                 selection back to "any" without the node being replaced. --}}
+            <div class="w-40" wire:key="audit-event-{{ $event }}">
                 <x-select
                     name="event"
                     :options="$this->eventOptions()"
                     :selected="$event"
                     placeholder="Any action"
+                    aria-label="Filter by action"
+                    clearable
                     wire:model.live="event"
                 />
             </div>
 
-            <div class="w-48">
+            <div class="w-48" wire:key="audit-subject-{{ $subjectType }}">
                 <x-select
                     name="subjectType"
                     :options="$this->subjectTypeOptions()"
                     :selected="$subjectType"
                     placeholder="Any record type"
+                    aria-label="Filter by record type"
+                    clearable
                     wire:model.live="subjectType"
                 />
             </div>
@@ -51,16 +58,17 @@
             </div>
 
             <div class="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <label for="audit-per-page">Per page</label>
-                <select
-                    id="audit-per-page"
-                    wire:model.live="perPage"
-                    class="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                >
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+                <span>Per page</span>
+
+                <div class="w-24" wire:key="audit-per-page-{{ $perPage }}">
+                    <x-select
+                        name="audit-per-page"
+                        :options="[25 => '25', 50 => '50', 100 => '100']"
+                        :selected="$perPage"
+                        aria-label="Entries per page"
+                        wire:model.live="perPage"
+                    />
+                </div>
             </div>
         </div>
 

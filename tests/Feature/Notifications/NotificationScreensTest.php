@@ -528,3 +528,42 @@ test('the preferences panel is on the profile page', function () {
         ->assertSee('Notifications')
         ->assertSee('these settings only ever quieten things down');
 });
+
+// -- The dropdowns are all x-select -------------------------------------------
+
+test('the template pickers are searchable selects keyed on what is chosen', function () {
+    $component = Livewire::actingAs(screenUser(['notifications.view', 'notifications.update']))
+        ->test(NotificationTemplates::class);
+
+    expect($component->html())->toContain('wire:key="template-event-user.invited"')
+        ->and($component->html())->toContain('wire:key="template-channel-in_app"')
+        ->and(substr_count($component->html(), '<select'))
+        ->toBe(substr_count($component->html(), 'tomSelectField('));
+
+    $component->set('channel', NotificationChannel::Email->value);
+
+    // Tom Select lives behind wire:ignore, so the key moving is what rebuilds
+    // the control when mount() or a sibling change corrects the value.
+    expect($component->html())->toContain('wire:key="template-channel-email"');
+});
+
+test('the log filters are searchable selects, clearable and keyed', function () {
+    $component = Livewire::actingAs(screenUser(['notifications.view']))
+        ->test(NotificationLogIndex::class)
+        ->set('status', NotificationStatus::Failed->value)
+        ->set('channel', NotificationChannel::Email->value);
+
+    expect($component->html())->toContain('wire:key="log-status-failed"')
+        ->and($component->html())->toContain('wire:key="log-channel-email"')
+        // Each of the three needs a clear button: Tom Select will not offer an
+        // empty option as a selectable "any" row.
+        ->and(substr_count($component->html(), 'clearable'))->toBe(3)
+        ->and(substr_count($component->html(), '<select'))
+        ->toBe(substr_count($component->html(), 'tomSelectField('));
+
+    $component->call('clearFilters');
+
+    expect($component->html())->toContain('wire:key="log-status-"')
+        ->and($component->html())->toContain('wire:key="log-channel-"')
+        ->and($component->html())->not->toContain('wire:key="log-status-failed"');
+});

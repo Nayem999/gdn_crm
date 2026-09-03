@@ -19,30 +19,29 @@
             <div class="lg:col-span-2">
                 <div class="rounded-xl border border-border bg-card p-5">
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <x-form.label for="template-event">Event</x-form.label>
-                            <select
-                                id="template-event"
+                        {{-- Keyed on the chosen value: Tom Select sits behind
+                             wire:ignore, so mount() correcting an unknown event
+                             or channel would never reach the control. --}}
+                        <div wire:key="template-event-{{ $eventKey }}">
+                            <x-select
+                                name="template-event"
+                                label="Event"
+                                :options="collect($events)->map(fn ($event) => $event->group.' — '.$event->label)->all()"
+                                :selected="$eventKey"
+                                placeholder="Choose an event&hellip;"
                                 wire:model.live="eventKey"
-                                class="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
-                            >
-                                @foreach ($events as $key => $event)
-                                    <option value="{{ $key }}">{{ $event->group }} &mdash; {{ $event->label }}</option>
-                                @endforeach
-                            </select>
+                            />
                         </div>
 
-                        <div>
-                            <x-form.label for="template-channel">Channel</x-form.label>
-                            <select
-                                id="template-channel"
+                        <div wire:key="template-channel-{{ $channel }}">
+                            <x-select
+                                name="template-channel"
+                                label="Channel"
+                                :options="\App\Domain\Notifications\Enums\NotificationChannel::options()"
+                                :selected="$channel"
+                                placeholder="Choose a channel&hellip;"
                                 wire:model.live="channel"
-                                class="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
-                            >
-                                @foreach (\App\Domain\Notifications\Enums\NotificationChannel::cases() as $option)
-                                    <option value="{{ $option->value }}">{{ $option->label() }}</option>
-                                @endforeach
-                            </select>
+                            />
                         </div>
                     </div>
 

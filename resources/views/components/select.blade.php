@@ -16,6 +16,12 @@
     'dependsOn' => null,
     'hint' => null,
     'error' => null,
+
+    // Task 2.4/2.5 addition. A single select offers no way back to "nothing
+    // chosen": Tom Select drops the empty option unless allowEmptyOption is on,
+    // so an "Any status" row would not be selectable. Filters that need an
+    // unset state get a clear button on the control instead.
+    'clearable' => false,
 ])
 
 @php
@@ -56,6 +62,7 @@
         'preload' => $preload,
         'createEvent' => $createEvent,
         'dependsOn' => $dependsOn,
+        'clearable' => $clearable,
     ], fn ($value) => $value !== null && $value !== false);
 @endphp
 

@@ -35,16 +35,17 @@
             </div>
 
             <div class="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <label for="per-page">Per page</label>
-                <select
-                    id="per-page"
-                    wire:model.live="perPage"
-                    class="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                >
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+                <span>Per page</span>
+
+                <div class="w-24" wire:key="users-per-page-{{ $perPage }}">
+                    <x-select
+                        name="per-page"
+                        :options="[25 => '25', 50 => '50', 100 => '100']"
+                        :selected="$perPage"
+                        aria-label="Users per page"
+                        wire:model.live="perPage"
+                    />
+                </div>
             </div>
         </div>
 

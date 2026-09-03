@@ -86,3 +86,13 @@ test('option labels and values are escaped rather than injected', function () {
     expect($rendered)->not->toContain('<script>alert(1)</script>')
         ->and($rendered)->toContain('&lt;script&gt;');
 });
+
+test('a clearable select asks for the clear button, and a plain one does not', function () {
+    // A single select offers no route back to "nothing chosen": Tom Select drops
+    // the empty option unless allowEmptyOption is on, so a filter that needs an
+    // unset state gets a clear button on the control instead.
+    expect((string) $this->blade('<x-select name="status" clearable />'))
+        ->toContain('clearable')
+        ->and((string) $this->blade('<x-select name="status" />'))
+        ->not->toContain('clearable');
+});

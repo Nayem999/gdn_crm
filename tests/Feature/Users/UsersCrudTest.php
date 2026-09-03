@@ -244,3 +244,19 @@ test('a soft deleted user can no longer authenticate', function () {
 
     $this->assertGuest();
 });
+
+test('the users-per-page picker is a searchable select, keyed on its size', function () {
+    $this->actingAs(userAdmin());
+
+    $component = Livewire::test(UsersIndex::class);
+
+    // <x-select> renders one native <select> for Tom Select to take over, so
+    // equal counts mean nothing on the page is a plain dropdown.
+    expect($component->html())->toContain('wire:key="users-per-page-25"')
+        ->and(substr_count($component->html(), '<select'))
+        ->toBe(substr_count($component->html(), 'tomSelectField('));
+
+    $component->set('perPage', 100);
+
+    expect($component->html())->toContain('wire:key="users-per-page-100"');
+});

@@ -275,6 +275,29 @@ test('removing a condition by chip index drops just that condition', function ()
         ->assertSee('Acme Corporation');
 });
 
+test('the rows-per-page picker is a searchable select, keyed on its size', function () {
+    $component = Livewire::test(DataViewHarness::class);
+
+    expect($component->html())->toContain('wire:key="data-view-records-per-page-25"');
+
+    $component->call('setPerPage', 50);
+
+    // Keyed so a size the server refuses does not stay on screen: setPerPage()
+    // falls back to 25 for anything outside the offered set.
+    expect($component->html())->toContain('wire:key="data-view-records-per-page-50"');
+
+    $component->call('setPerPage', 999);
+
+    expect($component->html())->toContain('wire:key="data-view-records-per-page-25"');
+});
+
+test('no list screen renders a plain dropdown', function () {
+    $html = Livewire::test(DataViewHarness::class)->html();
+
+    expect(substr_count($html, '<select'))->toBe(substr_count($html, 'tomSelectField('))
+        ->and(substr_count($html, '<select'))->toBeGreaterThan(0);
+});
+
 // -- The filter builder uses x-select, not plain dropdowns ---------------------
 
 /**

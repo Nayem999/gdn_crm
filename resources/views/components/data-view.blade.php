@@ -141,17 +141,17 @@
     @if ($records->total() > 0 && $view->currentViewMode() !== \App\Domain\Shared\Enums\ViewMode::Kanban)
         <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <label for="{{ $view->dataViewModule() }}-per-page" class="sr-only">Rows per page</label>
-
-                <select
-                    id="{{ $view->dataViewModule() }}-per-page"
-                    class="rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent/40"
-                    wire:change="setPerPage($event.target.value)"
-                >
-                    @foreach ([25, 50, 100] as $size)
-                        <option value="{{ $size }}" @selected($view->perPage === $size)>{{ $size }}</option>
-                    @endforeach
-                </select>
+                {{-- Keyed on the value: Tom Select sits behind wire:ignore, so
+                     a size the server refuses would otherwise stay on screen. --}}
+                <div class="w-24" wire:key="{{ $view->dataViewModule() }}-per-page-{{ $view->perPage }}">
+                    <x-select
+                        name="{{ $view->dataViewModule() }}-per-page"
+                        :options="[25 => '25', 50 => '50', 100 => '100']"
+                        :selected="$view->perPage"
+                        aria-label="Rows per page"
+                        wire:change="setPerPage($event.target.value)"
+                    />
+                </div>
 
                 <span>per page &middot; {{ number_format($records->total()) }} total</span>
             </div>

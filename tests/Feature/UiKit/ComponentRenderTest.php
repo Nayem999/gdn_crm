@@ -206,3 +206,29 @@ test('the kit draws its glyphs from the lucide set', function () {
         ->assertSee('<svg', false)
         ->assertSee('h-4 w-4', false);
 });
+
+test('no view anywhere uses a plain select', function () {
+    // "No plain <select> anywhere in the application. Build one <x-select>
+    // component used by every form, filter, and modal." The component itself is
+    // the one place a native <select> may appear — Tom Select needs an element
+    // to take over.
+    $component = realpath(resource_path('views/components/select.blade.php'));
+    $offenders = [];
+
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(resource_path('views'), FilesystemIterator::SKIP_DOTS)
+    );
+
+    /** @var SplFileInfo $file */
+    foreach ($files as $file) {
+        if ($file->getExtension() !== 'php' || $file->getRealPath() === $component) {
+            continue;
+        }
+
+        if (str_contains((string) file_get_contents($file->getRealPath()), '<select')) {
+            $offenders[] = str_replace(resource_path('views').DIRECTORY_SEPARATOR, '', $file->getRealPath());
+        }
+    }
+
+    expect($offenders)->toBe([], 'Use <x-select> instead: '.implode(', ', $offenders));
+});

@@ -64,3 +64,31 @@ Slot content wins over the enum's label. `color="..."` still works on its own, a
 `dot` adds a leading dot. Colours are a fixed palette map — Tailwind cannot see
 class names built at runtime, so add new colours to the map rather than
 interpolating them.
+
+## x-select is the only dropdown, and dependent ones need a moving wire:key
+There is no plain `<select>` anywhere outside `select.blade.php` itself, and
+`ComponentRenderTest` fails if one appears. The native element inside the
+component is the thing Tom Select takes over.
+
+Because Tom Select is wrapped in `wire:ignore`, Livewire can neither refresh a
+dropdown's options nor move its selection. Any `<x-select>` whose options or
+value the *server* can change needs a `wire:key` on a wrapping div that includes
+what changed, so Livewire replaces the node and Tom Select rebuilds. In
+practice that means:
+
+- Options depend on another field (comparison follows field) → key on that field.
+- A reset action exists (`clearFilters()`, `mount()` correcting a bad value) →
+  key on the value. This was a live bug on the audit log: "Clear all" reset the
+  properties and left both controls still showing the old filters.
+- A repeated row is keyed by index and rows can be removed → key on a generation
+  token, not the value (see the kanban/filter notes in .ai/rules/data-view.md).
+
+Never key a dropdown on its own value when the user picks repeatedly from it: it
+tears the node down on every pick, so a multi-select closes after each one.
+
+## clearable, for a filter that needs "any"
+Tom Select drops the empty option unless `allowEmptyOption` is on, so an "Any
+status" row is not selectable and a single select has no route back to nothing
+chosen. Pass `clearable` to get a clear button on the control instead, and use
+`placeholder` for the "any" wording. Multi-selects already get `remove_button`
+chips and ignore `clearable`.

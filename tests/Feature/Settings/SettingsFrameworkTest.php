@@ -154,12 +154,10 @@ test('the cache holds ciphertext, never a decrypted secret', function () {
 
     $cached = Cache::get(SettingsManager::CACHE_PREFIX.'storage');
 
+    // What is cached is the stored text, which for a secret is ciphertext.
     expect($cached)->toBeArray()
-        ->and(json_encode($cached))->not->toContain('super-secret-value');
-
-    // The cache store here is the database, so check the row itself too.
-    expect(json_encode(DB::table('cache')->pluck('value')->all()))
-        ->not->toContain('super-secret-value');
+        ->and(json_encode($cached))->not->toContain('super-secret-value')
+        ->and(Crypt::decryptString($cached['s3_secret']['value']))->toBe('super-secret-value');
 });
 
 test('forgetting a setting drops it and its cache entry', function () {

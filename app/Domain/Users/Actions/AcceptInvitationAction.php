@@ -2,6 +2,7 @@
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Notifications\Notifier;
 use App\Domain\Users\Models\UserInvitation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class AcceptInvitationAction
             throw new RuntimeException('This invitation has expired.');
         }
 
-        return DB::transaction(function () use ($invitation, $name, $password) {
+        $user = DB::transaction(function () use ($invitation, $name, $password) {
             $user = User::create([
                 'name' => $name,
                 'email' => $invitation->email,
@@ -55,5 +56,13 @@ class AcceptInvitationAction
 
             return $user;
         });
+
+        // Outside the transaction: queueing work inside one can fire before the
+        // rows it refers to are committed.
+        app(Notifier::class)->sendToAdmins('user.joined', 'users.view', [
+            'user' => ['name' => $user->name, 'email' => $user->email],
+        ], $user);
+
+        return $user;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Notifications\Notifier;
 use App\Domain\Users\Models\UserInvitation;
 use App\Domain\Users\Notifications\UserInvitationNotification;
 use App\Models\User;
@@ -40,8 +41,17 @@ class InviteUserAction
             );
         });
 
+        // The invitation itself is transactional — you cannot opt out of being
+        // told you were invited — so it stays a direct mail.
         Notification::route('mail', $email)
             ->notify(new UserInvitationNotification($invitation, $plainToken));
+
+        // Telling the other administrators does go through the engine, so the
+        // matrix and their own preferences apply.
+        app(Notifier::class)->sendToAdmins('user.invited', 'users.invite', [
+            'user' => ['name' => $name ?? $email, 'email' => $email],
+            'actor' => ['name' => $invitedBy === null ? 'Someone' : $invitedBy->name],
+        ], $invitedBy);
 
         return $invitation;
     }

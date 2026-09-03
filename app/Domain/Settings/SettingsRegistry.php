@@ -2,6 +2,8 @@
 
 namespace App\Domain\Settings;
 
+use App\Domain\Settings\Enums\SettingType;
+
 /**
  * The canonical list of settings the application recognises.
  *
@@ -55,6 +57,22 @@ final class SettingsRegistry
                         'dot' => 'Full stop — 1234.56',
                         'comma' => 'Comma — 1234,56',
                     ], 'dot'),
+                ],
+            ],
+            'notifications' => [
+                'label' => 'Notification limits',
+                'icon' => 'bell',
+                'description' => 'Quiet hours and the ceiling that stops a notification storm. Which notifications go out at all is set under Notification rules.',
+                'fields' => [
+                    SettingField::boolean('quiet_hours_enabled', 'Hold notifications overnight', false,
+                        'In-app notifications always arrive; email, SMS and WhatsApp wait until quiet hours end.'),
+                    new SettingField('quiet_hours_start', 'Quiet hours start', SettingType::String,
+                        default: '21:00', help: '24-hour time, e.g. 21:00.', extraRules: 'date_format:H:i'),
+                    new SettingField('quiet_hours_end', 'Quiet hours end', SettingType::String,
+                        default: '07:00', help: '24-hour time, e.g. 07:00.', extraRules: 'date_format:H:i'),
+                    new SettingField('rate_limit_per_hour', 'Maximum per person per hour', SettingType::Integer,
+                        default: 60, help: 'Anything beyond this is skipped and recorded in the log.',
+                        extraRules: 'min:1|max:1000'),
                 ],
             ],
             'storage' => [

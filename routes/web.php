@@ -3,6 +3,9 @@
 use App\Domain\Settings\SettingsRegistry;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
+use App\Livewire\Notifications\NotificationLogIndex;
+use App\Livewire\Notifications\NotificationMatrixScreen;
+use App\Livewire\Notifications\NotificationTemplates;
 use App\Livewire\Profile\ProfileForm;
 use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
@@ -42,6 +45,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
+
+    // Deliberately not /settings/notifications: that path belongs to the
+    // settings registry group of the same name (quiet hours and limits), and
+    // a route registered here would shadow it entirely.
+    Route::get('/settings/notification-rules', NotificationMatrixScreen::class)->name('settings.notifications');
+    Route::get('/settings/notification-rules/templates', NotificationTemplates::class)->name('settings.notifications.templates');
+    Route::get('/settings/notification-rules/log', NotificationLogIndex::class)->name('settings.notifications.log');
 
     // Registry-backed groups. The {group} segment is matched against the
     // registry in the component, which 404s on anything undeclared.

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Notifications\Notifier;
 use App\Models\User;
 use RuntimeException;
 
@@ -20,5 +21,10 @@ class DeleteUserAction
         }
 
         $user->delete();
+
+        app(Notifier::class)->sendToAdmins('user.removed', 'users.delete', [
+            'user' => ['name' => $user->name, 'email' => $user->email],
+            'actor' => ['name' => $actor->name],
+        ], $actor);
     }
 }

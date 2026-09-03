@@ -1,12 +1,11 @@
 <?php
 
+use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Shared\Actions\RunDataViewExport;
 use App\Domain\Shared\Enums\ExportFormat;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Jobs\GenerateDataViewExport;
 use App\Models\User;
-use App\Notifications\ExportFailed;
-use App\Notifications\ExportReady;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -159,7 +158,6 @@ test('exactly the threshold still downloads inline', function () {
 
 test('the queued job writes the file and notifies the user', function () {
     Storage::fake('local');
-    Notification::fake();
 
     $request = Livewire::test(DataViewHarness::class)
         ->instance()
@@ -169,9 +167,17 @@ test('the queued job writes the file and notifies the user', function () {
 
     Storage::disk('local')->assertExists('exports/'.$this->user->id.'/'.$request->filename());
 
-    Notification::assertSentTo($this->user, ExportReady::class, function (ExportReady $notification) {
-        return $notification->rows === 3 && $notification->module === 'data-view-records';
-    });
+    // Task 1.9 routed exports through the notification engine, so this arrives
+    // as an in-app notification governed by the matrix rather than a direct one.
+    expect(NotificationLog::query()->where('event', 'export.ready')->count())->toBe(1);
+
+    $notification = $this->user->notifications()->firstOrFail();
+
+    expect($notification->data['type'])->toBe('export.ready')
+        ->and($notification->data['message'])->toContain('data-view-records')
+        ->and($notification->data['message'])->toContain('3 rows')
+        ->and($notification->data['data']['export']['path'])
+        ->toBe('exports/'.$this->user->id.'/'.$request->filename());
 });
 
 test('the queued file holds the headings and the filtered rows', function () {
@@ -193,19 +199,18 @@ test('the queued file holds the headings and the filtered rows', function () {
 });
 
 test('a failed queued export tells the user without leaking why', function () {
-    Notification::fake();
-
     $request = Livewire::test(DataViewHarness::class)
         ->instance()
         ->exportRequestForTesting(ExportFormat::Csv);
 
     (new GenerateDataViewExport($request))->failed(new RuntimeException('connection string: user:secret@db'));
 
-    Notification::assertSentTo($this->user, ExportFailed::class, function (ExportFailed $notification) {
-        $payload = json_encode($notification->toArray($this->user));
+    $notification = $this->user->notifications()->firstOrFail();
 
-        return ! str_contains($payload, 'secret');
-    });
+    expect($notification->data['type'])->toBe('export.failed')
+        // The provider's error never reaches the person being told.
+        ->and(json_encode($notification->data))->not->toContain('secret')
+        ->and($notification->data['message'])->toContain('could not be generated');
 });
 
 test('a screen with no export source hides the menu and refuses to export', function () {

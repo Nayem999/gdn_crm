@@ -2,12 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Domain\Notifications\Enums\RecipientType;
+use App\Domain\Notifications\Notifier;
+use App\Domain\Notifications\Recipient;
 use App\Domain\Shared\Exports\DataViewExport;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Models\User;
-use App\Notifications\ExportFailed;
-use App\Notifications\ExportReady;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -43,7 +44,7 @@ class GenerateDataViewExport implements ShouldQueue
                 'user_id' => $user->id,
             ]);
 
-            $user->notify(new ExportFailed($this->request->module));
+            $this->announceFailure($user);
 
             return;
         }
@@ -57,18 +58,31 @@ class GenerateDataViewExport implements ShouldQueue
             $this->request->format->writerType()
         );
 
-        $user->notify(new ExportReady(
-            module: $this->request->module,
-            path: $path,
-            filename: $this->request->filename(),
-            rows: $source->exportQuery($this->request)->toBase()->getCountForPagination(),
-        ));
+        app(Notifier::class)->send('export.ready', [
+            Recipient::user($user, RecipientType::AssignedAgent),
+        ], [
+            'export' => [
+                'module' => $this->request->module,
+                'rows' => $source->exportQuery($this->request)->toBase()->getCountForPagination(),
+                'filename' => $this->request->filename(),
+                'path' => $path,
+            ],
+        ]);
     }
 
     public function failed(?\Throwable $exception): void
     {
         $user = User::query()->find($this->request->userId);
 
-        $user?->notify(new ExportFailed($this->request->module));
+        if ($user !== null) {
+            $this->announceFailure($user);
+        }
+    }
+
+    private function announceFailure(User $user): void
+    {
+        app(Notifier::class)->send('export.failed', [
+            Recipient::user($user, RecipientType::AssignedAgent),
+        ], ['export' => ['module' => $this->request->module]]);
     }
 }

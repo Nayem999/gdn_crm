@@ -3,8 +3,10 @@
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\SettingsManager;
+use App\Domain\Settings\SettingsRegistry;
 use App\Livewire\Settings\SettingsGroup;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -45,6 +47,27 @@ test('reaching a settings group needs the settings.view permission', function ()
         ->get(route('settings.group', 'localisation'))
         ->assertOk()
         ->assertSee('Localisation');
+});
+
+test('every registry group is reachable at its own url', function (string $group) {
+    // A dedicated route registered at /settings/{group} would shadow the
+    // registry group of the same name and make it unopenable. That happened to
+    // "notifications" in task 1.9, which is why this guard exists.
+    $this->actingAs(settingsUser(['settings.view']))
+        ->get(route('settings.group', $group))
+        ->assertOk()
+        ->assertSee(SettingsRegistry::group($group)['label']);
+})->with(SettingsRegistry::groupKeys());
+
+test('no other route claims a settings group url', function () {
+    foreach (SettingsRegistry::groupKeys() as $group) {
+        $url = route('settings.group', $group);
+        $matched = app('router')->getRoutes()->match(
+            Request::create($url, 'GET')
+        );
+
+        expect($matched->getName())->toBe('settings.group', "[{$url}] is claimed by another route");
+    }
 });
 
 test('a group the registry does not declare is not routable', function () {

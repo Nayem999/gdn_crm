@@ -35,13 +35,9 @@
             <x-lucide-moon class="hidden h-5 w-5 dark:block" aria-hidden="true" />
         </button>
 
-        <button
-            type="button"
-            class="relative flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Notifications"
-        >
-            <x-lucide-bell class="h-5 w-5" aria-hidden="true" />
-        </button>
+        @auth
+            @livewire('notifications.notification-bell')
+        @endauth
 
         @auth
             @php($user = auth()->user())

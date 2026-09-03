@@ -73,6 +73,14 @@ final class PermissionCatalogue
                     'settings.secrets' => 'Read and replace stored credentials',
                 ],
             ],
+            'notifications' => [
+                'label' => 'Notifications',
+                'icon' => 'bell',
+                'permissions' => [
+                    'notifications.view' => 'View the notification matrix, templates and log',
+                    'notifications.update' => 'Change the notification matrix and templates',
+                ],
+            ],
             'audit' => [
                 'label' => 'Audit log',
                 'icon' => 'scroll-text',

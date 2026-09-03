@@ -2,9 +2,11 @@
 
 namespace App\Domain\Settings\Actions;
 
+use App\Domain\Notifications\Notifier;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Settings\SettingsRegistry;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -64,6 +66,7 @@ class SaveSettingsAction
 
         if ($changed !== []) {
             $this->audit($group, $changed, $values);
+            $this->announceCredentialChange($group, $changed);
         }
 
         return $changed;
@@ -82,8 +85,41 @@ class SaveSettingsAction
 
         $this->settings->forget($group.'.'.$key);
         $this->audit($group, [$key], [], 'cleared');
+        $this->announceCredentialChange($group, [$key]);
 
         return true;
+    }
+
+    /**
+     * Tell the other administrators when a stored credential moved.
+     *
+     * Only the key names travel — the same rule the audit trail follows. A
+     * change to an ordinary setting is not worth a notification.
+     *
+     * @param  array<int, string>  $changed
+     */
+    private function announceCredentialChange(string $group, array $changed): void
+    {
+        $fields = SettingsRegistry::fields($group);
+
+        $secrets = array_values(array_filter(
+            $changed,
+            fn (string $key) => ($fields[$key] ?? null)?->secret === true
+        ));
+
+        if ($secrets === []) {
+            return;
+        }
+
+        $actor = auth()->user();
+
+        app(Notifier::class)->sendToAdmins('settings.credential_changed', 'settings.secrets', [
+            'settings' => [
+                'group' => SettingsRegistry::group($group)['label'],
+                'keys' => $secrets,
+            ],
+            'actor' => ['name' => $actor === null ? 'The system' : $actor->name],
+        ], $actor instanceof User ? $actor : null);
     }
 
     /**

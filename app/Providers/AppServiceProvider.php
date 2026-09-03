@@ -7,6 +7,10 @@ use App\Domain\Audit\Policies\ActivityPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
+use App\Domain\Notifications\ChannelManager;
+use App\Domain\Notifications\Models\NotificationLog;
+use App\Domain\Notifications\NotificationMatrix;
+use App\Domain\Notifications\Policies\NotificationPolicy;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
@@ -31,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
         // One manager per request, so its per-request cache of loaded groups is
         // shared by everything that reads a setting during that request.
         $this->app->singleton(SettingsManager::class);
+        // One matrix and one channel manager per request: both hold a resolved
+        // cache, and a test that swaps in a recording driver needs the same
+        // instance the dispatcher uses.
+        $this->app->singleton(NotificationMatrix::class);
+        $this->app->singleton(ChannelManager::class);
     }
 
     /**
@@ -47,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
+        Gate::policy(NotificationLog::class, NotificationPolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

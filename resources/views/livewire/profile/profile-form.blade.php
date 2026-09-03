@@ -178,4 +178,8 @@
             </div>
         @endif
     </div>
+
+    <div class="mt-8 border-t border-border pt-8">
+        @livewire('notifications.notification-preferences-panel')
+    </div>
 </div>

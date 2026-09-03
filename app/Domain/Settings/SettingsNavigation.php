@@ -57,6 +57,7 @@ final class SettingsNavigation
             [
                 'label' => 'System',
                 'items' => [
+                    ['label' => 'Notification rules', 'icon' => 'bell-ring', 'route' => 'settings.notifications', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'Audit log', 'icon' => 'scroll-text', 'route' => 'settings.audit', 'params' => [], 'permission' => 'audit.view'],
                 ],
             ],

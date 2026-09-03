@@ -7,6 +7,9 @@ use App\Domain\Audit\Policies\ActivityPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
+use App\Domain\Settings\Models\Setting;
+use App\Domain\Settings\Policies\SettingPolicy;
+use App\Domain\Settings\SettingsManager;
 use App\Domain\Teams\Policies\TeamPolicy;
 use App\Domain\Users\Policies\UserPolicy;
 use App\Models\Team;
@@ -25,7 +28,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One manager per request, so its per-request cache of loaded groups is
+        // shared by everything that reads a setting during that request.
+        $this->app->singleton(SettingsManager::class);
     }
 
     /**
@@ -41,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         // business rules such as "you cannot delete your own account" still hold.
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(Setting::class, SettingPolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

@@ -52,9 +52,16 @@
         @endforeach
     </nav>
 
+    @php
+        // Land on the first settings page this user can actually open, rather
+        // than always Company and a 403 for anyone without company.view.
+        $settingsUrl = \App\Domain\Settings\SettingsNavigation::landingRouteFor(auth()->user());
+    @endphp
+
+    @if ($settingsUrl)
     <div class="border-t border-sidebar-border px-3 py-4">
         <a
-            href="{{ route('settings.company') }}"
+            href="{{ $settingsUrl }}"
             @class([
                 'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-active hover:text-white',
                 'bg-sidebar-active text-white' => request()->routeIs('settings.*'),
@@ -65,4 +72,5 @@
             Settings
         </a>
     </div>
+    @endif
 </aside>

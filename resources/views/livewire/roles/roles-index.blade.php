@@ -1,19 +1,7 @@
 @php use App\Domain\Shared\Enums\DataAccessLevel; @endphp
 
 <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-foreground">Roles &amp; permissions</h1>
-            <p class="mt-1 text-sm text-muted-foreground">What each role can do, and how much data it can see.</p>
-        </div>
-
-        @can('create', Spatie\Permission\Models\Role::class)
-            <a href="{{ route('settings.roles.create') }}" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
-                <x-lucide-plus class="h-4 w-4" aria-hidden="true" />
-                Add role
-            </a>
-        @endcan
-    </div>
+    <x-settings-shell heading="Roles &amp; permissions" description="What each role can do, and how much data it can see." active="settings.roles">
 
     <div
         x-data="{ message: '' }"
@@ -109,4 +97,16 @@
             </div>
         @endif
     </div>
+
+    {{-- Named slots go last: Blade leaks an output buffer when one precedes
+         the default content. See .ai/rules/views.md. --}}
+    <x-slot:actions>
+        @can('create', Spatie\Permission\Models\Role::class)
+            <a href="{{ route('settings.roles.create') }}" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
+                <x-lucide-plus class="h-4 w-4" aria-hidden="true" />
+                Add role
+            </a>
+        @endcan
+    </x-slot:actions>
+    </x-settings-shell>
 </div>

@@ -1,10 +1,9 @@
 <div>
-    <div class="mb-6">
-        <h1 class="text-2xl font-semibold text-foreground">Audit log</h1>
-        <p class="mt-1 text-sm text-muted-foreground">
-            Every create, update and delete across the CRM, with who did it and what changed. Credentials are never recorded.
-        </p>
-    </div>
+    <x-settings-shell
+        heading="Audit log"
+        description="Every create, update and delete across the CRM, with who did it and what changed. Credentials are never recorded."
+        active="settings.audit"
+    >
 
     <div class="rounded-xl border border-border bg-card">
         <div class="flex flex-wrap items-center gap-3 border-b border-border p-4">
@@ -181,4 +180,5 @@
             @endif
         @endif
     </div>
+    </x-settings-shell>
 </div>

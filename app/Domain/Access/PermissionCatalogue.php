@@ -62,6 +62,17 @@ final class PermissionCatalogue
                     'roles.delete' => 'Remove roles',
                 ],
             ],
+            'settings' => [
+                'label' => 'Settings',
+                'icon' => 'settings',
+                'permissions' => [
+                    'settings.view' => 'View application settings',
+                    'settings.update' => 'Change application settings',
+                    // Deliberately separate: someone can be trusted with a date
+                    // format without being handed integration credentials.
+                    'settings.secrets' => 'Read and replace stored credentials',
+                ],
+            ],
             'audit' => [
                 'label' => 'Audit log',
                 'icon' => 'scroll-text',

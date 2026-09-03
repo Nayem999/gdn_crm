@@ -1,10 +1,12 @@
 <?php
 
+use App\Domain\Settings\SettingsRegistry;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Profile\ProfileForm;
 use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
+use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
 use App\Livewire\Users\AcceptInvitation;
@@ -40,4 +42,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
+
+    // Registry-backed groups. The {group} segment is matched against the
+    // registry in the component, which 404s on anything undeclared.
+    Route::get('/settings/{group}', SettingsGroup::class)
+        ->whereIn('group', SettingsRegistry::groupKeys())
+        ->name('settings.group');
 });

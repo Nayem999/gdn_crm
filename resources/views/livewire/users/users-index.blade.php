@@ -1,26 +1,5 @@
 <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-foreground">Users</h1>
-            <p class="mt-1 text-sm text-muted-foreground">People with access to this CRM.</p>
-        </div>
-
-        <div class="flex items-center gap-2">
-            @can('invite', App\Models\User::class)
-                <a href="{{ route('settings.users.invite') }}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
-                    <x-lucide-mail class="h-4 w-4" aria-hidden="true" />
-                    Invite user
-                </a>
-            @endcan
-
-            @can('create', App\Models\User::class)
-                <a href="{{ route('settings.users.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
-                    <x-lucide-plus class="h-4 w-4" aria-hidden="true" />
-                    Add user
-                </a>
-            @endcan
-        </div>
-    </div>
+    <x-settings-shell heading="Users" description="People with access to this CRM." active="settings.users">
 
     <div
         x-data="{ message: '' }"
@@ -154,4 +133,23 @@
             @endif
         @endif
     </div>
+
+    {{-- Named slots go last: Blade leaks an output buffer when one precedes
+         the default content. See .ai/rules/views.md. --}}
+    <x-slot:actions>
+        @can('invite', App\Models\User::class)
+            <a href="{{ route('settings.users.invite') }}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+                <x-lucide-mail class="h-4 w-4" aria-hidden="true" />
+                Invite user
+            </a>
+        @endcan
+
+        @can('create', App\Models\User::class)
+            <a href="{{ route('settings.users.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
+                <x-lucide-plus class="h-4 w-4" aria-hidden="true" />
+                Add user
+            </a>
+        @endcan
+    </x-slot:actions>
+    </x-settings-shell>
 </div>

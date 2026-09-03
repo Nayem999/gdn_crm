@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Access\PermissionResolver;
 use App\Models\User;
 
 // The dashboard sits behind `auth` as of task 1.2, so the shell is only
@@ -7,6 +8,17 @@ use App\Models\User;
 beforeEach(function () {
     $this->actingAs(User::factory()->create());
 });
+
+function settingsAwareUser(string $permission): User
+{
+    $user = User::factory()->create();
+
+    foreach (PermissionResolver::models([$permission]) as $model) {
+        $user->givePermissionTo($model);
+    }
+
+    return $user->fresh();
+}
 
 test('the dashboard renders the app shell with sidebar and topbar', function () {
     $response = $this->get('/');
@@ -31,9 +43,24 @@ test('the sidebar lists every core module with an icon', function () {
 
     $response->assertSuccessful();
 
-    foreach (['Leads', 'Contacts', 'Accounts', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation', 'Settings'] as $module) {
+    foreach (['Leads', 'Contacts', 'Accounts', 'Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
         $response->assertSee($module);
     }
+});
+
+test('the sidebar offers Settings only to someone who can open something there', function () {
+    // Task 1.8: the link used to point at Company for everyone, which meant a
+    // guaranteed 403 for anyone without company.view. It now lands on the first
+    // settings page the viewer can actually reach, and is hidden when there is
+    // none.
+    $this->get('/')->assertSuccessful()->assertDontSee('Settings');
+
+    $this->actingAs(settingsAwareUser('settings.view'));
+
+    $this->get('/')
+        ->assertSuccessful()
+        ->assertSee('Settings')
+        ->assertSee(route('settings.group', 'localisation'), false);
 });
 
 test('the layout loads the compiled tailwind stylesheet and the livewire/alpine script bundle', function () {

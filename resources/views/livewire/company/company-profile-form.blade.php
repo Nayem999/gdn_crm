@@ -1,4 +1,5 @@
 <div>
+    <x-settings-shell heading="Company" description="Your organisation's details, as they appear on branded documents." active="settings.company">
     <div
         x-data="{ show: false }"
         x-show="show"
@@ -129,4 +130,5 @@
             </x-button>
         </div>
     </form>
+    </x-settings-shell>
 </div>

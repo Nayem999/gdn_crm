@@ -35,3 +35,17 @@ So, two rules, both needed:
 `LeadConversionTest` walks every model, finds each method whose name matches a
 column, and fails if there is no default for it — so adding a new accessor of
 this shape without a default is caught rather than discovered later.
+
+## The guard test discovers models, it does not list them
+`LeadConversionTest` globs `app/Domain/*/Models/*.php` rather than naming
+classes, because a list only covers what somebody remembered. Switching it to
+discovery immediately turned up three more instances the hand-written list had
+missed — `NotificationLog::status()`, `NotificationLog::channel()` and
+`Setting::type()`, each a crash waiting for a partially-created instance.
+
+Two Pest details that dataset needs:
+
+- Pass a **closure** to `->with()`. A plain array is resolved at collection
+  time, before the application is booted.
+- Build the path from `__DIR__`, not `app_path()`. At collection time the
+  container is not the full application and the path helpers are not bound.

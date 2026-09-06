@@ -71,6 +71,7 @@ final class PermissionCatalogue
                     'accounts.update' => 'Update accounts',
                     'accounts.delete' => 'Remove accounts',
                     'accounts.export' => 'Export accounts',
+                    'accounts.import' => 'Import accounts from a file',
                     'accounts.merge' => 'Merge duplicate accounts',
                 ],
             ],
@@ -84,6 +85,7 @@ final class PermissionCatalogue
                     'leads.assign' => 'Hand a lead to someone else',
                     'leads.delete' => 'Remove leads',
                     'leads.export' => 'Export leads',
+                    'leads.import' => 'Import leads from a file',
                     'leads.merge' => 'Merge duplicate leads',
                     // Conversion writes three records at once, one of them
                     // in a module this person may not otherwise touch.
@@ -110,6 +112,7 @@ final class PermissionCatalogue
                     'contacts.update' => 'Update contacts',
                     'contacts.delete' => 'Remove contacts',
                     'contacts.export' => 'Export contacts',
+                    'contacts.import' => 'Import contacts from a file',
                     'contacts.merge' => 'Merge duplicate contacts',
                 ],
             ],

@@ -10,16 +10,29 @@
             </div>
         </div>
 
-        @can('create', App\Domain\Contacts\Models\Contact::class)
-            <a
-                href="{{ route('contacts.create') }}"
-                wire:navigate
-                class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
-            >
-                <x-icon name="lucide-plus" />
-                Add contact
-            </a>
-        @endcan
+        <div class="flex flex-wrap items-center gap-2">
+            @can('contacts.import')
+                <a
+                    href="{{ route('imports.create', ['module' => 'contacts']) }}"
+                    wire:navigate
+                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                    <x-icon name="lucide-upload" />
+                    Import
+                </a>
+            @endcan
+
+            @can('create', App\Domain\Contacts\Models\Contact::class)
+                <a
+                    href="{{ route('contacts.create') }}"
+                    wire:navigate
+                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                >
+                    <x-icon name="lucide-plus" />
+                    Add contact
+                </a>
+            @endcan
+        </div>
     </div>
 
     <div

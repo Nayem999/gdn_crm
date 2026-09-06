@@ -41,6 +41,19 @@ class Setting extends Model
      */
     protected $hidden = ['value'];
 
+    /**
+     * Columns that share a name with a method on this model.
+     *
+     * Without a default the key can be missing on a freshly created instance,
+     * and Laravel then takes the property read for a relation and calls the
+     * method. See .ai/rules/models-name-collisions.md.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'type' => 'string',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -50,7 +63,7 @@ class Setting extends Model
 
     public function type(): SettingType
     {
-        return SettingType::tryFrom($this->type) ?? SettingType::String;
+        return SettingType::tryFrom((string) $this->getAttributeValue('type')) ?? SettingType::String;
     }
 
     public function name(): string

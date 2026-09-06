@@ -86,6 +86,24 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'import.finished',
+                label: 'Import finished',
+                group: 'Imports',
+                description: 'A queued import finished, whether or not every row landed.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                defaultChannels: [NotificationChannel::InApp],
+                mergeFields: [
+                    'import.module' => 'Which list was imported into',
+                    'import.filename' => 'The file that was uploaded',
+                    'import.imported' => 'How many rows landed',
+                    'import.failed' => 'How many rows were refused',
+                ],
+                defaultSubject: 'Your import has finished',
+                defaultTemplates: [
+                    '*' => '{{import.filename}} finished: {{import.imported}} rows imported into {{import.module}}, {{import.failed}} refused.',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'export.ready',
                 label: 'Export ready',
                 group: 'Exports',

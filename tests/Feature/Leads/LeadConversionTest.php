@@ -10,11 +10,38 @@ use App\Domain\Leads\DTOs\LeadConversionData;
 use App\Domain\Leads\DTOs\LeadConversionResult;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
-use App\Domain\Leads\Models\LeadScoringRule;
 use App\Domain\Shared\UI\ChipPalette;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Models\Activity;
+
+/**
+ * Every model under app/Domain, found rather than listed: a rule that only
+ * covers the models somebody remembered to name is not much of a rule.
+ *
+ * @return array<int, string>
+ */
+function domainModels(): array
+{
+    // Off __DIR__, not app_path(): a dataset is resolved before the
+    // application is booted, so the path helpers are not there yet.
+    $domain = dirname(__DIR__, 3).'/app/Domain';
+    $classes = [];
+
+    foreach (glob($domain.'/*/Models/*.php') ?: [] as $file) {
+        $relative = (string) substr($file, strlen($domain) + 1);
+        $class = 'App\\Domain\\'.str_replace(['/', '\\', '.php'], ['\\', '\\', ''], $relative);
+
+        if (class_exists($class) && is_subclass_of($class, Model::class)) {
+            $classes[] = $class;
+        }
+    }
+
+    sort($classes);
+
+    return $classes;
+}
 
 function converter(): User
 {
@@ -395,13 +422,9 @@ test('a column sharing a name with a method has a default, so reading it is safe
     }
 
     expect(true)->toBeTrue();
-})->with([
-    Account::class,
-    Contact::class,
-    Lead::class,
-    Deal::class,
-    LeadScoringRule::class,
-]);
+    // A closure, not the array: Pest resolves a dataset at collection time,
+    // before the application is booted and app_path() means anything.
+})->with(fn () => domainModels());
 
 test('a lead whose converted records were later removed is not silently reconverted', function () {
     $lead = convertibleLead();

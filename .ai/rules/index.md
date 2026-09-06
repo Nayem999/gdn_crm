@@ -14,6 +14,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Shared/Duplicates/**, app/Domain/*/*Duplicates.php, app/Livewire/Duplicates/** | .ai/rules/duplicates.md |
 | database/factories/** | .ai/rules/factories.md |
 | * | .ai/rules/general.md |
+| app/Domain/Shared/Imports/**, app/Domain/*/*ImportSource.php, app/Livewire/Imports/** | .ai/rules/imports.md |
 | resources/views/components/layouts/** | .ai/rules/layouts.md |
 | app/Domain/Leads/**, app/Livewire/Leads/**, app/Jobs/RescoreLeads.php | .ai/rules/leads.md |
 | app/Livewire/** | .ai/rules/livewire.md |

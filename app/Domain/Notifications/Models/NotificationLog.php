@@ -49,6 +49,20 @@ class NotificationLog extends Model
         'sent_at',
     ];
 
+    /**
+     * Columns that share a name with a method on this model.
+     *
+     * Without a default the key can be missing on a freshly created instance,
+     * and Laravel then takes the property read for a relation and calls the
+     * method. See .ai/rules/models-name-collisions.md.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => 'queued',
+        'channel' => 'in_app',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -67,12 +81,12 @@ class NotificationLog extends Model
 
     public function status(): NotificationStatus
     {
-        return NotificationStatus::tryFrom($this->status) ?? NotificationStatus::Queued;
+        return NotificationStatus::tryFrom((string) $this->getAttributeValue('status')) ?? NotificationStatus::Queued;
     }
 
     public function channel(): NotificationChannel
     {
-        return NotificationChannel::tryFrom($this->channel) ?? NotificationChannel::InApp;
+        return NotificationChannel::tryFrom((string) $this->getAttributeValue('channel')) ?? NotificationChannel::InApp;
     }
 
     public function recipientType(): RecipientType

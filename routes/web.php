@@ -2,6 +2,7 @@
 
 use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Shared\Duplicates\DuplicateRegistry;
+use App\Domain\Shared\Imports\ImportRegistry;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -11,6 +12,7 @@ use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\Duplicates\MergeRecords;
+use App\Livewire\Imports\ImportRecords;
 use App\Livewire\Leads\LeadConvert;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadScoringRules;
@@ -60,6 +62,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/{lead}', LeadShow::class)->withTrashed()->name('leads.show');
     Route::get('/leads/{lead}/edit', LeadForm::class)->name('leads.edit');
     Route::get('/leads/{lead}/convert', LeadConvert::class)->name('leads.convert');
+
+    // One import screen for every module in ImportRegistry, resolved the same
+    // way: an unlisted module 404s rather than becoming a class name.
+    Route::get('/import/{module}', ImportRecords::class)
+        ->whereIn('module', ImportRegistry::keys())
+        ->name('imports.create');
 
     // One merge screen for every module in DuplicateRegistry. The {module}
     // segment is matched against the registry here and again in the component,

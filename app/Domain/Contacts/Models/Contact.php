@@ -5,6 +5,7 @@ namespace App\Domain\Contacts\Models;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Enums\Department;
+use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Models\User;
 use Database\Factories\ContactFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * A person at a customer organisation.
@@ -35,12 +37,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $account_id
  * @property bool $is_primary
  * @property int $owner_id
+ * @property int|null $merged_into_id
+ * @property Carbon|null $merged_at
  */
 class Contact extends Model
 {
     /** @use HasFactory<ContactFactory> */
     use HasFactory;
 
+    use MergesWithDuplicates;
     use RecordsActivity;
     use ScopesByAccessLevel;
     use SoftDeletes;
@@ -72,6 +77,7 @@ class Contact extends Model
     {
         return [
             'is_primary' => 'boolean',
+            'merged_at' => 'datetime',
         ];
     }
 

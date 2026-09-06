@@ -42,6 +42,15 @@ class ContactPolicy
         return $user->can('contacts.export');
     }
 
+    /**
+     * Merging is its own permission: it folds one record into another and
+     * takes one of them off the list, which is more than an edit.
+     */
+    public function merge(User $user, Contact $contact): bool
+    {
+        return $user->can('contacts.merge') && $this->isVisibleTo($user, $contact);
+    }
+
     private function isVisibleTo(User $user, Contact $contact): bool
     {
         return Contact::query()

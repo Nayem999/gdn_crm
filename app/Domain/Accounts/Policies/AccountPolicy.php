@@ -47,6 +47,15 @@ class AccountPolicy
     /**
      * Whether this record falls inside the user's access level.
      */
+    /**
+     * Merging is its own permission: it folds one record into another and
+     * takes one of them off the list, which is more than an edit.
+     */
+    public function merge(User $user, Account $account): bool
+    {
+        return $user->can('accounts.merge') && $this->isVisibleTo($user, $account);
+    }
+
     private function isVisibleTo(User $user, Account $account): bool
     {
         return Account::query()

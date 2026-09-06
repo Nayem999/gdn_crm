@@ -2,12 +2,15 @@
 
 namespace App\Livewire\Accounts;
 
+use App\Domain\Accounts\AccountDuplicates;
 use App\Domain\Accounts\Actions\CreateAccountAction;
 use App\Domain\Accounts\Actions\UpdateAccountAction;
 use App\Domain\Accounts\DTOs\AccountData;
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -22,6 +25,7 @@ use RuntimeException;
 class AccountForm extends Component
 {
     use AuthorizesRequests;
+    use WarnsAboutDuplicates;
 
     #[Locked]
     public ?int $accountId = null;
@@ -215,6 +219,16 @@ class AccountForm extends Component
         }
 
         return $options;
+    }
+
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(AccountDuplicates::class);
+    }
+
+    public function duplicateIgnoreId(): ?int
+    {
+        return $this->accountId;
     }
 
     public function render(): View

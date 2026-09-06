@@ -15,6 +15,11 @@
         @endunless
     </div>
 
+    <x-duplicate-warning
+        :matches="$this->draftDuplicates()"
+        :route="fn ($record) => route('leads.show', $record)"
+    />
+
     <form wire:submit="save" class="space-y-6">
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
             <h2 class="text-base font-semibold text-foreground">Person</h2>
@@ -40,7 +45,7 @@
 
                 <div>
                     <x-form.label for="company_name">Company</x-form.label>
-                    <x-form.input id="company_name" wire:model="company_name" :invalid="$errors->has('company_name')" />
+                    <x-form.input id="company_name" wire:model.live.debounce.500ms="company_name" :invalid="$errors->has('company_name')" />
                     <x-form.error for="company_name" />
                     <p class="mt-1.5 text-xs text-muted-foreground">
                         As they gave it. Converting the lead is what creates the account.
@@ -56,19 +61,19 @@
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <x-form.label for="email">Email</x-form.label>
-                    <x-form.input id="email" type="email" wire:model="email" :invalid="$errors->has('email')" />
+                    <x-form.input id="email" type="email" wire:model.live.debounce.500ms="email" :invalid="$errors->has('email')" />
                     <x-form.error for="email" />
                 </div>
 
                 <div>
                     <x-form.label for="phone">Phone</x-form.label>
-                    <x-form.input id="phone" wire:model="phone" :invalid="$errors->has('phone')" />
+                    <x-form.input id="phone" wire:model.live.debounce.500ms="phone" :invalid="$errors->has('phone')" />
                     <x-form.error for="phone" />
                 </div>
 
                 <div>
                     <x-form.label for="mobile">Mobile</x-form.label>
-                    <x-form.input id="mobile" wire:model="mobile" :invalid="$errors->has('mobile')" />
+                    <x-form.input id="mobile" wire:model.live.debounce.500ms="mobile" :invalid="$errors->has('mobile')" />
                     <x-form.error for="mobile" />
                 </div>
 

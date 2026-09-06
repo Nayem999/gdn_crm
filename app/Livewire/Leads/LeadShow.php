@@ -8,9 +8,12 @@ use App\Domain\Leads\Actions\DeleteLeadAction;
 use App\Domain\Leads\DTOs\LeadScore;
 use App\Domain\Leads\DTOs\QualificationCheck;
 use App\Domain\Leads\Enums\LeadStatus;
+use App\Domain\Leads\LeadDuplicates;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Services\LeadQualification;
 use App\Domain\Leads\Services\LeadScoring;
+use App\Domain\Shared\Concerns\FindsDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -26,6 +29,7 @@ use RuntimeException;
 class LeadShow extends Component
 {
     use AuthorizesRequests;
+    use FindsDuplicates;
 
     #[Locked]
     public int $leadId;
@@ -43,9 +47,18 @@ class LeadShow extends Component
         $this->reassignTo = (string) $lead->owner_id;
     }
 
+    /**
+     * Trashed records are included so a merged one stays readable: keeping it
+     * is what makes its history survive, and a page nobody can open is not
+     * kept in any useful sense. An ordinary deletion is still gone.
+     */
     public function lead(): Lead
     {
-        return Lead::query()->with('owner')->findOrFail($this->leadId);
+        $lead = Lead::withTrashed()->with('owner')->findOrFail($this->leadId);
+
+        abort_if($lead->trashed() && ! $lead->isMerged(), 404);
+
+        return $lead;
     }
 
     /**
@@ -146,6 +159,11 @@ class LeadShow extends Component
         return $options;
     }
 
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(LeadDuplicates::class);
+    }
+
     public function render(): View
     {
         $lead = $this->lead();
@@ -156,6 +174,7 @@ class LeadShow extends Component
             'owners' => $this->ownerOptions(),
             'breakdown' => $this->scoreBreakdown(),
             'qualification' => $this->qualification(),
+            'duplicates' => $this->duplicatesOf($lead),
         ])->title($lead->fullName());
     }
 }

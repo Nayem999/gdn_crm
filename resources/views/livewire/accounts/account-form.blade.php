@@ -11,6 +11,11 @@
         </div>
     </div>
 
+    <x-duplicate-warning
+        :matches="$this->draftDuplicates()"
+        :route="fn ($record) => route('accounts.show', $record)"
+    />
+
     <form wire:submit="save" class="space-y-6">
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
             <h2 class="text-base font-semibold text-foreground">Organisation</h2>
@@ -18,13 +23,13 @@
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <x-form.label for="name" required>Account name</x-form.label>
-                    <x-form.input id="name" wire:model="name" :invalid="$errors->has('name')" />
+                    <x-form.input id="name" wire:model.live.debounce.500ms="name" :invalid="$errors->has('name')" />
                     <x-form.error for="name" />
                 </div>
 
                 <div class="sm:col-span-2">
                     <x-form.label for="legal_name">Registered legal name</x-form.label>
-                    <x-form.input id="legal_name" wire:model="legal_name" :invalid="$errors->has('legal_name')" />
+                    <x-form.input id="legal_name" wire:model.live.debounce.500ms="legal_name" :invalid="$errors->has('legal_name')" />
                     <x-form.error for="legal_name" />
                 </div>
 
@@ -83,13 +88,13 @@
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <x-form.label for="email">Email</x-form.label>
-                    <x-form.input id="email" type="email" wire:model="email" :invalid="$errors->has('email')" />
+                    <x-form.input id="email" type="email" wire:model.live.debounce.500ms="email" :invalid="$errors->has('email')" />
                     <x-form.error for="email" />
                 </div>
 
                 <div>
                     <x-form.label for="phone">Phone</x-form.label>
-                    <x-form.input id="phone" wire:model="phone" :invalid="$errors->has('phone')" />
+                    <x-form.input id="phone" wire:model.live.debounce.500ms="phone" :invalid="$errors->has('phone')" />
                     <x-form.error for="phone" />
                 </div>
 

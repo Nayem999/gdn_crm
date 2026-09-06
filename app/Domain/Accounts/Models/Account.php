@@ -5,6 +5,7 @@ namespace App\Domain\Accounts\Models;
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Models\User;
 use Database\Factories\AccountFactory;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -37,12 +39,15 @@ use Illuminate\Support\Collection;
  * @property string|null $description
  * @property int|null $parent_id
  * @property int $owner_id
+ * @property int|null $merged_into_id
+ * @property Carbon|null $merged_at
  */
 class Account extends Model
 {
     /** @use HasFactory<AccountFactory> */
     use HasFactory;
 
+    use MergesWithDuplicates;
     use RecordsActivity;
     use ScopesByAccessLevel;
     use SoftDeletes;
@@ -74,6 +79,7 @@ class Account extends Model
     {
         return [
             'annual_revenue' => 'decimal:2',
+            'merged_at' => 'datetime',
         ];
     }
 

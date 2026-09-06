@@ -4,7 +4,10 @@ namespace App\Livewire\Contacts;
 
 use App\Domain\Contacts\Actions\DeleteContactAction;
 use App\Domain\Contacts\Actions\SetPrimaryContactAction;
+use App\Domain\Contacts\ContactDuplicates;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Shared\Concerns\FindsDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
@@ -19,6 +22,7 @@ use Livewire\Component;
 class ContactShow extends Component
 {
     use AuthorizesRequests;
+    use FindsDuplicates;
 
     #[Locked]
     public int $contactId;
@@ -30,11 +34,20 @@ class ContactShow extends Component
         $this->contactId = $contact->id;
     }
 
+    /**
+     * Trashed records are included so a merged one stays readable: keeping it
+     * is what makes its history survive, and a page nobody can open is not
+     * kept in any useful sense. An ordinary deletion is still gone.
+     */
     public function contact(): Contact
     {
-        return Contact::query()
+        $contact = Contact::withTrashed()
             ->with(['account', 'owner'])
             ->findOrFail($this->contactId);
+
+        abort_if($contact->trashed() && ! $contact->isMerged(), 404);
+
+        return $contact;
     }
 
     /**
@@ -91,6 +104,11 @@ class ContactShow extends Component
         $this->redirectRoute('contacts.index', navigate: true);
     }
 
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(ContactDuplicates::class);
+    }
+
     public function render(): View
     {
         $contact = $this->contact();
@@ -98,6 +116,7 @@ class ContactShow extends Component
         return view('livewire.contacts.contact-show', [
             'contact' => $contact,
             'colleagues' => $this->colleagues(),
+            'duplicates' => $this->duplicatesOf($contact),
         ])->title($contact->fullName());
     }
 }

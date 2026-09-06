@@ -3,6 +3,14 @@
         <x-alert variant="success" class="mb-4">{{ session('status') }}</x-alert>
     @endif
 
+    <x-duplicate-banner
+        :matches="$duplicates"
+        :merge-url="$this->mergeRoute($account)"
+        :can-merge="$this->canMergeDuplicates($account)"
+        :merged-into="$account->mergedInto ? $this->duplicateSource()?->showRoute($account->mergedInto) : null"
+        :merged-label="$account->mergedInto ? $this->duplicateSource()?->label($account->mergedInto) : null"
+    />
+
     <nav class="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground" aria-label="Breadcrumb">
         <a href="{{ route('accounts.index') }}" wire:navigate class="hover:text-foreground">Accounts</a>
 

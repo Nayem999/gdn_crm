@@ -6,6 +6,7 @@ use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Leads\Enums\LeadGrade;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
+use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Models\User;
 use Database\Factories\LeadFactory;
@@ -42,12 +43,15 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property Carbon|null $status_changed_at
  * @property int $owner_id
+ * @property int|null $merged_into_id
+ * @property Carbon|null $merged_at
  */
 class Lead extends Model
 {
     /** @use HasFactory<LeadFactory> */
     use HasFactory;
 
+    use MergesWithDuplicates;
     use RecordsActivity;
     use ScopesByAccessLevel;
     use SoftDeletes;
@@ -85,6 +89,7 @@ class Lead extends Model
             'score' => 'integer',
             'status_changed_at' => 'datetime',
             'scored_at' => 'datetime',
+            'merged_at' => 'datetime',
         ];
     }
 

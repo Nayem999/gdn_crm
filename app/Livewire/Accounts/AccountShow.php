@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Accounts;
 
+use App\Domain\Accounts\AccountDuplicates;
 use App\Domain\Accounts\Actions\DeleteAccountAction;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Shared\Concerns\FindsDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
@@ -19,6 +22,7 @@ use Livewire\Component;
 class AccountShow extends Component
 {
     use AuthorizesRequests;
+    use FindsDuplicates;
 
     #[Locked]
     public int $accountId;
@@ -30,11 +34,20 @@ class AccountShow extends Component
         $this->accountId = $account->id;
     }
 
+    /**
+     * Trashed records are included so a merged one stays readable: keeping it
+     * is what makes its history survive, and a page nobody can open is not
+     * kept in any useful sense. An ordinary deletion is still gone.
+     */
     public function account(): Account
     {
-        return Account::query()
+        $account = Account::withTrashed()
             ->with(['owner', 'parent'])
             ->findOrFail($this->accountId);
+
+        abort_if($account->trashed() && ! $account->isMerged(), 404);
+
+        return $account;
     }
 
     /**
@@ -97,6 +110,11 @@ class AccountShow extends Component
         $this->redirectRoute('accounts.index', navigate: true);
     }
 
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(AccountDuplicates::class);
+    }
+
     public function render(): View
     {
         $account = $this->account();
@@ -106,6 +124,7 @@ class AccountShow extends Component
             'lineage' => $this->lineage(),
             'children' => $this->children(),
             'contacts' => $this->contacts(),
+            'duplicates' => $this->duplicatesOf($account),
         ])->title($account->name);
     }
 }

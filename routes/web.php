@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Settings\SettingsRegistry;
+use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -9,6 +10,7 @@ use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
+use App\Livewire\Duplicates\MergeRecords;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadScoringRules;
 use App\Livewire\Leads\LeadShow;
@@ -41,18 +43,29 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/accounts', AccountsIndex::class)->name('accounts.index');
     Route::get('/accounts/create', AccountForm::class)->name('accounts.create');
-    Route::get('/accounts/{account}', AccountShow::class)->name('accounts.show');
+    // withTrashed so a merged record's page still opens: keeping the record is
+    // what makes its history survive, and the component turns away a deletion
+    // that was not a merge.
+    Route::get('/accounts/{account}', AccountShow::class)->withTrashed()->name('accounts.show');
     Route::get('/accounts/{account}/edit', AccountForm::class)->name('accounts.edit');
 
     Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');
-    Route::get('/contacts/{contact}', ContactShow::class)->name('contacts.show');
+    Route::get('/contacts/{contact}', ContactShow::class)->withTrashed()->name('contacts.show');
     Route::get('/contacts/{contact}/edit', ContactForm::class)->name('contacts.edit');
 
     Route::get('/leads', LeadsIndex::class)->name('leads.index');
     Route::get('/leads/create', LeadForm::class)->name('leads.create');
-    Route::get('/leads/{lead}', LeadShow::class)->name('leads.show');
+    Route::get('/leads/{lead}', LeadShow::class)->withTrashed()->name('leads.show');
     Route::get('/leads/{lead}/edit', LeadForm::class)->name('leads.edit');
+
+    // One merge screen for every module in DuplicateRegistry. The {module}
+    // segment is matched against the registry here and again in the component,
+    // so it can never become an arbitrary class name.
+    Route::get('/duplicates/{module}/{record}/merge', MergeRecords::class)
+        ->whereIn('module', DuplicateRegistry::keys())
+        ->whereNumber('record')
+        ->name('duplicates.merge');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
 

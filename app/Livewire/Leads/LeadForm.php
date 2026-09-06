@@ -6,7 +6,10 @@ use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Enums\LeadSource;
+use App\Domain\Leads\LeadDuplicates;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -24,6 +27,7 @@ use Livewire\Component;
 class LeadForm extends Component
 {
     use AuthorizesRequests;
+    use WarnsAboutDuplicates;
 
     #[Locked]
     public ?int $leadId = null;
@@ -190,6 +194,16 @@ class LeadForm extends Component
         }
 
         return $options;
+    }
+
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(LeadDuplicates::class);
+    }
+
+    public function duplicateIgnoreId(): ?int
+    {
+        return $this->leadId;
     }
 
     public function render(): View

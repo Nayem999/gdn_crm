@@ -71,6 +71,7 @@ final class PermissionCatalogue
                     'accounts.update' => 'Update accounts',
                     'accounts.delete' => 'Remove accounts',
                     'accounts.export' => 'Export accounts',
+                    'accounts.merge' => 'Merge duplicate accounts',
                 ],
             ],
             'leads' => [
@@ -83,6 +84,7 @@ final class PermissionCatalogue
                     'leads.assign' => 'Hand a lead to someone else',
                     'leads.delete' => 'Remove leads',
                     'leads.export' => 'Export leads',
+                    'leads.merge' => 'Merge duplicate leads',
                     // Configuring how every lead is scored is administration,
                     // not lead work, so it stands apart from leads.update.
                     'leads.scoring' => 'Configure lead scoring and qualification rules',
@@ -97,6 +99,7 @@ final class PermissionCatalogue
                     'contacts.update' => 'Update contacts',
                     'contacts.delete' => 'Remove contacts',
                     'contacts.export' => 'Export contacts',
+                    'contacts.merge' => 'Merge duplicate contacts',
                 ],
             ],
             'settings' => [

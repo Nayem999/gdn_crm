@@ -19,6 +19,14 @@
         </template>
     </div>
 
+    <x-duplicate-banner
+        :matches="$duplicates"
+        :merge-url="$this->mergeRoute($lead)"
+        :can-merge="$this->canMergeDuplicates($lead)"
+        :merged-into="$lead->mergedInto ? $this->duplicateSource()?->showRoute($lead->mergedInto) : null"
+        :merged-label="$lead->mergedInto ? $this->duplicateSource()?->label($lead->mergedInto) : null"
+    />
+
     <nav class="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground" aria-label="Breadcrumb">
         <a href="{{ route('leads.index') }}" wire:navigate class="hover:text-foreground">Leads</a>
         <x-icon name="lucide-chevron-right" class="h-3.5 w-3.5" />

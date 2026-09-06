@@ -55,6 +55,24 @@ final class AuditLogger
     }
 
     /**
+     * A merge, written on both records.
+     *
+     * The loser keeps its own entry as well as the survivor: reading the
+     * survivor's history should show what it absorbed, and reading the merged
+     * record should say where it went rather than trailing off.
+     */
+    public static function merged(Model $survivor, Model $loser, string $survivorLabel, string $loserLabel): void
+    {
+        self::write($survivor, 'updated', $loserLabel.' was merged into '.$survivorLabel, [
+            'merged_from' => ['label' => $loserLabel, 'id' => $loser->getKey()],
+        ]);
+
+        self::write($loser, 'updated', $loserLabel.' was merged into '.$survivorLabel, [
+            'merged_into' => ['label' => $survivorLabel, 'id' => $survivor->getKey()],
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $properties
      */
     private static function write(Model $subject, string $event, string $description, array $properties): void

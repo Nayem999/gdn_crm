@@ -51,6 +51,15 @@ class LeadPolicy
         return $user->can('leads.export');
     }
 
+    /**
+     * Merging is its own permission: it folds one record into another and
+     * takes one of them off the list, which is more than an edit.
+     */
+    public function merge(User $user, Lead $lead): bool
+    {
+        return $user->can('leads.merge') && $this->isVisibleTo($user, $lead);
+    }
+
     private function isVisibleTo(User $user, Lead $lead): bool
     {
         return Lead::query()

@@ -13,6 +13,14 @@
         <x-alert variant="success"><span x-text="message"></span></x-alert>
     </div>
 
+    <x-duplicate-banner
+        :matches="$duplicates"
+        :merge-url="$this->mergeRoute($contact)"
+        :can-merge="$this->canMergeDuplicates($contact)"
+        :merged-into="$contact->mergedInto ? $this->duplicateSource()?->showRoute($contact->mergedInto) : null"
+        :merged-label="$contact->mergedInto ? $this->duplicateSource()?->label($contact->mergedInto) : null"
+    />
+
     <nav class="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground" aria-label="Breadcrumb">
         <a href="{{ route('contacts.index') }}" wire:navigate class="hover:text-foreground">Contacts</a>
 

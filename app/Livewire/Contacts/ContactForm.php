@@ -5,9 +5,12 @@ namespace App\Livewire\Contacts;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Actions\CreateContactAction;
 use App\Domain\Contacts\Actions\UpdateContactAction;
+use App\Domain\Contacts\ContactDuplicates;
 use App\Domain\Contacts\DTOs\ContactData;
 use App\Domain\Contacts\Enums\Department;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
+use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -23,6 +26,7 @@ use RuntimeException;
 class ContactForm extends Component
 {
     use AuthorizesRequests;
+    use WarnsAboutDuplicates;
 
     /**
      * How many accounts one page of the account picker returns.
@@ -268,6 +272,16 @@ class ContactForm extends Component
         }
 
         return $options;
+    }
+
+    public function duplicateSource(): ?DuplicateSource
+    {
+        return app(ContactDuplicates::class);
+    }
+
+    public function duplicateIgnoreId(): ?int
+    {
+        return $this->contactId;
     }
 
     public function render(): View

@@ -48,6 +48,10 @@ class MergeRecordsAction
             foreach ($source->inboundRelations() as $relation) {
                 DB::table($relation['table'])
                     ->where($relation['column'], $loser->getKey())
+                    // A polymorphic table is addressed by type as well as id,
+                    // so without this a note on contact 7 would follow a merge
+                    // of account 7.
+                    ->where($relation['where'] ?? [])
                     ->update([$relation['column'] => $survivor->getKey()]);
             }
 

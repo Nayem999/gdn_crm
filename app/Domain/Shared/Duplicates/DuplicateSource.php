@@ -47,7 +47,11 @@ interface DuplicateSource
      * Rows elsewhere that point at a record of this type and must be moved to
      * the survivor.
      *
-     * @return array<int, array{table: string, column: string}>
+     * `where` narrows the move, and a polymorphic table needs it: notes are
+     * addressed by a type *and* an id, so moving on `notable_id` alone would
+     * drag a contact's notes onto an account that happens to share its id.
+     *
+     * @return array<int, array{table: string, column: string, where?: array<string, string>}>
      */
     public function inboundRelations(): array;
 

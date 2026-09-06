@@ -8,6 +8,7 @@ use App\Domain\Contacts\Models\Contact;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
 use App\Domain\Shared\Duplicates\MatchRule;
+use App\Domain\Timeline\TimelineRegistry;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -77,11 +78,11 @@ class ContactDuplicates implements DuplicateSource
     }
 
     /**
-     * @return array<int, array{table: string, column: string}>
+     * @return array<int, array{table: string, column: string, where?: array<string, string>}>
      */
     public function inboundRelations(): array
     {
-        return [];
+        return TimelineRegistry::inboundRelations((new Contact)->getMorphClass());
     }
 
     /**

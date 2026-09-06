@@ -211,6 +211,13 @@
                     </ul>
                 @endif
             </section>
+            {{-- The record's own history, keyed so switching records rebuilds
+                 it rather than showing the previous one's entries. --}}
+            <livewire:timeline.record-timeline
+                :module="'accounts'"
+                :record="$account->id"
+                :key="'timeline-accounts-'.$account->id"
+            />
         </div>
 
         <aside class="space-y-6">

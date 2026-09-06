@@ -25,6 +25,10 @@ use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Teams\Policies\TeamPolicy;
+use App\Domain\Timeline\Models\Document;
+use App\Domain\Timeline\Models\Note;
+use App\Domain\Timeline\Policies\DocumentPolicy;
+use App\Domain\Timeline\Policies\NotePolicy;
 use App\Domain\Users\Policies\UserPolicy;
 use App\Models\Team;
 use App\Models\User;
@@ -72,6 +76,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
+        // Both ask the subject record's own policy before answering, so a note
+        // or an attachment is never a way round a module's access level.
+        Gate::policy(Note::class, NotePolicy::class);
+        Gate::policy(Document::class, DocumentPolicy::class);
 
         Event::subscribe(RecordLoginHistory::class);
 

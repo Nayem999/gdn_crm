@@ -6,6 +6,7 @@ use App\Domain\Leads\Models\Lead;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
 use App\Domain\Shared\Duplicates\MatchRule;
+use App\Domain\Timeline\TimelineRegistry;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -76,11 +77,13 @@ class LeadDuplicates implements DuplicateSource
      * Nothing points at a lead yet. Task 2.6's conversion will, and this is
      * where those rows get moved.
      *
-     * @return array<int, array{table: string, column: string}>
+     * @return array<int, array{table: string, column: string, where?: array<string, string>}>
      */
     public function inboundRelations(): array
     {
-        return [];
+        // A note written on the duplicate is about the same person, so it
+        // follows them onto the survivor.
+        return TimelineRegistry::inboundRelations((new Lead)->getMorphClass());
     }
 
     /**

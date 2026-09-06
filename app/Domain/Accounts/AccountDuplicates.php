@@ -6,6 +6,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
 use App\Domain\Shared\Duplicates\MatchRule;
+use App\Domain\Timeline\TimelineRegistry;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -73,13 +74,14 @@ class AccountDuplicates implements DuplicateSource
     /**
      * The survivor inherits the loser's people and its subsidiaries.
      *
-     * @return array<int, array{table: string, column: string}>
+     * @return array<int, array{table: string, column: string, where?: array<string, string>}>
      */
     public function inboundRelations(): array
     {
         return [
             ['table' => 'contacts', 'column' => 'account_id'],
             ['table' => 'accounts', 'column' => 'parent_id'],
+            ...TimelineRegistry::inboundRelations((new Account)->getMorphClass()),
         ];
     }
 

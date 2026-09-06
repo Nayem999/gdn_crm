@@ -11,6 +11,7 @@ use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,6 +59,7 @@ class Lead extends Model
     /** @use HasFactory<LeadFactory> */
     use HasFactory;
 
+    use HasTimeline;
     use MergesWithDuplicates;
     use RecordsActivity;
     use ScopesByAccessLevel;

@@ -116,6 +116,19 @@ final class PermissionCatalogue
                     'contacts.merge' => 'Merge duplicate contacts',
                 ],
             ],
+            'timeline' => [
+                'label' => 'Notes & documents',
+                'icon' => 'message-square-text',
+                'permissions' => [
+                    // One group across every module: a note is the same thing
+                    // on a lead, a contact and an account, and what keeps them
+                    // apart is the record's own policy, which is asked first.
+                    'timeline.view' => 'Read notes and documents on a record',
+                    'timeline.create' => 'Write notes and attach documents',
+                    'timeline.update' => 'Edit a note they wrote',
+                    'timeline.delete' => 'Remove notes and documents',
+                ],
+            ],
             'settings' => [
                 'label' => 'Settings',
                 'icon' => 'settings',

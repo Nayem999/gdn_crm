@@ -184,6 +184,13 @@
                     </ul>
                 @endif
             </section>
+            {{-- The record's own history, keyed so switching records rebuilds
+                 it rather than showing the previous one's entries. --}}
+            <livewire:timeline.record-timeline
+                :module="'contacts'"
+                :record="$contact->id"
+                :key="'timeline-contacts-'.$contact->id"
+            />
         </div>
 
         <aside class="space-y-6">

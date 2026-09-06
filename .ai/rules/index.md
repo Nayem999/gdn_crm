@@ -26,5 +26,6 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/components/settings-shell.blade.php | .ai/rules/settings.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |
+| app/Domain/Timeline/**, app/Livewire/Timeline/**, app/Http/Controllers/DownloadDocument.php, resources/views/livewire/timeline/**, resources/views/components/timeline-entry.blade.php | .ai/rules/timeline.md |
 | resources/views/livewire/** | .ai/rules/views-livewire.md |
 | resources/views/** | .ai/rules/views.md |

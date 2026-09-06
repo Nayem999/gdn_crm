@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Audit;
 
+use App\Domain\Audit\ActivityPresenter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -142,12 +143,7 @@ class ActivityLogIndex extends Component
 
     public function eventColor(?string $event): string
     {
-        return match ($event) {
-            'created' => 'emerald',
-            'updated' => 'blue',
-            'deleted' => 'rose',
-            default => 'slate',
-        };
+        return ActivityPresenter::color($event);
     }
 
     /**
@@ -157,22 +153,7 @@ class ActivityLogIndex extends Component
      */
     public function changesFor(Activity $activity): array
     {
-        /** @var array<string, mixed> $properties */
-        $properties = $activity->properties->toArray();
-
-        $new = is_array($properties['attributes'] ?? null) ? $properties['attributes'] : [];
-        $old = is_array($properties['old'] ?? null) ? $properties['old'] : [];
-
-        $changes = [];
-
-        foreach (array_keys($new + $old) as $attribute) {
-            $changes[$attribute] = [
-                'old' => $old[$attribute] ?? null,
-                'new' => $new[$attribute] ?? null,
-            ];
-        }
-
-        return $changes;
+        return ActivityPresenter::changes($activity);
     }
 
     /**
@@ -181,19 +162,7 @@ class ActivityLogIndex extends Component
      */
     public function formatValue(mixed $value): string
     {
-        if ($value === null || $value === '' || $value === []) {
-            return '—';
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_array($value)) {
-            return implode(', ', array_map(fn (mixed $item) => (string) $item, $value));
-        }
-
-        return (string) $value;
+        return ActivityPresenter::value($value);
     }
 
     public function render(): View

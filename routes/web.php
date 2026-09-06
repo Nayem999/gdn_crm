@@ -3,6 +3,7 @@
 use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Domain\Shared\Imports\ImportRegistry;
+use App\Http\Controllers\DownloadDocument;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -76,6 +77,11 @@ Route::middleware('auth')->group(function () {
         ->whereIn('module', DuplicateRegistry::keys())
         ->whereNumber('record')
         ->name('duplicates.merge');
+
+    // Document bytes live on the private disk, so the only way to them is
+    // through here, and the policy is asked before a single byte is streamed.
+    Route::get('/documents/{document}/download', DownloadDocument::class)
+        ->name('documents.download');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
 

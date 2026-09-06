@@ -258,6 +258,13 @@
                     @endif
                 </dl>
             </section>
+            {{-- The record's own history, keyed so switching records rebuilds
+                 it rather than showing the previous one's entries. --}}
+            <livewire:timeline.record-timeline
+                :module="'leads'"
+                :record="$lead->id"
+                :key="'timeline-leads-'.$lead->id"
+            />
         </div>
 
         <aside class="space-y-6">

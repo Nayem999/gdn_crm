@@ -7,6 +7,7 @@ use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Enums\Department;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
 use Database\Factories\ContactFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -45,6 +46,7 @@ class Contact extends Model
     /** @use HasFactory<ContactFactory> */
     use HasFactory;
 
+    use HasTimeline;
     use MergesWithDuplicates;
     use RecordsActivity;
     use ScopesByAccessLevel;

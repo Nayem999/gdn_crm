@@ -15,3 +15,15 @@ Do NOT add a `Gate::before` super-admin bypass. Super Admin works by holding eve
 The Super Admin role is protected from edit/delete in RolePolicy and again in Update/DeleteRoleAction. A role still assigned to users cannot be deleted.
 
 Create roles/permissions via `Role::query()->create()` / `Permission::query()->firstOrCreate()` (see PermissionResolver), not spatie's static `create()`/`findOrCreate()`, whose declared returns are the contracts and fail phpstan level 6. Set guard_name via `Guard::getDefaultName()` and flush with `PermissionRegistrar::forgetCachedPermissions()`.
+
+## The first registered account owns the installation
+A single-organisation install has nobody who could grant the first user access, so
+app/Actions/Fortify/CreateNewUser.php assigns it the Super Admin role. It goes
+through `SyncPermissionCatalogueAction`, which is also all RolesAndPermissionsSeeder
+does now — one writer, so the role exists and holds the whole catalogue even on a
+database that was never seeded.
+
+This was a live bug: the owner account had been given permissions **directly** and
+held no role, so every permission a later phase added (leads, contacts, accounts…)
+never reached it and the sidebar hid those modules. Grant access by role, not by
+direct permission, or the account stops at whatever the catalogue held that day.

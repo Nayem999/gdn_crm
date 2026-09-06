@@ -130,16 +130,53 @@
     }
 }
 
-.ts-wrapper .ts-control {
+/* Tom Select ships a light theme whose colours are hard-coded, and several of
+   its selectors are more specific than a single class — .ts-wrapper.single
+   .input-active .ts-control is three classes deep. An override of lower
+   specificity loses silently, which is how an open dropdown ended up painting
+   white on white in dark mode. Every rule below therefore matches or beats the
+   selector it replaces, and all of them read from the theme tokens. */
+.ts-wrapper .ts-control,
+.ts-wrapper.single.input-active .ts-control,
+.ts-wrapper.full .ts-control {
     background-color: var(--color-background);
     border-color: var(--color-border);
     color: var(--color-foreground);
     border-radius: var(--radius-lg);
 }
 
+.ts-wrapper.disabled .ts-control {
+    background-color: var(--color-muted);
+    color: var(--color-muted-foreground);
+}
+
 .ts-wrapper.focus .ts-control {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* Chips in a multi select. */
+.ts-wrapper.multi .ts-control > div {
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+    border-radius: var(--radius-md);
+}
+
+.ts-wrapper.multi .ts-control > div.active {
+    background-color: var(--color-secondary);
+    color: var(--color-secondary-foreground);
+}
+
+.ts-wrapper.plugin-remove_button:not(.rtl) .item .remove {
+    border-left-color: var(--color-border);
+}
+
+.ts-wrapper.plugin-remove_button.rtl .item .remove {
+    border-right-color: var(--color-border);
+}
+
+.ts-wrapper.plugin-remove_button .item .remove:hover {
+    background-color: color-mix(in srgb, var(--color-foreground) 12%, transparent);
 }
 
 .ts-dropdown {
@@ -148,9 +185,27 @@
     color: var(--color-foreground);
 }
 
+.ts-dropdown .optgroup-header {
+    background-color: var(--color-card);
+    color: var(--color-muted-foreground);
+}
+
 .ts-dropdown .active {
     background-color: var(--color-muted);
     color: var(--color-foreground);
+}
+
+.ts-dropdown .active.create {
+    color: var(--color-foreground);
+}
+
+.ts-dropdown [data-selectable] .highlight {
+    background-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+    color: inherit;
+}
+
+.ts-dropdown .spinner::after {
+    border-color: var(--color-accent) transparent var(--color-accent) transparent;
 }
 
 .ts-control input {

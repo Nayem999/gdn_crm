@@ -2,6 +2,7 @@
 
 namespace App\Actions\Fortify;
 
+use App\Domain\Access\Actions\SyncPermissionCatalogueAction;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -34,10 +35,20 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $isFirstUser = User::query()->doesntExist();
+
+        $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);
+
+        // A single-organisation install has nobody who could grant the first
+        // account access, so it owns the installation and holds every permission.
+        if ($isFirstUser) {
+            $user->assignRole(app(SyncPermissionCatalogueAction::class)->execute());
+        }
+
+        return $user;
     }
 }

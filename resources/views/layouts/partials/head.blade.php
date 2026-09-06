@@ -4,14 +4,24 @@
 
 <title>{{ ($title ?? null) ? $title.' - '.config('app.name') : config('app.name') }}</title>
 
-{{-- Applied before first paint so the correct theme is never flashed over. --}}
+{{-- Applied before first paint so the correct theme is never flashed over.
+
+     wire:navigate copies the incoming document's <html> attributes over the
+     live ones, and the server never renders the dark class, so every SPA
+     navigation dropped the theme and made the topbar toggle look broken.
+     Re-applying on livewire:navigated puts it back as part of the same swap. --}}
 <script>
     (function () {
-        var stored = localStorage.getItem('theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (stored === 'dark' || (!stored && prefersDark)) {
-            document.documentElement.classList.add('dark');
+        function applyStoredTheme() {
+            var stored = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            document.documentElement.classList.toggle('dark', stored === 'dark' || (!stored && prefersDark));
         }
+
+        applyStoredTheme();
+
+        document.addEventListener('livewire:navigated', applyStoredTheme);
     })();
 </script>
 

@@ -2,12 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Domain\Access\PermissionCatalogue;
-use App\Domain\Shared\Enums\DataAccessLevel;
+use App\Domain\Access\Actions\SyncPermissionCatalogueAction;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -18,15 +14,6 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $permissions = collect(PermissionCatalogue::all())
-            ->map(fn (string $name) => Permission::findOrCreate($name));
-
-        $superAdmin = Role::findOrCreate(PermissionCatalogue::SUPER_ADMIN_ROLE);
-        $superAdmin->forceFill(['data_access_level' => DataAccessLevel::All->value])->save();
-        $superAdmin->syncPermissions($permissions);
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(SyncPermissionCatalogueAction::class)->execute();
     }
 }

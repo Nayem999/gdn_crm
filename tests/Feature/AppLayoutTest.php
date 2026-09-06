@@ -38,6 +38,19 @@ test('the app shell exposes a working dark mode toggle', function () {
     $response->assertSee('prefersDark', escape: false);
 });
 
+/**
+ * wire:navigate copies the incoming document's <html> attributes over the live
+ * ones, and the server never renders the dark class. Without this listener the
+ * theme was dropped on every SPA navigation and the toggle looked broken.
+ */
+test('the chosen theme is re-applied after a wire:navigate page swap', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful();
+    $response->assertSee("addEventListener('livewire:navigated', applyStoredTheme)", escape: false);
+    $response->assertSee("classList.toggle('dark', stored === 'dark'", escape: false);
+});
+
 test('the sidebar lists every core module with an icon', function () {
     $response = $this->get('/');
 

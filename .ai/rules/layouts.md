@@ -11,3 +11,17 @@ In components/layouts/app.blade.php the wrapper is `flex h-screen overflow-hidde
 Do NOT copy that `overflow-hidden` to components/layouts/guest.blade.php — the auth screens are a centred card that must stay scrollable on short viewports.
 
 Anything added inside `<main>` should let main do the scrolling rather than introducing its own full-height scroll container.
+
+## wire:navigate resets the <html> class, so the theme must be re-applied
+Dark mode is a `dark` class on `<html>` plus `localStorage.theme`; the server never
+renders that class. A `wire:navigate` page swap copies the incoming document's
+`<html>` attributes over the live ones, so every SPA navigation silently dropped
+the theme — which reads to a user as "the topbar toggle doesn't work".
+
+layouts/partials/head.blade.php therefore defines `applyStoredTheme()`, calls it
+before first paint **and** binds it to `livewire:navigated`. Use
+`classList.toggle('dark', shouldBeDark)`, not `add`, or navigating after choosing
+light re-adds dark on an OS that prefers dark. AppLayoutTest pins both lines.
+
+Anything else that lives on `<html>` or `<body>` and is set from JS has the same
+problem — put it in that listener too.

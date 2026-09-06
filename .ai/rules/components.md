@@ -92,3 +92,19 @@ status" row is not selectable and a single select has no route back to nothing
 chosen. Pass `clearable` to get a clear button on the control instead, and use
 `placeholder` for the "any" wording. Multi-selects already get `remove_button`
 chips and ignore `clearable`.
+
+## Tom Select's light theme outranks a one-class override
+`tom-select.css` is imported whole and hard-codes light colours, several of them
+behind selectors more specific than a single class — most importantly
+`.ts-wrapper.single.input-active .ts-control { background: #fff }`, which fires the
+moment a single select is focused. `.ts-wrapper .ts-control` is one class shorter,
+so it lost, and an open dropdown in dark mode painted the control white while the
+text stayed light: white on white.
+
+Every override in resources/css/app.css must therefore repeat the vendor selector
+at the **same or greater** specificity, and read colours from theme tokens
+(`var(--color-*)`) rather than literals. tests/Feature/UiKit/DropdownThemeTest.php
+pins the list and fails on any `.ts-*` rule containing a hex or rgb() literal —
+extend the dataset when a Tom Select upgrade adds another light-themed selector.
+
+`.dark` swaps the tokens on `:root`, so token-based rules need no `dark:` variant.

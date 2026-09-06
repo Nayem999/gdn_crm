@@ -101,6 +101,9 @@ final class PermissionCatalogue
                 'permissions' => [
                     // The rest of the group arrives with the module in Phase 3.2.
                     'deals.view' => 'View deals',
+                    // Deciding how every deal is worked is administration, not
+                    // deal work, so it stands apart the way leads.scoring does.
+                    'deals.pipelines' => 'Configure pipelines and stages',
                 ],
             ],
             'contacts' => [

@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int $account_id
  * @property int|null $contact_id
  * @property int|null $lead_id
+ * @property int|null $pipeline_id
  * @property string|null $value
  * @property Carbon|null $expected_close_date
  * @property string $stage
@@ -52,6 +53,7 @@ class Deal extends Model
         'account_id',
         'contact_id',
         'lead_id',
+        'pipeline_id',
         'value',
         'expected_close_date',
         'stage',
@@ -89,7 +91,7 @@ class Deal extends Model
      */
     protected function activityAttributes(): array
     {
-        return ['name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'stage', 'owner_id'];
+        return ['name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'pipeline_id', 'stage', 'owner_id'];
     }
 
     // -- Relations ----------------------------------------------------------
@@ -128,6 +130,16 @@ class Deal extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * The pipeline this deal is being worked along.
+     *
+     * @return BelongsTo<Pipeline, $this>
+     */
+    public function pipeline(): BelongsTo
+    {
+        return $this->belongsTo(Pipeline::class);
+    }
+
     // -- Presentation --------------------------------------------------------
 
     public function displayName(): string
@@ -146,16 +158,40 @@ class Deal extends Model
     }
 
     /**
+     * The configured stage this deal sits in, when its pipeline has one.
+     *
+     * A deal stores a stage *key*, resolved here against the pipeline it is on
+     * — or the default pipeline when it is on none, which is what deals created
+     * before pipelines existed look like. Null when nothing matches, and every
+     * caller falls back to the DealStage enum rather than guessing.
+     */
+    public function configuredStage(): ?PipelineStage
+    {
+        $pipeline = $this->pipeline ?? Pipeline::default();
+
+        return $pipeline?->stageByKey((string) $this->getAttributeValue('stage'));
+    }
+
+    /**
      * The value discounted by how likely the stage is to close.
+     *
+     * Probability comes from the configured stage when there is one, so an
+     * administrator changing it on the pipeline changes the forecast. The enum
+     * is the fallback for a database with no pipelines seeded.
      */
     public function weightedValue(): float
     {
-        return round((float) $this->value * $this->stage()->probability() / 100, 2);
+        $stage = $this->configuredStage();
+        $probability = $stage === null ? $this->stage()->probability() : $stage->probability;
+
+        return round((float) $this->value * $probability / 100, 2);
     }
 
     public function isOpen(): bool
     {
-        return $this->stage()->isOpen();
+        $stage = $this->configuredStage();
+
+        return $stage === null ? $this->stage()->isOpen() : $stage->isOpen();
     }
 
     // -- Queries -------------------------------------------------------------

@@ -465,6 +465,9 @@ test('a deal only logs the attributes it is allowed to', function () {
     $method = new ReflectionMethod(Deal::class, 'activityAttributes');
 
     expect($method->invoke(new Deal))->toEqualCanonicalizing([
-        'name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'stage', 'owner_id',
+        // pipeline_id joined the list in 3.1: auditing the stage but not the
+        // pipeline would make a move between pipelines that kept the same stage
+        // key show up as no change at all.
+        'name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'pipeline_id', 'stage', 'owner_id',
     ]);
 });

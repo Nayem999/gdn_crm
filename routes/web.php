@@ -12,6 +12,8 @@ use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
+use App\Livewire\Deals\PipelineForm;
+use App\Livewire\Deals\PipelinesIndex;
 use App\Livewire\Duplicates\MergeRecords;
 use App\Livewire\Imports\ImportRecords;
 use App\Livewire\Leads\LeadConvert;
@@ -99,6 +101,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 
     Route::get('/settings/lead-scoring', LeadScoringRules::class)->name('settings.lead-scoring');
+
+    Route::get('/settings/pipelines', PipelinesIndex::class)->name('settings.pipelines');
+    Route::get('/settings/pipelines/create', PipelineForm::class)->name('settings.pipelines.create');
+    Route::get('/settings/pipelines/{pipeline}/edit', PipelineForm::class)->name('settings.pipelines.edit');
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
 

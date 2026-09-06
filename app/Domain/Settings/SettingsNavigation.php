@@ -58,6 +58,7 @@ final class SettingsNavigation
                 'label' => 'Modules',
                 'items' => [
                     ['label' => 'Lead scoring', 'icon' => 'gauge', 'route' => 'settings.lead-scoring', 'params' => [], 'permission' => 'leads.scoring'],
+                    ['label' => 'Pipelines', 'icon' => 'git-branch', 'route' => 'settings.pipelines', 'params' => [], 'permission' => 'deals.pipelines'],
                 ],
             ],
             [

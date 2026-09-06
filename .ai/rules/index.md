@@ -23,6 +23,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/*/Models/*.php | .ai/rules/models-name-collisions.md |
 | app/Domain/Notifications/**, app/Livewire/Notifications/**, app/Jobs/SendNotification.php, app/Mail/** | .ai/rules/notifications.md |
 | app/Domain/*/Policies/*.php | .ai/rules/policies.md |
+| app/Domain/Deals/{Models/Pipeline*,Actions,DTOs,Enums/StageOutcome}.php, app/Livewire/Deals/**, resources/views/livewire/deals/**, database/seeders/PipelinesSeeder.php | .ai/rules/pipelines.md |
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/components/settings-shell.blade.php | .ai/rules/settings.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |

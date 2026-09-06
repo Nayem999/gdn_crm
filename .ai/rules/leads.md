@@ -112,3 +112,36 @@ that includes the field (and, for the value picker, the operator), so Livewire
 replaces the node and Tom Select rebuilds. Any dependent `<x-select>` added
 later needs the same treatment; tests can only assert the key is present and
 changes, because the staleness itself is client-side.
+
+## Conversion is one transaction, and it is idempotent
+`ConvertLeadAction` creates the account, the person at it and optionally a deal,
+stamps the lead with all three and closes it — all inside one transaction. A
+lead that produced an account but no contact is worse than one never converted,
+because the half-finished state looks finished.
+
+Converting twice is not an error. `alreadyConverted()` returns the earlier
+result instead of building a second set, which matters for a retry from a
+browser that never saw the first response and will matter more when the Phase 8
+gateway can trigger one. The conversion columns live on the lead rather than
+being worked out from the three records, so "has this been converted, and into
+what?" is one read and not a guess at a match.
+
+`ChangeLeadStatusAction::force()` is called here and nowhere else: Converted is
+absent from every transition list, so this is the one caller entitled to set it,
+and only once the records genuinely exist.
+
+An **unqualified** lead is refused — it has to be put back into play first.
+Every other open status converts, deliberately: requiring Qualified would make
+the 2.4 rules a gate on a workflow they were not written for.
+
+The screen offers accounts and contacts that already match, using the 2.5
+engine, so a lead from an existing customer joins that account rather than
+starting a second one. Chosen ids are re-checked against `visibleTo()` on
+submit: `exists` proves a record is real, never that this person may reach it.
+
+## Deals arrived early, on purpose
+`app/Domain/Deals` holds the minimum conversion needs: the table, the model, a
+`DealStage` enum and a view-only policy. Phase 3 builds pipelines (3.1), the
+full record and screens (3.2), the board (3.3) and stage history (3.4) on top —
+`DealStage` becomes the default pipeline rather than being replaced, and
+`probability()` moves to a per-stage setting.

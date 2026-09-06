@@ -11,6 +11,7 @@ use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\Duplicates\MergeRecords;
+use App\Livewire\Leads\LeadConvert;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadScoringRules;
 use App\Livewire\Leads\LeadShow;
@@ -58,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/create', LeadForm::class)->name('leads.create');
     Route::get('/leads/{lead}', LeadShow::class)->withTrashed()->name('leads.show');
     Route::get('/leads/{lead}/edit', LeadForm::class)->name('leads.edit');
+    Route::get('/leads/{lead}/convert', LeadConvert::class)->name('leads.convert');
 
     // One merge screen for every module in DuplicateRegistry. The {module}
     // segment is matched against the registry here and again in the component,

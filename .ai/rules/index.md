@@ -19,6 +19,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Livewire/** | .ai/rules/livewire.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Domain/*/Models/*.php | .ai/rules/models.md |
+| app/Domain/*/Models/*.php | .ai/rules/models-name-collisions.md |
 | app/Domain/Notifications/**, app/Livewire/Notifications/**, app/Jobs/SendNotification.php, app/Mail/** | .ai/rules/notifications.md |
 | app/Domain/*/Policies/*.php | .ai/rules/policies.md |
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/components/settings-shell.blade.php | .ai/rules/settings.md |

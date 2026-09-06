@@ -56,6 +56,21 @@ class LeadScoringRule extends Model
         'position',
     ];
 
+    /**
+     * Columns that share a name with a method on this model.
+     *
+     * Laravel decides whether a property read is a relation by looking for a
+     * method of that name, so on an instance where such an attribute is missing
+     * — Model::create() leaves out whatever it was not given — reading it calls
+     * the method and fails. Declaring defaults keeps the key present on every
+     * instance, which is the only thing that makes the pair safe.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'kind' => 'score',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -79,7 +94,12 @@ class LeadScoringRule extends Model
 
     public function kind(): LeadRuleKind
     {
-        return LeadRuleKind::tryFrom($this->kind) ?? LeadRuleKind::Score;
+        // getAttributeValue, not $this->kind: the method and the column
+        // share a name, so on an instance that has no such attribute loaded
+        // Laravel would take the property read for a relation, call this
+        // method again and fail. Model::create() leaves out anything it was
+        // not given, which is exactly what lead conversion does.
+        return LeadRuleKind::tryFrom((string) $this->getAttributeValue('kind')) ?? LeadRuleKind::Score;
     }
 
     /**

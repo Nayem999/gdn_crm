@@ -54,7 +54,9 @@ class LeadShow extends Component
      */
     public function lead(): Lead
     {
-        $lead = Lead::withTrashed()->with('owner')->findOrFail($this->leadId);
+        $lead = Lead::withTrashed()
+            ->with(['owner', 'convertedAccount', 'convertedContact', 'convertedDeal'])
+            ->findOrFail($this->leadId);
 
         abort_if($lead->trashed() && ! $lead->isMerged(), 404);
 

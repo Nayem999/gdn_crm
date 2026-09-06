@@ -69,6 +69,16 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            @if (! $lead->isConverted())
+                @can('convert', $lead)
+                    <a href="{{ route('leads.convert', $lead) }}" wire:navigate
+                       class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
+                        <x-icon name="lucide-circle-check-big" />
+                        Convert
+                    </a>
+                @endcan
+            @endif
+
             @can('update', $lead)
                 <a href="{{ route('leads.edit', $lead) }}" wire:navigate
                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
@@ -94,7 +104,39 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
-            @can('update', $lead)
+            @if ($lead->isConverted())
+                <section class="rounded-xl border border-emerald-300 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10 sm:p-6">
+                    <h2 class="flex items-center gap-2 text-base font-semibold text-emerald-900 dark:text-emerald-200">
+                        <x-icon name="lucide-circle-check-big" class="h-4 w-4" />
+                        Converted{{ $lead->converted_at ? ' on '.$lead->converted_at->format('j M Y') : '' }}
+                    </h2>
+
+                    <dl class="mt-4 grid gap-4 sm:grid-cols-3">
+                        @foreach ([
+                            'Account' => $lead->convertedAccount ? ['accounts.show', $lead->convertedAccount, $lead->convertedAccount->name] : null,
+                            'Contact' => $lead->convertedContact ? ['contacts.show', $lead->convertedContact, $lead->convertedContact->fullName()] : null,
+                            'Deal' => $lead->convertedDeal ? [null, null, $lead->convertedDeal->name] : null,
+                        ] as $label => $target)
+                            <div>
+                                <dt class="text-xs uppercase tracking-wide text-emerald-800/70 dark:text-emerald-200/60">{{ $label }}</dt>
+                                <dd class="mt-0.5 text-sm">
+                                    @if ($target === null)
+                                        <span class="text-emerald-900/60 dark:text-emerald-200/50">&mdash;</span>
+                                    @elseif ($target[0] === null)
+                                        {{-- Deals have no screen until Phase 3.2. --}}
+                                        <span class="font-medium text-emerald-900 dark:text-emerald-100">{{ $target[2] }}</span>
+                                    @else
+                                        <a href="{{ route($target[0], $target[1]) }}" wire:navigate
+                                           class="font-medium text-emerald-900 underline hover:no-underline dark:text-emerald-100">
+                                            {{ $target[2] }}
+                                        </a>
+                                    @endif
+                                </dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </section>
+            @elsecan('update', $lead)
                 <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
                     <h2 class="text-base font-semibold text-foreground">Move this lead on</h2>
 

@@ -2,7 +2,10 @@
 
 namespace App\Domain\Leads\Models;
 
+use App\Domain\Accounts\Models\Account;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Contacts\Models\Contact;
+use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadGrade;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -43,6 +46,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property Carbon|null $status_changed_at
  * @property int $owner_id
+ * @property Carbon|null $converted_at
+ * @property int|null $converted_account_id
+ * @property int|null $converted_contact_id
+ * @property int|null $converted_deal_id
  * @property int|null $merged_into_id
  * @property Carbon|null $merged_at
  */
@@ -82,6 +89,22 @@ class Lead extends Model
         'owner_id',
     ];
 
+    /**
+     * Columns that share a name with a method on this model.
+     *
+     * Laravel decides whether a property read is a relation by looking for a
+     * method of that name, so on an instance where such an attribute is missing
+     * — Model::create() leaves out whatever it was not given — reading it calls
+     * the method and fails. Declaring defaults keeps the key present on every
+     * instance, which is the only thing that makes the pair safe.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => 'new',
+        'source' => null,
+    ];
+
     protected function casts(): array
     {
         return [
@@ -89,6 +112,7 @@ class Lead extends Model
             'score' => 'integer',
             'status_changed_at' => 'datetime',
             'scored_at' => 'datetime',
+            'converted_at' => 'datetime',
             'merged_at' => 'datetime',
         ];
     }
@@ -121,6 +145,32 @@ class Lead extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * The account this lead became, if it became one.
+     *
+     * @return BelongsTo<Account, $this>
+     */
+    public function convertedAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'converted_account_id');
+    }
+
+    /**
+     * @return BelongsTo<Contact, $this>
+     */
+    public function convertedContact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class, 'converted_contact_id');
+    }
+
+    /**
+     * @return BelongsTo<Deal, $this>
+     */
+    public function convertedDeal(): BelongsTo
+    {
+        return $this->belongsTo(Deal::class, 'converted_deal_id');
+    }
+
     // -- Presentation --------------------------------------------------------
 
     public function fullName(): string
@@ -140,12 +190,19 @@ class Lead extends Model
 
     public function status(): LeadStatus
     {
-        return LeadStatus::tryFrom($this->status) ?? LeadStatus::New;
+        // getAttributeValue, not $this->status: the method and the column
+        // share a name, so on an instance that has no such attribute loaded
+        // Laravel would take the property read for a relation, call this
+        // method again and fail. Model::create() leaves out anything it was
+        // not given, which is exactly what lead conversion does.
+        return LeadStatus::tryFrom((string) $this->getAttributeValue('status')) ?? LeadStatus::New;
     }
 
     public function source(): ?LeadSource
     {
-        return $this->source === null ? null : LeadSource::tryFrom($this->source);
+        $value = $this->getAttributeValue('source');
+
+        return $value === null ? null : LeadSource::tryFrom((string) $value);
     }
 
     public function grade(): LeadGrade

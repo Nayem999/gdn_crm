@@ -345,9 +345,15 @@ test('a converted lead is shown as immovable', function () {
     $user = leadAdmin();
     $lead = Lead::factory()->ownedBy($user)->status(LeadStatus::Converted)->create();
 
-    Livewire::actingAs($user)
+    // Task 2.6 replaced the "it stays where it is" copy with a panel naming
+    // what the lead became. The point of this test is the same: a converted
+    // lead is offered no moves at all.
+    $component = Livewire::actingAs($user)
         ->test(LeadShow::class, ['lead' => $lead])
-        ->assertSee('has been converted');
+        ->assertSee('Converted')
+        ->assertDontSee('Move this lead on');
+
+    expect($component->instance()->availableTransitions())->toBe([]);
 });
 
 // -- Assignment ----------------------------------------------------------------

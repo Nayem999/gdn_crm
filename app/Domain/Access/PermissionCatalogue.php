@@ -85,9 +85,20 @@ final class PermissionCatalogue
                     'leads.delete' => 'Remove leads',
                     'leads.export' => 'Export leads',
                     'leads.merge' => 'Merge duplicate leads',
+                    // Conversion writes three records at once, one of them
+                    // in a module this person may not otherwise touch.
+                    'leads.convert' => 'Convert a lead into an account, contact and deal',
                     // Configuring how every lead is scored is administration,
                     // not lead work, so it stands apart from leads.update.
                     'leads.scoring' => 'Configure lead scoring and qualification rules',
+                ],
+            ],
+            'deals' => [
+                'label' => 'Deals',
+                'icon' => 'handshake',
+                'permissions' => [
+                    // The rest of the group arrives with the module in Phase 3.2.
+                    'deals.view' => 'View deals',
                 ],
             ],
             'contacts' => [

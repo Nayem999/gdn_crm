@@ -60,6 +60,15 @@ class LeadPolicy
         return $user->can('leads.merge') && $this->isVisibleTo($user, $lead);
     }
 
+    /**
+     * Conversion is its own permission: it creates records in two other
+     * modules and closes the lead, which is more than an edit.
+     */
+    public function convert(User $user, Lead $lead): bool
+    {
+        return $user->can('leads.convert') && $this->isVisibleTo($user, $lead);
+    }
+
     private function isVisibleTo(User $user, Lead $lead): bool
     {
         return Lead::query()

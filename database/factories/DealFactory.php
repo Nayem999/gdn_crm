@@ -3,8 +3,11 @@
 namespace Database\Factories;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\DealStage;
+use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Deal;
+use App\Domain\Deals\Models\Pipeline;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -50,5 +53,40 @@ class DealFactory extends Factory
     public function worth(string $value): static
     {
         return $this->state(fn () => ['value' => $value]);
+    }
+
+    public function onPipeline(Pipeline $pipeline, ?string $stageKey = null): static
+    {
+        return $this->state(fn () => [
+            'pipeline_id' => $pipeline->id,
+            'stage' => $stageKey ?? $pipeline->stages->first()?->key ?? DealStage::New->value,
+        ]);
+    }
+
+    public function atStage(string $stageKey): static
+    {
+        return $this->state(fn () => ['stage' => $stageKey]);
+    }
+
+    /**
+     * A deal that has already ended, with the reason recorded.
+     *
+     * The reason has to match the outcome or the win/loss report is nonsense,
+     * so it is derived rather than passed in.
+     */
+    public function closed(StageOutcome $outcome = StageOutcome::Won, ?string $stageKey = null): static
+    {
+        $reason = DealCloseReason::forOutcome($outcome)[0];
+
+        return $this->state(fn () => [
+            'stage' => $stageKey ?? ($outcome === StageOutcome::Won ? DealStage::Won->value : DealStage::Lost->value),
+            'closed_at' => now(),
+            'close_reason' => $reason->value,
+        ]);
+    }
+
+    public function closingOn(string $date): static
+    {
+        return $this->state(fn () => ['expected_close_date' => $date]);
     }
 }

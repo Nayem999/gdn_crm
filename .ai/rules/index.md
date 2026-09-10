@@ -11,6 +11,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | resources/views/components/select.blade.php, resources/views/components/status-chip.blade.php | .ai/rules/components.md |
 | config/fortify.php | .ai/rules/config.md |
 | app/Domain/Shared/{Concerns,DataView,Filters,Exports}/**, resources/views/components/data-view* | .ai/rules/data-view.md |
+| app/Domain/Deals/{Models/Deal,DealFields,DealExportSource,Enums/DealCloseReason}.php, app/Domain/Deals/Actions/*Deal*.php, app/Domain/Deals/DTOs/DealData.php, app/Livewire/Deals/Deal*.php, resources/views/livewire/deals/deal*.blade.php | .ai/rules/deals.md |
 | app/Domain/Shared/Duplicates/**, app/Domain/*/*Duplicates.php, app/Livewire/Duplicates/** | .ai/rules/duplicates.md |
 | database/factories/** | .ai/rules/factories.md |
 | * | .ai/rules/general.md |

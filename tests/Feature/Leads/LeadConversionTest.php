@@ -467,7 +467,14 @@ test('a deal only logs the attributes it is allowed to', function () {
     expect($method->invoke(new Deal))->toEqualCanonicalizing([
         // pipeline_id joined the list in 3.1: auditing the stage but not the
         // pipeline would make a move between pipelines that kept the same stage
-        // key show up as no change at all.
-        'name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'pipeline_id', 'stage', 'owner_id',
+        // key show up as no change at all. closed_at and close_reason joined in
+        // 3.2 — won and lost figures are what the business is measured on, so
+        // "who declared this won, and when" has to be answerable.
+        //
+        // close_notes is deliberately absent: it is free text somebody typed
+        // about a customer, and the trail records that a reason was set without
+        // copying the prose into a second place.
+        'name', 'account_id', 'contact_id', 'value', 'expected_close_date',
+        'pipeline_id', 'stage', 'owner_id', 'closed_at', 'close_reason',
     ]);
 });

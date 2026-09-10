@@ -17,10 +17,14 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 function timelineOperator(): User
 {
+    // One line per module in TimelineRegistry: the policies ask the subject
+    // record's own policy first, so a module added to the registry must be
+    // viewable here or its dataset case 403s.
     return timelineUserWithAccessLevel(DataAccessLevel::All, [
         'leads.view', 'leads.update',
         'contacts.view', 'contacts.update',
         'accounts.view', 'accounts.update',
+        'deals.view', 'deals.update',
         'timeline.view', 'timeline.create', 'timeline.update', 'timeline.delete',
     ]);
 }

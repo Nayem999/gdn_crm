@@ -12,6 +12,9 @@ use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
+use App\Livewire\Deals\DealForm;
+use App\Livewire\Deals\DealShow;
+use App\Livewire\Deals\DealsIndex;
 use App\Livewire\Deals\PipelineForm;
 use App\Livewire\Deals\PipelinesIndex;
 use App\Livewire\Duplicates\MergeRecords;
@@ -59,6 +62,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');
     Route::get('/contacts/{contact}', ContactShow::class)->withTrashed()->name('contacts.show');
     Route::get('/contacts/{contact}/edit', ContactForm::class)->name('contacts.edit');
+
+    Route::get('/deals', DealsIndex::class)->name('deals.index');
+    Route::get('/deals/create', DealForm::class)->name('deals.create');
+    Route::get('/deals/{deal}', DealShow::class)->withTrashed()->name('deals.show');
+    Route::get('/deals/{deal}/edit', DealForm::class)->name('deals.edit');
 
     Route::get('/leads', LeadsIndex::class)->name('leads.index');
     Route::get('/leads/create', LeadForm::class)->name('leads.create');

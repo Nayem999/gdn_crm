@@ -10,6 +10,7 @@ use App\Domain\Contacts\DTOs\ContactData;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Models\Deal;
+use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Leads\DTOs\LeadConversionData;
 use App\Domain\Leads\DTOs\LeadConversionResult;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -189,15 +190,30 @@ class ConvertLeadAction
     {
         $name = trim((string) ($data->dealName ?? ''));
 
-        return Deal::create([
+        // A converted deal lands on the default pipeline at its first open
+        // stage, the same place CreateDealAction starts one — the pipeline
+        // decides, so the two cannot drift apart. `stage` is set with
+        // forceFill because MoveDealStageAction owns the column and 3.2 took
+        // it out of $fillable, so Deal::create() would silently drop it.
+        $pipeline = Pipeline::default();
+
+        $deal = Deal::create([
             'name' => $name !== '' ? $name : $account->name.' opportunity',
             'account_id' => $account->id,
             'contact_id' => $contact->id,
             'lead_id' => $lead->id,
+            'pipeline_id' => $pipeline?->getKey(),
             'value' => $data->dealValue ?? $lead->estimated_value,
             'expected_close_date' => $data->dealCloseDate,
-            'stage' => DealStage::New->value,
             'owner_id' => $ownerId ?? $lead->owner_id,
         ]);
+
+        $opening = $pipeline?->openingStage();
+
+        $deal->forceFill([
+            'stage' => $opening === null ? DealStage::New->value : $opening->key,
+        ])->save();
+
+        return $deal;
     }
 }

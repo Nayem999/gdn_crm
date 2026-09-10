@@ -99,8 +99,15 @@ final class PermissionCatalogue
                 'label' => 'Deals',
                 'icon' => 'handshake',
                 'permissions' => [
-                    // The rest of the group arrives with the module in Phase 3.2.
                     'deals.view' => 'View deals',
+                    'deals.create' => 'Create deals',
+                    'deals.update' => 'Update deals and move them along',
+                    'deals.assign' => 'Hand a deal to someone else',
+                    // Won and lost figures are what the business is measured
+                    // on, so declaring one is more than an edit.
+                    'deals.close' => 'Close a deal as won or lost',
+                    'deals.delete' => 'Remove deals',
+                    'deals.export' => 'Export deals',
                     // Deciding how every deal is worked is administration, not
                     // deal work, so it stands apart the way leads.scoring does.
                     'deals.pipelines' => 'Configure pipelines and stages',

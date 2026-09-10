@@ -77,7 +77,10 @@ once.
    into its show view, keyed on the record id.
 
 The dataset tests in tests/Feature/Timeline walk the registry, so a module added
-to it is covered without adding cases by hand.
+to it is covered without adding cases by hand — but add the module's own `view`
+permission to `timelineOperator()` in RecordTimelineScreenTest at the same time.
+Both policies ask the subject's policy first, so without it the new dataset case
+403s. That is the test being right, not in the way.
 
 ## ActivityPresenter is shared with the audit viewer
 `changes()`, `value()` and `color()` live in `App\Domain\Audit\ActivityPresenter`.

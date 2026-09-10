@@ -5,9 +5,13 @@ namespace App\Domain\Deals\Models;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Deals\DealFields;
+use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\DealStage;
+use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
 use Database\Factories\DealFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,6 +36,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $pipeline_id
  * @property string|null $value
  * @property Carbon|null $expected_close_date
+ * @property Carbon|null $closed_at
+ * @property string|null $close_reason
+ * @property string|null $close_notes
  * @property string $stage
  * @property string|null $description
  * @property int $owner_id
@@ -41,6 +48,7 @@ class Deal extends Model
     /** @use HasFactory<DealFactory> */
     use HasFactory;
 
+    use HasTimeline;
     use RecordsActivity;
     use ScopesByAccessLevel;
     use SoftDeletes;
@@ -56,7 +64,6 @@ class Deal extends Model
         'pipeline_id',
         'value',
         'expected_close_date',
-        'stage',
         'description',
         'owner_id',
     ];
@@ -74,6 +81,7 @@ class Deal extends Model
      */
     protected $attributes = [
         'stage' => 'new',
+        'close_reason' => null,
     ];
 
     protected function casts(): array
@@ -81,6 +89,7 @@ class Deal extends Model
         return [
             'value' => 'decimal:2',
             'expected_close_date' => 'date',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -91,7 +100,10 @@ class Deal extends Model
      */
     protected function activityAttributes(): array
     {
-        return ['name', 'account_id', 'contact_id', 'value', 'expected_close_date', 'pipeline_id', 'stage', 'owner_id'];
+        return [
+            'name', 'account_id', 'contact_id', 'value', 'expected_close_date',
+            'pipeline_id', 'stage', 'owner_id', 'closed_at', 'close_reason',
+        ];
     }
 
     // -- Relations ----------------------------------------------------------
@@ -189,12 +201,107 @@ class Deal extends Model
 
     public function isOpen(): bool
     {
+        return ! $this->outcome()->isClosed();
+    }
+
+    /**
+     * What the stage this deal sits in means for it.
+     *
+     * Derived, never stored: a flag of its own could disagree with the board,
+     * and the board is the thing people look at.
+     */
+    public function outcome(): StageOutcome
+    {
         $stage = $this->configuredStage();
 
-        return $stage === null ? $this->stage()->isOpen() : $stage->isOpen();
+        if ($stage !== null) {
+            return $stage->outcome();
+        }
+
+        // No configured pipeline to ask, so fall back to the enum 2.6 shipped.
+        return match (true) {
+            $this->stage() === DealStage::Won => StageOutcome::Won,
+            $this->stage() === DealStage::Lost => StageOutcome::Lost,
+            default => StageOutcome::Open,
+        };
+    }
+
+    public function isWon(): bool
+    {
+        return $this->outcome() === StageOutcome::Won;
+    }
+
+    public function isLost(): bool
+    {
+        return $this->outcome() === StageOutcome::Lost;
+    }
+
+    public function closeReason(): ?DealCloseReason
+    {
+        $value = $this->getAttributeValue('close_reason');
+
+        return $value === null ? null : DealCloseReason::tryFrom((string) $value);
+    }
+
+    /**
+     * How long the deal took to close, in days, or null while it is open.
+     */
+    public function daysToClose(): ?int
+    {
+        if ($this->closed_at === null || $this->created_at === null) {
+            return null;
+        }
+
+        return (int) $this->created_at->diffInDays($this->closed_at);
+    }
+
+    /**
+     * Whether the expected close date has gone by on a deal still open.
+     */
+    public function isOverdue(): bool
+    {
+        return $this->isOpen()
+            && $this->expected_close_date !== null
+            && $this->expected_close_date->isPast();
     }
 
     // -- Queries -------------------------------------------------------------
+
+    /**
+     * The stage keys that end a deal, one way or the other.
+     *
+     * Read from the configured stages so a pipeline whose closing stage is
+     * called "signed" is counted, with the enum's own values always included so
+     * a database with no pipelines seeded still answers correctly.
+     *
+     * Collected across every pipeline, which is a deliberate simplification: a
+     * key that closes on one pipeline and is open on another would be treated
+     * as closing. In practice these queries run alongside a pipeline filter,
+     * and a key meaning two different things is a configuration mistake.
+     *
+     * @return array<int, string>
+     */
+    public static function closingStageKeys(?StageOutcome $outcome = null): array
+    {
+        $query = PipelineStage::query();
+
+        $query->when(
+            $outcome === null,
+            fn (Builder $stages) => $stages->where('outcome', '!=', StageOutcome::Open->value),
+            fn (Builder $stages) => $stages->where('outcome', $outcome?->value)
+        );
+
+        /** @var array<int, string> $configured */
+        $configured = $query->pluck('key')->all();
+
+        $fallback = match ($outcome) {
+            StageOutcome::Won => [DealStage::Won->value],
+            StageOutcome::Lost => [DealStage::Lost->value],
+            default => [DealStage::Won->value, DealStage::Lost->value],
+        };
+
+        return array_values(array_unique([...$configured, ...$fallback]));
+    }
 
     /**
      * @param  Builder<Deal>  $query
@@ -202,9 +309,50 @@ class Deal extends Model
      */
     public function scopeOpen(Builder $query): Builder
     {
-        return $query->whereNotIn($query->qualifyColumn('stage'), [
-            DealStage::Won->value,
-            DealStage::Lost->value,
-        ]);
+        return $query->whereNotIn($query->qualifyColumn('stage'), static::closingStageKeys());
+    }
+
+    /**
+     * @param  Builder<Deal>  $query
+     * @return Builder<Deal>
+     */
+    public function scopeClosed(Builder $query): Builder
+    {
+        return $query->whereIn($query->qualifyColumn('stage'), static::closingStageKeys());
+    }
+
+    /**
+     * @param  Builder<Deal>  $query
+     * @return Builder<Deal>
+     */
+    public function scopeWithOutcome(Builder $query, StageOutcome $outcome): Builder
+    {
+        if ($outcome === StageOutcome::Open) {
+            return $query->open();
+        }
+
+        return $query->whereIn($query->qualifyColumn('stage'), static::closingStageKeys($outcome));
+    }
+
+    /**
+     * @param  Builder<Deal>  $query
+     * @return Builder<Deal>
+     */
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        if ($term === '') {
+            return $query;
+        }
+
+        // The same columns DealFields::searchColumns() gives the list screen,
+        // and deliberately only columns on this table. The data-view kit builds
+        // the list's search from those columns alone, so reaching into the
+        // account from here would make a queued export match rows the list
+        // never showed — the drift .ai/rules/accounts.md warns about.
+        return $query->where(function (Builder $inner) use ($term) {
+            foreach (DealFields::searchColumns() as $column) {
+                $inner->orWhere($inner->qualifyColumn($column), 'like', '%'.$term.'%');
+            }
+        });
     }
 }

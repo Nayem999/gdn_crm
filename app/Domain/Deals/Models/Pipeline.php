@@ -93,6 +93,19 @@ class Pipeline extends Model
     }
 
     /**
+     * Where a new deal on this pipeline starts.
+     *
+     * The first *open* stage, so a pipeline whose stages were reordered to put
+     * a closing one first does not create deals that are already closed. Falls
+     * back to the first stage of any kind, and null only when there are none.
+     */
+    public function openingStage(): ?PipelineStage
+    {
+        return $this->stages->first(fn (PipelineStage $stage) => $stage->isOpen())
+            ?? $this->stages->first();
+    }
+
+    /**
      * Whether this pipeline can be removed, and why not when it cannot.
      *
      * Read by both the policy and the action, so the button that is hidden and

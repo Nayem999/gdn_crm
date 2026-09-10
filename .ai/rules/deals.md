@@ -1,6 +1,8 @@
 ---
 paths:
   - 'app/Domain/Deals/Models/Deal.php'
+  - 'app/Domain/Deals/Models/DealStageEntry.php'
+  - 'app/Domain/Deals/Concerns/TracksStageHistory.php'
   - 'app/Domain/Deals/Actions/{CreateDeal,UpdateDeal,DeleteDeal,MoveDealStage,CloseDeal}Action.php'
   - 'app/Domain/Deals/DTOs/DealData.php'
   - 'app/Domain/Deals/DealFields.php'
@@ -105,3 +107,34 @@ value lands in the native `<select>` and not in the control on screen — even
 with a moving `wire:key`, which was tried and verified not to help. Browser
 verification caught the original version reading "All pipelines" while the board
 showed one.
+
+## Stage history is written by model events, not by the actions
+`TracksStageHistory` hooks `created` and `updated`, for the same reason
+`MergesWithDuplicates` does: the history is derived from the record's own
+column, and a missing visit does not fail loudly — it leaves a gap in a report
+somebody will later trust. `MoveDealStageAction` is the only writer of `stage`
+today, but conversion, the factories and Phase 8's ingestion gateway all create
+deals, and any of them could forget to call a recorder. A test drives the same
+change through the action, the board, the detail page **and** a raw `forceFill`
+and expects history from all four.
+
+One row per **visit**, not per stage: a deal that comes back to Proposal has been
+there twice and each stay has its own duration. `timePerStage()` sums them,
+because "how long in Proposal altogether" is the question people ask.
+
+Exactly one visit is open at a time. Everything goes through
+`recordStageEntry()`, which closes whatever was open before opening the next, so
+the invariant holds however the stage moved. Dropping a deal into the stage it is
+already in records nothing — `moveCard` returns false there, and a second visit
+would reset the clock on a stage the deal never left.
+
+`stage_name` and `outcome` are **copied onto the visit**, not joined. A stage can
+be renamed, or removed from its pipeline once nothing sits in it, and history
+that changes retrospectively is not history. `duration_seconds` is stored when a
+visit closes because Phase 10 averages it, and an open visit counts up to now.
+
+The panel on the deal page is separate from 2.8's record timeline on purpose:
+the timeline merges notes, documents and audit entries, which are *events*, and
+this answers "how long did Negotiation take", which is a *duration*. The audit
+trail already records stage changes — it is not the place to compute durations
+from, because its before/after values live in a JSON column.

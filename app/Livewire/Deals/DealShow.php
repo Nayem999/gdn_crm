@@ -8,6 +8,7 @@ use App\Domain\Deals\Actions\MoveDealStageAction;
 use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Deal;
+use App\Domain\Deals\Models\DealStageEntry;
 use App\Domain\Deals\Models\PipelineStage;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -79,6 +80,27 @@ class DealShow extends Component
         }
 
         return $pipeline->stages->reject(fn (PipelineStage $stage) => $stage->key === $deal->stage)->values();
+    }
+
+    /**
+     * Every stage the deal has sat in, oldest first, with how long each took.
+     *
+     * @return Collection<int, DealStageEntry>
+     */
+    public function stageHistory(): Collection
+    {
+        return $this->deal()->stageEntries()->with('movedBy')->get();
+    }
+
+    /**
+     * Total time in each stage, summed across repeat visits — a deal that went
+     * back to Proposal has been there twice.
+     *
+     * @return array<string, array{key: string, name: string, seconds: int, visits: int}>
+     */
+    public function timePerStage(): array
+    {
+        return $this->deal()->timePerStage();
     }
 
     /**
@@ -270,6 +292,7 @@ class DealShow extends Component
         return view('livewire.deals.deal-show', [
             'deal' => $deal,
             'stages' => $this->availableStages(),
+            'history' => $this->stageHistory(),
         ])->title($deal->name);
     }
 }

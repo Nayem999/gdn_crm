@@ -249,6 +249,100 @@
                 </dl>
             </section>
 
+            {{-- Where the deal has been, and for how long. Separate from the
+                 timeline below, which merges notes, documents and the audit
+                 trail: this answers "how long did Negotiation take", which is a
+                 duration rather than an event. --}}
+            <section class="rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="stage-history-heading">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 id="stage-history-heading" class="text-base font-semibold text-foreground">Stage history</h2>
+                        <p class="mt-0.5 text-sm text-muted-foreground">
+                            Every stage this deal has sat in, and how long it stayed.
+                        </p>
+                    </div>
+
+                    @php($cycleDays = intdiv($deal->cycleSeconds(), 86400))
+                    <div class="text-right">
+                        <p class="text-xs uppercase tracking-wide text-muted-foreground">
+                            {{ $deal->isOpen() ? 'Open for' : 'Took' }}
+                        </p>
+                        <p class="text-sm font-semibold tabular-nums text-foreground">
+                            {{ $cycleDays < 1 ? 'under a day' : $cycleDays.' '.Str::plural('day', $cycleDays) }}
+                        </p>
+                    </div>
+                </div>
+
+                @if ($history->isEmpty())
+                    <p class="mt-4 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                        Nothing recorded yet.
+                    </p>
+                @else
+                    <ol role="list" class="mt-4">
+                        @foreach ($history as $entry)
+                            <li class="relative flex gap-3 pb-5 last:pb-0" wire:key="stage-entry-{{ $entry->id }}">
+                                @unless ($loop->last)
+                                    <span class="absolute left-3 top-7 -ml-px h-[calc(100%-1.25rem)] w-px bg-border" aria-hidden="true"></span>
+                                @endunless
+
+                                <span class="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card {{ ChipPalette::classes($entry->outcome()->color()) }}">
+                                    <span class="h-1.5 w-1.5 rounded-full {{ ChipPalette::dotClasses($entry->outcome()->color()) }}" aria-hidden="true"></span>
+                                </span>
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+                                        <p class="text-sm font-medium text-foreground">
+                                            {{ $entry->stage_name }}
+                                            @if ($entry->isOpen())
+                                                <span class="ml-1 text-xs font-normal text-muted-foreground">&mdash; still here</span>
+                                            @endif
+                                        </p>
+
+                                        <span class="shrink-0 text-xs tabular-nums text-muted-foreground">{{ $entry->forHumans() }}</span>
+                                    </div>
+
+                                    <p class="mt-0.5 text-xs text-muted-foreground">
+                                        <time datetime="{{ $entry->entered_at->toIso8601String() }}" title="{{ $entry->entered_at->format('j M Y, H:i') }}">
+                                            {{ $entry->entered_at->format('j M Y') }}
+                                        </time>
+
+                                        @if ($entry->movedBy)
+                                            &middot; moved by {{ $entry->movedBy->name }}
+                                        @endif
+                                    </p>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ol>
+
+                    @php($perStage = $this->timePerStage())
+                    @if (count($perStage) < $history->count())
+                        {{-- Only worth showing once some stage has been visited
+                             more than once; otherwise it repeats the list. --}}
+                        <div class="mt-4 border-t border-border pt-4">
+                            <p class="text-xs uppercase tracking-wide text-muted-foreground">Total per stage</p>
+
+                            <dl class="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                                @foreach ($perStage as $stageTotal)
+                                    @php($stageDays = intdiv($stageTotal['seconds'], 86400))
+                                    <div class="flex items-baseline justify-between gap-3 text-sm">
+                                        <dt class="text-muted-foreground">
+                                            {{ $stageTotal['name'] }}
+                                            @if ($stageTotal['visits'] > 1)
+                                                <span class="text-xs">&times;{{ $stageTotal['visits'] }}</span>
+                                            @endif
+                                        </dt>
+                                        <dd class="shrink-0 tabular-nums text-foreground">
+                                            {{ $stageDays < 1 ? 'under a day' : $stageDays.'d' }}
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    @endif
+                @endif
+            </section>
+
             {{-- The record's own history, keyed so switching records rebuilds
                  it rather than showing the previous one's entries. --}}
             <livewire:timeline.record-timeline

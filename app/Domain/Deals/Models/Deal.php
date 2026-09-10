@@ -5,6 +5,7 @@ namespace App\Domain\Deals\Models;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Deals\Concerns\TracksStageHistory;
 use App\Domain\Deals\DealFields;
 use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\DealStage;
@@ -52,6 +53,7 @@ class Deal extends Model
     use RecordsActivity;
     use ScopesByAccessLevel;
     use SoftDeletes;
+    use TracksStageHistory;
 
     /**
      * @var list<string>

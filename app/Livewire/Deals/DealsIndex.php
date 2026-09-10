@@ -328,43 +328,51 @@ class DealsIndex extends Component
      * of stage — rather than the kit's generic column update. 3.3 builds the
      * optimistic UI on top of this.
      */
-    public function moveCard(int $id, string $value): void
+    public function moveCard(int $id, string $value): bool
     {
         $deal = $this->dataViewBaseQuery()->whereKey($id)->first();
 
         if ($deal === null) {
-            return;
+            return false;
         }
 
         $this->authorize('update', $deal);
 
         try {
-            app(MoveDealStageAction::class)($deal, $value);
+            $moved = app(MoveDealStageAction::class)($deal, $value);
         } catch (RuntimeException $exception) {
-            // The card springs back, and the person is told why.
+            // False sends the card back where it came from, and the person is
+            // told why.
             $this->dispatch('notify', type: 'error', message: $exception->getMessage());
 
-            return;
+            return false;
         }
 
-        $moved = $deal->refresh();
-        $movedStage = $moved->configuredStage();
+        if (! $moved) {
+            // Dropped back into the column it was already in.
+            return false;
+        }
+
+        $fresh = $deal->refresh();
+        $movedStage = $fresh->configuredStage();
         $stageName = $movedStage === null ? $value : $movedStage->name;
 
         // A deal that landed in a closing stage has no reason recorded yet, and
         // that is the one thing the win/loss report cannot be given later
         // without somebody remembering.
-        if (! $moved->isOpen() && $moved->close_reason === null) {
+        if (! $fresh->isOpen() && $fresh->close_reason === null) {
             $this->dispatch(
                 'notify',
                 type: 'success',
-                message: $moved->name.' is now '.$stageName.'. Open it to record why.',
+                message: $fresh->name.' is now '.$stageName.'. Open it to record why.',
             );
 
-            return;
+            return true;
         }
 
-        $this->dispatch('notify', type: 'success', message: $moved->name.' is now '.$stageName.'.');
+        $this->dispatch('notify', type: 'success', message: $fresh->name.' is now '.$stageName.'.');
+
+        return true;
     }
 
     // -- Quick filters -------------------------------------------------------

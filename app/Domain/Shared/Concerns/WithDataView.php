@@ -686,31 +686,45 @@ trait WithDataView
      * The record is fetched through the visibility scope and checked against
      * the policy, and the target must be one of this board's own columns — the
      * browser cannot name an arbitrary record or value.
+     *
+     * Returns whether the record actually moved, and that return value is
+     * load-bearing: `$wire.call()` resolves with it, so the board puts a
+     * rejected card back where it came from rather than leaving it in the wrong
+     * column until a re-render happens to relocate it. Morphdom moving a keyed
+     * node between two different parents is exactly the case not to rely on.
      */
-    public function moveCard(int $id, string $value): void
+    public function moveCard(int $id, string $value): bool
     {
         $field = $this->dataViewKanbanField();
 
         if ($field === null) {
-            return;
+            return false;
         }
 
         $allowed = array_column($this->dataViewKanbanColumns(), 'value');
 
         if (! in_array($value, $allowed, true)) {
-            return;
+            return false;
         }
 
         $record = $this->dataViewBaseQuery()->whereKey($id)->first();
 
         if ($record === null) {
-            return;
+            return false;
         }
 
         $this->authorize('update', $record);
 
+        if ((string) $record->getAttribute($field) === $value) {
+            // Dropped back where it started: nothing to write, and reporting a
+            // move would make the board flash a change that did not happen.
+            return false;
+        }
+
         $record->setAttribute($field, $value);
         $record->save();
+
+        return true;
     }
 
     // -- Contract -----------------------------------------------------------

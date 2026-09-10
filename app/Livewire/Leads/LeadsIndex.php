@@ -210,13 +210,13 @@ class LeadsIndex extends Component
      * enough — nothing may be dragged into Converted, and a converted lead
      * cannot be dragged back out.
      */
-    public function moveCard(int $id, string $value): void
+    public function moveCard(int $id, string $value): bool
     {
         $target = LeadStatus::tryFrom($value);
         $lead = $this->dataViewBaseQuery()->whereKey($id)->first();
 
         if ($target === null || $lead === null) {
-            return;
+            return false;
         }
 
         $this->authorize('update', $lead);
@@ -224,13 +224,16 @@ class LeadsIndex extends Component
         try {
             app(ChangeLeadStatusAction::class)($lead, $target);
         } catch (RuntimeException $exception) {
-            // The card springs back, and the person is told why.
+            // False sends the card back where it came from, and the person is
+            // told why.
             $this->dispatch('notify', type: 'error', message: $exception->getMessage());
 
-            return;
+            return false;
         }
 
         $this->dispatch('lead-updated', message: $lead->fullName().' is now '.$target->label().'.');
+
+        return true;
     }
 
     // -- Actions -------------------------------------------------------------

@@ -100,6 +100,43 @@ Implement `dataViewKanbanSumField()` to get a summed money figure in the header
 
 The paginator is hidden in kanban mode; the per-column footers are the pager.
 
+## A card never shows the field the board groups by
+`kanban.blade.php` filters `dataViewKanbanField()` out of the card's detail
+lines. Without it every card in the "Scoping" column carried the line
+"Stage: Scoping" — the column header repeated on each of its own cards, on all
+three boards. The next visible column takes the freed line instead.
+
+## The drag is optimistic, and `moveCard()` returns whether it moved
+The card is already in its new column when the request goes out — Sortable put
+it there. What makes that safe is the **return value**: `$wire.call()` resolves
+with it, and `kanbanColumn` puts the card back on `false`. Do not change
+`moveCard()` to return void, and keep every refusal path returning `false`
+rather than throwing.
+
+Dropping a card back into the column it was already in returns `false` too. It
+is not an error, but reporting a move would flash a change that did not happen —
+and on a deal it would push the closing stamp forward.
+
+The revert restores the recorded **origin and slot** (`onStart` captures
+`parent` + `nextElementSibling`; the revert uses `insertBefore`, whose null
+reference appends). It does not rely on the re-render putting things right:
+morphdom relocating a keyed node between two different parents is exactly the
+case not to depend on.
+
+While a move is in flight the card carries `data-card-pending` and Sortable's
+`filter` excludes it, so a second drag cannot be applied to an origin the first
+answer already changed.
+
+Column headers expose `data-board-column` and `data-board-count`, and the drag
+nudges the **count only** — a summed money figure is formatted server-side to
+the configured separators and currency, and re-implementing that in JS would
+drift from it. The sum arrives correct with the re-render.
+
+A PHP test cannot execute a drag, and SortableJS ignores synthetic pointer
+events, so `DealBoardTest` pins the JS pieces by name and the behaviour is
+verified in a browser by calling the Alpine component's `submit()` with the
+event shape Sortable passes.
+
 ## The filter builder's dropdowns are x-select, and need keys that move
 Every dropdown in `<x-filter-builder>` is `<x-select>` — the UI standard allows
 no plain `<select>` anywhere. That puts Tom Select behind `wire:ignore`, so

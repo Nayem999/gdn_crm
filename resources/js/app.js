@@ -233,6 +233,12 @@ document.addEventListener('alpine:init', () => {
      * registers itself in the same Sortable group; dropping a card reports the
      * card id and the destination column's value back to Livewire, which is
      * where the move is validated and authorised.
+     *
+     * The card moves the instant it is dropped — Sortable has already put it
+     * there — and the server's answer decides whether it stays. A refused move
+     * is put back from the origin recorded on drag start rather than left for
+     * the next render to relocate: morphdom moving a keyed node between two
+     * different parents is precisely the case not to depend on.
      */
     window.Alpine.data('kanbanColumn', (config = {}) => ({
         instance: null,
@@ -243,14 +249,106 @@ document.addEventListener('alpine:init', () => {
                 draggable: '[data-card-id]',
                 animation: 150,
                 ghostClass: 'opacity-40',
-                onAdd: (event) => {
-                    const id = event.item.dataset.cardId;
+                // A card already waiting on the server must not be dragged
+                // again: the second answer would be applied to an origin the
+                // first one had already changed.
+                filter: '[data-card-pending]',
 
-                    if (id && config.method) {
-                        this.$wire.call(config.method, Number(id), config.value);
-                    }
+                onStart: (event) => {
+                    // Where to put it back. Captured before the DOM moves.
+                    event.item._kanbanOrigin = {
+                        parent: event.from,
+                        next: event.item.nextElementSibling,
+                    };
                 },
+
+                onAdd: (event) => this.submit(event),
             });
+        },
+
+        /**
+         * Hand the drop to Livewire and act on the answer.
+         */
+        async submit(event) {
+            const card = event.item;
+            const id = card.dataset.cardId;
+
+            if (!id || !config.method) {
+                return;
+            }
+
+            const origin = card._kanbanOrigin;
+            const from = event.from;
+
+            this.markPending(card, true);
+            this.adjustCount(from, -1);
+            this.adjustCount(this.$el, 1);
+
+            let moved = false;
+
+            try {
+                moved = await this.$wire.call(config.method, Number(id), config.value);
+            } catch (error) {
+                // A refusal from the policy rejects the call rather than
+                // returning; either way the card goes back.
+                moved = false;
+            }
+
+            this.markPending(card, false);
+
+            if (moved) {
+                return;
+            }
+
+            this.adjustCount(from, 1);
+            this.adjustCount(this.$el, -1);
+            this.revert(card, origin);
+        },
+
+        revert(card, origin) {
+            if (!origin || !origin.parent) {
+                return;
+            }
+
+            // insertBefore with a null reference appends, which is what is
+            // wanted when the card was last in its column.
+            const next = origin.next && origin.next.parentNode === origin.parent
+                ? origin.next
+                : null;
+
+            origin.parent.insertBefore(card, next);
+        },
+
+        markPending(card, pending) {
+            if (pending) {
+                card.setAttribute('data-card-pending', '');
+                card.classList.add('opacity-50', 'pointer-events-none');
+
+                return;
+            }
+
+            card.removeAttribute('data-card-pending');
+            card.classList.remove('opacity-50', 'pointer-events-none');
+        },
+
+        /**
+         * Nudge a column header's count while the move is in flight.
+         *
+         * The count only — a summed money figure is formatted server-side to
+         * the configured separators and currency, and re-implementing that
+         * here would drift from it. The sum arrives correct with the re-render.
+         */
+        adjustCount(list, delta) {
+            const counter = list?.closest('[data-board-column]')?.querySelector('[data-board-count]');
+
+            if (!counter) {
+                return;
+            }
+
+            const next = Math.max(0, Number(counter.dataset.boardCount || 0) + delta);
+
+            counter.dataset.boardCount = String(next);
+            counter.textContent = next.toLocaleString();
         },
 
         destroy() {

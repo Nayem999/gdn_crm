@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Domain\Access\Policies\RolePolicy;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Accounts\Policies\AccountPolicy;
-use App\Domain\Audit\Policies\ActivityPolicy;
+use App\Domain\Activities\Models\Activity;
+use App\Domain\Activities\Policies\ActivityPolicy;
+use App\Domain\Audit\Policies\AuditEntryPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
@@ -38,7 +40,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Models\Activity as AuditEntry;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -70,6 +72,9 @@ class AppServiceProvider extends ServiceProvider
         // RolesAndPermissionsSeeder) rather than a Gate::before bypass, so
         // business rules such as "you cannot delete your own account" still hold.
         Gate::policy(Role::class, RolePolicy::class);
+        // Two different things called Activity: the audit entry and the CRM
+        // record. Aliased at the import so the pairing here is unambiguous.
+        Gate::policy(AuditEntry::class, AuditEntryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(Contact::class, ContactPolicy::class);

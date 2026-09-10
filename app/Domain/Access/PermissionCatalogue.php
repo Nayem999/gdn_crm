@@ -113,6 +113,21 @@ final class PermissionCatalogue
                     'deals.pipelines' => 'Configure pipelines and stages',
                 ],
             ],
+            'activities' => [
+                'label' => 'Activities',
+                'icon' => 'calendar-clock',
+                'permissions' => [
+                    'activities.view' => 'View tasks, calls and meetings',
+                    'activities.create' => 'Schedule tasks, calls and meetings',
+                    // Completing, reopening and calling off are part of doing
+                    // the work, so they sit under update rather than being a
+                    // permission of their own.
+                    'activities.update' => 'Update activities and mark them done',
+                    'activities.assign' => 'Hand an activity to someone else',
+                    'activities.delete' => 'Remove activities',
+                    'activities.export' => 'Export activities',
+                ],
+            ],
             'contacts' => [
                 'label' => 'Contacts',
                 'icon' => 'contact',

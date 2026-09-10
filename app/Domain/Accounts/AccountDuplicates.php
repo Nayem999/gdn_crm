@@ -3,6 +3,7 @@
 namespace App\Domain\Accounts;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Activities\ActivityRelations;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
 use App\Domain\Shared\Duplicates\MatchRule;
@@ -78,10 +79,15 @@ class AccountDuplicates implements DuplicateSource
      */
     public function inboundRelations(): array
     {
+        $morphClass = (new Account)->getMorphClass();
+
         return [
             ['table' => 'contacts', 'column' => 'account_id'],
             ['table' => 'accounts', 'column' => 'parent_id'],
-            ...TimelineRegistry::inboundRelations((new Account)->getMorphClass()),
+            ...TimelineRegistry::inboundRelations($morphClass),
+            // A task about a duplicate is about the same customer, so it
+            // follows the survivor the way notes and documents do.
+            ...ActivityRelations::inboundRelations($morphClass),
         ];
     }
 

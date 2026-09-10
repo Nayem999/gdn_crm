@@ -7,6 +7,8 @@ use App\Http\Controllers\DownloadDocument;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
+use App\Livewire\Activities\ActivitiesIndex;
+use App\Livewire\Activities\ActivityForm;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
@@ -57,6 +59,12 @@ Route::middleware('auth')->group(function () {
     // that was not a merge.
     Route::get('/accounts/{account}', AccountShow::class)->withTrashed()->name('accounts.show');
     Route::get('/accounts/{account}/edit', AccountForm::class)->name('accounts.edit');
+
+    // No show screen: an activity's detail is the form, and 3.6's calendar is
+    // where they are read in context.
+    Route::get('/activities', ActivitiesIndex::class)->name('activities.index');
+    Route::get('/activities/create', ActivityForm::class)->name('activities.create');
+    Route::get('/activities/{activity}/edit', ActivityForm::class)->name('activities.edit');
 
     Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');

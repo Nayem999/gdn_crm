@@ -3,6 +3,7 @@
 namespace App\Domain\Contacts\Models;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Activities\Models\Activity;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Enums\Department;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -124,6 +126,20 @@ class Contact extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * The tasks, calls and meetings scheduled against this record.
+     *
+     * Not `activities()`: that name is already taken by spatie's audit trail,
+     * which RecordsActivity brings to every model here. See
+     * .ai/rules/activities.md.
+     *
+     * @return MorphMany<Activity, $this>
+     */
+    public function scheduledActivities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'related')->orderBy('due_at');
     }
 
     // -- Presentation --------------------------------------------------------

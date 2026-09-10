@@ -1,0 +1,30 @@
+# The app is served by its own virtual host, whose DocumentRoot is public/.
+# This file only exists because the project folder still sits inside htdocs and
+# is therefore reachable at http://localhost/gdn_crm/ as well.
+#
+# That path used to serve the app, and could again, but Livewire builds its
+# endpoints relative to the domain root — a page mounted under /gdn_crm/ asks
+# for /livewire/update and misses the app entirely, so every screen renders and
+# nothing works. One URL, and it is the vhost.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteRule ^(.*)$ http://localhost:8080/$1 [R=302,L]
+</IfModule>
+
+# Belt and braces for a server with mod_rewrite off, where the redirect above
+# is skipped and this directory would be served exactly as it stands — .env,
+# composer.json, app/, vendor/ and storage/ are all in here.
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+<FilesMatch "^\.env">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

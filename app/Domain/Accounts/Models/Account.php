@@ -4,6 +4,7 @@ namespace App\Domain\Accounts\Models;
 
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
+use App\Domain\Activities\Models\Activity;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -135,6 +137,20 @@ class Account extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /**
+     * The tasks, calls and meetings scheduled against this record.
+     *
+     * Not `activities()`: that name is already taken by spatie's audit trail,
+     * which RecordsActivity brings to every model here. See
+     * .ai/rules/activities.md.
+     *
+     * @return MorphMany<Activity, $this>
+     */
+    public function scheduledActivities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'related')->orderBy('due_at');
     }
 
     // -- Typed accessors ----------------------------------------------------

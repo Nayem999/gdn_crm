@@ -3,6 +3,7 @@
 namespace App\Domain\Contacts;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Activities\ActivityRelations;
 use App\Domain\Contacts\Actions\SetPrimaryContactAction;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Shared\Duplicates\DuplicateSource;
@@ -82,7 +83,14 @@ class ContactDuplicates implements DuplicateSource
      */
     public function inboundRelations(): array
     {
-        return TimelineRegistry::inboundRelations((new Contact)->getMorphClass());
+        $morphClass = (new Contact)->getMorphClass();
+
+        return [
+            ...TimelineRegistry::inboundRelations($morphClass),
+            // A task about a duplicate is about the same customer, so it
+            // follows the survivor the way notes and documents do.
+            ...ActivityRelations::inboundRelations($morphClass),
+        ];
     }
 
     /**

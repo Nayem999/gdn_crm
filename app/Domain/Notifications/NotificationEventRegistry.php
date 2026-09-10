@@ -2,6 +2,7 @@
 
 namespace App\Domain\Notifications;
 
+use App\Domain\Activities\ActivityMergeData;
 use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\Enums\RecipientType;
 
@@ -128,6 +129,37 @@ final class NotificationEventRegistry
                 mergeFields: ['export.module' => 'Which list was exported'],
                 defaultSubject: 'Your export could not be produced',
                 defaultTemplates: ['*' => 'Your {{export.module}} export could not be generated. Please try again.'],
+            ),
+            new NotificationEvent(
+                key: 'activity.assigned',
+                label: 'Activity assigned',
+                group: 'Activities',
+                description: 'A task, call or meeting was put on somebody else\'s list.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                defaultChannels: [NotificationChannel::InApp],
+                // One declaration for both activity events: ActivityMergeData
+                // supplies exactly these, and a template naming a field the
+                // event does not declare is refused at save time.
+                mergeFields: ActivityMergeData::mergeFields(),
+                defaultSubject: 'A new activity for you',
+                defaultTemplates: [
+                    '*' => '{{activity.type}}: {{activity.subject}}, due {{activity.due}} ({{activity.related}}).',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'activity.reminder',
+                label: 'Activity reminder',
+                group: 'Activities',
+                description: 'An activity is coming up and its reminder lead time has arrived.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                // Email as well as in-app: the point of a reminder is to reach
+                // somebody who is not currently looking at the CRM.
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: ActivityMergeData::mergeFields(),
+                defaultSubject: 'Reminder: {{activity.subject}}',
+                defaultTemplates: [
+                    '*' => '{{activity.type}}: {{activity.subject}} is due {{activity.due}} ({{activity.related}}).',
+                ],
             ),
         ];
 

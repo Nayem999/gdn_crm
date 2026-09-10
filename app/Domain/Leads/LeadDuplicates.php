@@ -2,6 +2,7 @@
 
 namespace App\Domain\Leads;
 
+use App\Domain\Activities\ActivityRelations;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
@@ -83,7 +84,14 @@ class LeadDuplicates implements DuplicateSource
     {
         // A note written on the duplicate is about the same person, so it
         // follows them onto the survivor.
-        return TimelineRegistry::inboundRelations((new Lead)->getMorphClass());
+        $morphClass = (new Lead)->getMorphClass();
+
+        return [
+            ...TimelineRegistry::inboundRelations($morphClass),
+            // A task about a duplicate is about the same customer, so it
+            // follows the survivor the way notes and documents do.
+            ...ActivityRelations::inboundRelations($morphClass),
+        ];
     }
 
     /**

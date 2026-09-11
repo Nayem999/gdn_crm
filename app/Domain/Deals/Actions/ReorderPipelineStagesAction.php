@@ -4,6 +4,7 @@ namespace App\Domain\Deals\Actions;
 
 use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Deals\Models\PipelineStage;
+use App\Domain\Deals\PipelineStatusCache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,6 +41,10 @@ class ReorderPipelineStagesAction
                     ->update(['position' => $position]);
             }
         });
+
+        // The status sets are memoised per request; a renamed, reordered or
+        // removed stage has to show on the very next render.
+        app(PipelineStatusCache::class)->flush();
 
         return $moved;
     }

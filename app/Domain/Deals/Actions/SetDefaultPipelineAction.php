@@ -3,6 +3,7 @@
 namespace App\Domain\Deals\Actions;
 
 use App\Domain\Deals\Models\Pipeline;
+use App\Domain\Deals\PipelineStatusCache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,13 +19,21 @@ class SetDefaultPipelineAction
     public function __invoke(Pipeline $pipeline): Pipeline
     {
         DB::transaction(function () use ($pipeline) {
+            // Cleared within the pipeline's **own module** only. Since 4.4 a
+            // module has its own default, so an unscoped clear would make
+            // configuring a leads pipeline silently un-default the deals one.
             Pipeline::query()
+                ->forModule($pipeline->module)
                 ->where('is_default', true)
                 ->whereKeyNot($pipeline->getKey())
                 ->update(['is_default' => false]);
 
             $pipeline->forceFill(['is_default' => true])->save();
         });
+
+        // The status sets are memoised per request; a renamed, reordered or
+        // removed stage has to show on the very next render.
+        app(PipelineStatusCache::class)->flush();
 
         return $pipeline->refresh();
     }
@@ -34,15 +43,15 @@ class SetDefaultPipelineAction
      * lost — a default deleted around the guard, or a restore from a partial
      * dump. Returns the pipeline holding it, or null when there are none.
      */
-    public function ensureOneExists(): ?Pipeline
+    public function ensureOneExists(string $module = Pipeline::DEALS): ?Pipeline
     {
-        $current = Pipeline::query()->where('is_default', true)->first();
+        $current = Pipeline::query()->forModule($module)->where('is_default', true)->first();
 
         if ($current !== null) {
             return $current;
         }
 
-        $first = Pipeline::query()->ordered()->first();
+        $first = Pipeline::query()->forModule($module)->ordered()->first();
 
         return $first === null ? null : $this($first);
     }

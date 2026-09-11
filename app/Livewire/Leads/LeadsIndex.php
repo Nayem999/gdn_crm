@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leads;
 
+use App\Domain\Deals\PipelineModules;
 use App\Domain\Leads\Actions\ChangeLeadStatusAction;
 use App\Domain\Leads\Actions\DeleteLeadAction;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -114,13 +115,17 @@ class LeadsIndex extends Component
      */
     public function dataViewKanbanColumns(): array
     {
+        // The configured pipeline's stages when this module has one, and the
+        // LeadStatus enum when it does not — PipelineModules answers that once
+        // so the board, the filter builder and the status chip cannot disagree
+        // about what a lead's statuses are.
         $board = [];
 
-        foreach (LeadStatus::pipeline() as $status) {
+        foreach (PipelineModules::statuses('leads') as $status) {
             $board[] = [
-                'value' => $status->value,
-                'label' => $status->label(),
-                'color' => $status->color(),
+                'value' => $status['value'],
+                'label' => $status['label'],
+                'color' => $status['color'],
             ];
         }
 

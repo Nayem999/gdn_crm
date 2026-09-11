@@ -1,6 +1,36 @@
 <div>
     <x-settings-shell heading="Pipelines" description="The routes a deal can be worked along, and the stages on each." active="settings.pipelines">
 
+    {{-- Which module's status set is being configured. Deals keep their full
+         pipeline behaviour; the others use the same machinery for their
+         statuses. --}}
+    <div class="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Module">
+        @foreach ($this->moduleOptions() as $key => $label)
+            <button
+                type="button"
+                wire:key="pipeline-module-{{ $key }}"
+                wire:click="selectModule('{{ $key }}')"
+                @class([
+                    'rounded-full border px-3 py-1 text-sm font-medium transition-colors',
+                    'border-accent bg-accent/10 text-accent' => $module === $key,
+                    'border-border text-muted-foreground hover:text-foreground' => $module !== $key,
+                ])
+                aria-pressed="{{ $module === $key ? 'true' : 'false' }}"
+            >
+                {{ $label }}
+            </button>
+        @endforeach
+    </div>
+
+    @if ($this->usesFallback())
+        <x-alert variant="info" class="mb-4">
+            {{ \App\Domain\Deals\PipelineModules::label($module) }} are still using their
+            built-in statuses. Configure a pipeline here to rename, recolour, reorder or
+            remove them.
+        </x-alert>
+    @endif
+
+
     <div
         x-data="{ message: '', tone: 'success' }"
         x-on:notify.window="tone = $event.detail.type === 'error' ? 'error' : 'success'; message = $event.detail.message; setTimeout(() => message = '', 5000)"
@@ -141,7 +171,7 @@
          the default content. See .ai/rules/views.md. --}}
     <x-slot:actions>
         @can('create', App\Domain\Deals\Models\Pipeline::class)
-            <a href="{{ route('settings.pipelines.create') }}" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
+            <a href="{{ route('settings.pipelines.create', $module === \App\Domain\Deals\Models\Pipeline::DEALS ? [] : ['module' => $module]) }}" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90">
                 <x-icon name="lucide-plus" class="h-4 w-4" />
                 Add pipeline
             </a>

@@ -304,7 +304,18 @@ class Deal extends Model
      */
     public static function closingStageKeys(?StageOutcome $outcome = null): array
     {
-        $query = PipelineStage::query();
+        // Scoped to **deals** pipelines. Before 4.4 every pipeline was a deals
+        // pipeline so an unscoped read was harmless; now a leads pipeline with
+        // a stage keyed "lost" would make every deal in a stage of that name
+        // count as closed. Still collected across every deals pipeline, which
+        // remains the deliberate simplification 3.2 documented.
+        $query = PipelineStage::query()->whereHas(
+            'pipeline',
+            // A plain column rather than the forModule scope: the relation's
+            // builder is typed against Model here, which cannot be shown to
+            // carry a Pipeline scope.
+            fn (Builder $pipeline) => $pipeline->where('pipelines.module', Pipeline::DEALS)
+        );
 
         $query->when(
             $outcome === null,

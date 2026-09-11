@@ -3,9 +3,9 @@
 namespace App\Domain\Activities;
 
 use App\Domain\Activities\Enums\ActivityPriority;
-use App\Domain\Activities\Enums\ActivityStatus;
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\CustomFields\CustomFieldColumns;
+use App\Domain\Deals\PipelineModules;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
 use App\Models\User;
@@ -50,7 +50,7 @@ final class ActivityFields
         $fields = [
             FilterField::text('subject', 'Subject'),
             FilterField::select('type', 'Type', ActivityType::options()),
-            FilterField::select('status', 'Status', ActivityStatus::options()),
+            FilterField::select('status', 'Status', PipelineModules::statusOptions('activities')),
             FilterField::select('priority', 'Priority', ActivityPriority::options()),
             FilterField::date('due_at', 'Due'),
             FilterField::boolean('all_day', 'All day'),

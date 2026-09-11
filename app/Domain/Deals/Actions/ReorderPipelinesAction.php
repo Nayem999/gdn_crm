@@ -16,11 +16,15 @@ class ReorderPipelinesAction
 {
     /**
      * @param  array<int, int|string>  $orderedIds
+     * @param  string  $module  Whose pipelines are being ordered.
      * @return int How many rows moved.
      */
-    public function __invoke(array $orderedIds): int
+    public function __invoke(array $orderedIds, string $module = Pipeline::DEALS): int
     {
-        $known = Pipeline::query()->ordered()->pluck('id')->all();
+        // Scoped to one module's pipelines. Without it, reordering the leads
+        // pipelines would renumber the deals ones, because position is shared
+        // across the table.
+        $known = Pipeline::query()->forModule($module)->ordered()->pluck('id')->all();
 
         $ordered = array_values(array_unique(array_filter(
             array_map('intval', $orderedIds),

@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * question, and it is a single administrative permission.
  *
  * @property int $id
+ * @property string $module
  * @property string $name
  * @property string|null $description
  * @property bool $is_default
@@ -28,6 +29,12 @@ use Illuminate\Support\Carbon;
  */
 class Pipeline extends Model
 {
+    /**
+     * The module a pipeline belongs to when nothing says otherwise. 3.1 built
+     * pipelines for deals alone, so that is what an unqualified pipeline is.
+     */
+    public const DEALS = 'deals';
+
     /** @use HasFactory<PipelineFactory> */
     use HasFactory;
 
@@ -37,7 +44,7 @@ class Pipeline extends Model
     /**
      * @var list<string>
      */
-    protected $fillable = ['name', 'description', 'is_default', 'position'];
+    protected $fillable = ['module', 'name', 'description', 'is_default', 'position'];
 
     protected function casts(): array
     {
@@ -52,7 +59,7 @@ class Pipeline extends Model
      */
     protected function activityAttributes(): array
     {
-        return ['name', 'description', 'is_default', 'position'];
+        return ['module', 'name', 'description', 'is_default', 'position'];
     }
 
     // -- Relations ----------------------------------------------------------
@@ -81,10 +88,35 @@ class Pipeline extends Model
      * Falls back to the first by position rather than returning null, so a
      * database whose default flag was lost still resolves to something usable.
      */
+    /**
+     * The deals pipeline, which is what every caller from 3.x means by "the
+     * default". Kept as a no-argument method so those callers read unchanged.
+     */
     public static function default(): ?self
     {
-        return static::query()->where('is_default', true)->first()
-            ?? static::query()->ordered()->first();
+        return self::defaultFor(self::DEALS);
+    }
+
+    /**
+     * One module's default pipeline, or null when it has none configured.
+     *
+     * Falls back to the first by position rather than returning null when the
+     * flag is missing, so a half-restored database still resolves — the same
+     * guarantee 3.1 made, now scoped to a module.
+     */
+    public static function defaultFor(string $module): ?self
+    {
+        return static::query()->forModule($module)->where('is_default', true)->first()
+            ?? static::query()->forModule($module)->ordered()->first();
+    }
+
+    /**
+     * @param  Builder<Pipeline>  $query
+     * @return Builder<Pipeline>
+     */
+    public function scopeForModule(Builder $query, string $module): Builder
+    {
+        return $query->where($query->qualifyColumn('module'), $module);
     }
 
     public function stageByKey(string $key): ?PipelineStage

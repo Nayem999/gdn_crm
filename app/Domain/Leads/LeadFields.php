@@ -3,8 +3,8 @@
 namespace App\Domain\Leads;
 
 use App\Domain\CustomFields\CustomFieldColumns;
+use App\Domain\Deals\PipelineModules;
 use App\Domain\Leads\Enums\LeadSource;
-use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
 
@@ -58,7 +58,7 @@ final class LeadFields
             FilterField::text('first_name', 'First name'),
             FilterField::text('last_name', 'Last name'),
             FilterField::text('company_name', 'Company'),
-            FilterField::select('status', 'Status', LeadStatus::options()),
+            FilterField::select('status', 'Status', PipelineModules::statusOptions('leads')),
             FilterField::select('source', 'Source', LeadSource::options()),
             FilterField::number('estimated_value', 'Estimated value'),
             FilterField::number('score', 'Score'),

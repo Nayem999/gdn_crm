@@ -18,6 +18,7 @@ use App\Domain\CustomFields\Models\CustomField;
 use App\Domain\CustomFields\Policies\CustomFieldPolicy;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Deals\Models\Pipeline;
+use App\Domain\Deals\PipelineStatusCache;
 use App\Domain\Deals\Policies\DealPolicy;
 use App\Domain\Deals\Policies\PipelinePolicy;
 use App\Domain\Leads\Models\Lead;
@@ -64,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
         // One memo of the custom field definitions per request, flushed by the
         // actions that change one. See CustomFieldSchema.
         $this->app->singleton(CustomFieldSchema::class);
+        // Same arrangement for the configured status sets — see PipelineStatusCache.
+        $this->app->singleton(PipelineStatusCache::class);
     }
 
     /**

@@ -7,11 +7,13 @@ use App\Domain\Deals\Actions\SavePipelineAction;
 use App\Domain\Deals\DTOs\PipelineData;
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Pipeline;
+use App\Domain\Deals\PipelineModules;
 use App\Domain\Shared\UI\ChipPalette;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use RuntimeException;
 
@@ -29,6 +31,13 @@ class PipelineForm extends Component
 
     #[Locked]
     public ?int $pipelineId = null;
+
+    /**
+     * Which module this pipeline configures. Set on create from the URL and
+     * fixed afterwards — see SavePipelineAction on why it cannot move.
+     */
+    #[Url(as: 'module', except: 'deals')]
+    public string $module = 'deals';
 
     public string $name = '';
 
@@ -57,6 +66,7 @@ class PipelineForm extends Component
             $this->authorize('update', $pipeline);
 
             $this->pipelineId = $pipeline->id;
+            $this->module = $pipeline->module;
             $this->name = $pipeline->name;
             $this->description = (string) $pipeline->description;
             $this->isDefault = $pipeline->is_default;
@@ -75,6 +85,10 @@ class PipelineForm extends Component
         }
 
         $this->authorize('create', Pipeline::class);
+
+        if (! PipelineModules::has($this->module)) {
+            $this->module = Pipeline::DEALS;
+        }
 
         // A new pipeline starts with something workable rather than a blank
         // list: every pipeline needs an end, and nobody wants to type it.
@@ -251,6 +265,7 @@ class PipelineForm extends Component
         $this->validate();
 
         $data = PipelineData::fromArray([
+            'module' => $this->module,
             'name' => $this->name,
             'description' => $this->description,
             'is_default' => $this->isDefault,
@@ -267,7 +282,14 @@ class PipelineForm extends Component
 
         session()->flash('status', $saved->name.' was saved.');
 
-        $this->redirectRoute('settings.pipelines', navigate: true);
+        // Deals is the default and is omitted from the URL, so adding it back
+        // here would make the redirect disagree with every link to the same
+        // screen.
+        $this->redirectRoute(
+            'settings.pipelines',
+            $this->module === Pipeline::DEALS ? [] : ['module' => $this->module],
+            navigate: true,
+        );
     }
 
     // -- Options ---------------------------------------------------------------

@@ -2,6 +2,9 @@
 
 namespace App\Domain\Deals\DTOs;
 
+use App\Domain\Deals\Models\Pipeline;
+use App\Domain\Deals\PipelineModules;
+
 /**
  * A pipeline and its stages as the form submitted them, already validated.
  *
@@ -14,6 +17,7 @@ readonly class PipelineData
      * @param  array<int, StageData>  $stages
      */
     public function __construct(
+        public string $module,
         public string $name,
         public ?string $description = null,
         public bool $isDefault = false,
@@ -28,7 +32,12 @@ readonly class PipelineData
         $description = $attributes['description'] ?? null;
         $stages = is_array($attributes['stages'] ?? null) ? $attributes['stages'] : [];
 
+        $module = (string) ($attributes['module'] ?? Pipeline::DEALS);
+
         return new self(
+            // A module the registry does not list is not turned into a table
+            // name — it falls back to deals, and the action refuses it.
+            module: PipelineModules::has($module) ? $module : '',
             name: trim((string) ($attributes['name'] ?? '')),
             description: $description === null || trim((string) $description) === ''
                 ? null

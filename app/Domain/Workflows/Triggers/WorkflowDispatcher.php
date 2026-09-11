@@ -3,6 +3,7 @@
 namespace App\Domain\Workflows\Triggers;
 
 use App\Domain\Workflows\Actions\StartWorkflowRunAction;
+use App\Domain\Workflows\Conditions\WorkflowConditions;
 use App\Domain\Workflows\Enums\WorkflowTrigger;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Models\WorkflowRun;
@@ -15,8 +16,17 @@ use Illuminate\Database\Eloquent\Model;
  *
  * The one place that answers "what should fire now". The observers, the date
  * sweep and the scheduler all come through here, so the rules about what fires
- * — suppression, per-record limits, which field changed — are written once
- * rather than three times with two of them slightly different.
+ * — suppression, per-record limits, which field changed, whether the conditions
+ * hold — are written once rather than three times with two of them slightly
+ * different.
+ *
+ * **Conditions are checked before the run is created, not after.** A workflow
+ * on "when a lead is updated" against a system doing ten thousand edits a day
+ * would otherwise write a skipped row for every edit that did not match — a few
+ * million rows a year saying nothing happened. So a record that does not match
+ * leaves no trace, and `workflow_runs` stays a record of things that actually
+ * fired. What a workflow *would* do to a given record is answered by 5.5's dry
+ * run, which is where somebody asking that question is actually looking.
  */
 class WorkflowDispatcher
 {
@@ -24,6 +34,7 @@ class WorkflowDispatcher
         private readonly WorkflowCache $cache,
         private readonly WorkflowSuppressor $suppressor,
         private readonly StartWorkflowRunAction $start,
+        private readonly WorkflowConditions $conditions,
     ) {}
 
     /**
@@ -51,6 +62,10 @@ class WorkflowDispatcher
 
         foreach ($this->cache->listeningFor($module, $trigger) as $workflow) {
             if (! $this->watchesThisChange($workflow, $trigger, $context)) {
+                continue;
+            }
+
+            if (! $this->conditions->matches($workflow, $record)) {
                 continue;
             }
 
@@ -96,6 +111,10 @@ class WorkflowDispatcher
     public function dateReached(Workflow $workflow, Model $record, array $context = []): ?WorkflowRun
     {
         if ($this->suppressor->isSuppressed()) {
+            return null;
+        }
+
+        if (! $this->conditions->matches($workflow, $record)) {
             return null;
         }
 

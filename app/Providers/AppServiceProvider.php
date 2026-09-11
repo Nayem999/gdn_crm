@@ -45,6 +45,8 @@ use App\Domain\Timeline\Models\Note;
 use App\Domain\Timeline\Policies\DocumentPolicy;
 use App\Domain\Timeline\Policies\NotePolicy;
 use App\Domain\Users\Policies\UserPolicy;
+use App\Domain\Workflows\Models\Workflow;
+use App\Domain\Workflows\Policies\WorkflowPolicy;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -104,6 +106,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CustomRecord::class, CustomRecordPolicy::class);
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
         Gate::policy(LeadCaptureForm::class, LeadCaptureFormPolicy::class);
+        Gate::policy(Workflow::class, WorkflowPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
         // Both ask the subject record's own policy before answering, so a note

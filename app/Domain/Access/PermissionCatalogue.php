@@ -132,6 +132,21 @@ final class PermissionCatalogue
                     'activities.export' => 'Export activities',
                 ],
             ],
+            'workflows' => [
+                'label' => 'Workflows',
+                'icon' => 'zap',
+                'permissions' => [
+                    'workflows.view' => 'View workflow definitions',
+                    'workflows.create' => 'Create workflows',
+                    'workflows.update' => 'Update workflows and switch them on or off',
+                    'workflows.delete' => 'Remove workflows',
+                    // Separate from the rest: answering "why did this record
+                    // change last night" needs the log and nothing else, and
+                    // that is a far wider audience than the people who should
+                    // be able to change what happens tonight.
+                    'workflows.logs' => 'View the workflow execution log',
+                ],
+            ],
             'custom-modules' => [
                 'label' => 'Custom modules',
                 'icon' => 'box',

@@ -65,9 +65,9 @@ test('creating a record fires a create workflow exactly once', function () {
         ->and($runs->first()->workflow_id)->toBe($workflow->id)
         ->and($runs->first()->subject_id)->toBe($lead->id)
         ->and($runs->first()->trigger())->toBe(WorkflowTrigger::RecordCreated)
-        // Pending: whether the conditions match is 5.3 and doing the work is
-        // 5.4. The trigger engine's job is to produce the run.
-        ->and($runs->first()->status())->toBe(WorkflowRunStatus::Pending);
+        // Carried out rather than left pending: the run is queued the moment it
+        // is claimed, and the queue is synchronous here.
+        ->and($runs->first()->status())->toBe(WorkflowRunStatus::Success);
 });
 
 test('updating a record fires an update workflow exactly once', function () {
@@ -414,15 +414,17 @@ test('saving many records does not query for workflows each time', function () {
 
     Lead::factory()->count(5)->create();
 
+    // The listening lookup specifically — carrying out a run reads its own
+    // workflow back, which is inherent: the job carries an id so that it reads
+    // the current state rather than a serialised copy.
     $lookups = collect(DB::getRawQueryLog())
-        ->filter(fn (array $entry): bool => str_contains($entry['raw_query'], 'from `workflows`'))
+        ->filter(fn (array $entry): bool => str_contains($entry['raw_query'], 'from `workflows`')
+            && str_contains($entry['raw_query'], 'trigger_event'))
         ->count();
 
     DB::disableQueryLog();
 
-    // One for the create trigger, and that answer is then remembered. Five
-    // saves used to be eleven queries here: one lookup each, plus a counter
-    // update and the re-read behind it.
+    // One, and that answer is then remembered for the other four.
     expect($lookups)->toBe(1);
 });
 

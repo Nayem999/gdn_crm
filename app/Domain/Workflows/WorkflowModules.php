@@ -202,6 +202,51 @@ final class WorkflowModules
         return $definition->column();
     }
 
+    /**
+     * The fields a workflow step may write to.
+     *
+     * The module's own field set, intersected with what the model is willing to
+     * be filled with. That intersection is the whole point: a workflow can set
+     * what a form can set, and nothing else — not `id`, not a timestamp, not a
+     * column the module does not admit to having. Custom fields are always
+     * writable, because answering one is what they are for.
+     *
+     * @return array<string, FilterField>
+     */
+    public static function writableFields(string $module): array
+    {
+        $model = self::modelClass($module);
+
+        if ($model === null) {
+            return [];
+        }
+
+        $fillable = (new $model)->getFillable();
+        $writable = [];
+
+        foreach (self::fields($module) as $key => $field) {
+            if ($field->isCustomField() || in_array($field->column(), $fillable, true)) {
+                $writable[$key] = $field;
+            }
+        }
+
+        return $writable;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function writableFieldOptions(string $module): array
+    {
+        $options = [];
+
+        foreach (self::writableFields($module) as $key => $field) {
+            $options[$key] = $field->label;
+        }
+
+        return $options;
+    }
+
     public static function hasField(string $module, string $field): bool
     {
         return array_key_exists($field, self::fields($module));

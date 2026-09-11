@@ -161,6 +161,31 @@ final class NotificationEventRegistry
                     '*' => '{{activity.type}}: {{activity.subject}} is due {{activity.due}} ({{activity.related}}).',
                 ],
             ),
+            new NotificationEvent(
+                key: 'workflow.notified',
+                label: 'Workflow notification',
+                group: 'Workflows',
+                description: 'An automation told somebody about a record.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                defaultChannels: [NotificationChannel::InApp],
+                // One event for every workflow, not one per workflow. The event
+                // is what the admin matrix governs, and a matrix that grew a row
+                // each time somebody wrote an automation would be unreadable —
+                // while letting a workflow *choose* its event would let it
+                // borrow another event's channels and audience.
+                mergeFields: [
+                    'workflow.name' => 'Which automation fired',
+                    'message' => 'What the automation was set up to say',
+                    'module.label' => 'Which module the record is in',
+                    'record.label' => 'The record it is about',
+                    'record.id' => 'That record\'s id',
+                    'app.name' => 'The application name',
+                ],
+                defaultSubject: '{{workflow.name}}',
+                defaultTemplates: [
+                    '*' => '{{workflow.name}}: {{message}} ({{module.label}} — {{record.label}})',
+                ],
+            ),
         ];
 
         $keyed = [];

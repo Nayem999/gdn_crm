@@ -53,11 +53,17 @@ enum WorkflowActionType: string
     public function requiredKeys(): array
     {
         return match ($this) {
-            self::UpdateField => ['field', 'value'],
+            // The field, but not the value: setting one to nothing is a real
+            // instruction ("clear the company name"), and requiring a value
+            // would make it unexpressible.
+            self::UpdateField => ['field'],
             self::CreateRecord => ['module'],
             self::AssignOwner => ['assign_to'],
             self::SendEmail => ['template', 'recipient'],
-            self::SendNotification => ['event', 'recipient'],
+            // Not an event key: every workflow notification is the one event
+            // `workflow.notified`, because the event is what the admin matrix
+            // governs. See SendNotificationHandler.
+            self::SendNotification => ['recipient', 'message'],
             self::CallWebhook => ['url'],
         };
     }

@@ -35,4 +35,4 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Timeline/**, app/Livewire/Timeline/**, app/Http/Controllers/DownloadDocument.php, resources/views/livewire/timeline/**, resources/views/components/timeline-entry.blade.php | .ai/rules/timeline.md |
 | resources/views/livewire/** | .ai/rules/views-livewire.md |
 | resources/views/** | .ai/rules/views.md |
-| app/Domain/Workflows/**, app/Livewire/Workflows/**, database/migrations/*_create_workflow_tables.php | .ai/rules/workflows.md |
+| app/Domain/Workflows/**, app/Livewire/Workflows/**, app/Jobs/RunWorkflow.php, database/migrations/*workflow*.php, resources/views/livewire/workflows/** | .ai/rules/workflows.md |

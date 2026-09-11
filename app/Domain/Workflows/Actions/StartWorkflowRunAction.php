@@ -6,6 +6,7 @@ use App\Domain\Workflows\Enums\WorkflowRunStatus;
 use App\Domain\Workflows\Enums\WorkflowTrigger;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Models\WorkflowRun;
+use App\Jobs\RunWorkflow;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 
@@ -17,9 +18,9 @@ use Illuminate\Database\QueryException;
  * two overlapping cron sweeps, both pass — so the claim *is* the insert, and
  * losing the race is an ordinary outcome rather than an error.
  *
- * The run is created **Pending**. Deciding whether the conditions match is 5.3
- * and doing the work is 5.4; this is the trigger engine, and its whole job is
- * to produce exactly one run per occasion.
+ * The run is created **Pending** and the work is queued. Conditions have
+ * already been checked by the dispatcher — a run exists because something is
+ * going to happen.
  */
 class StartWorkflowRunAction
 {
@@ -72,6 +73,11 @@ class StartWorkflowRunAction
         // would be a second version of what the log already knows, bought with
         // an UPDATE of one row on every event — see the 5.2 migration that
         // removed the pair.
+
+        // The work happens off the request: a run can send mail and call a
+        // webhook, and whoever saved the record should not wait on either.
+        RunWorkflow::dispatch($run->id);
+
         return $run;
     }
 

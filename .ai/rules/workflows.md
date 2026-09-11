@@ -2,7 +2,9 @@
 paths:
   - 'app/Domain/Workflows/**'
   - 'app/Livewire/Workflows/**'
-  - 'database/migrations/*_create_workflow_tables.php'
+  - 'app/Jobs/RunWorkflow.php'
+  - 'database/migrations/*workflow*.php'
+  - 'resources/views/livewire/workflows/**'
 ---
 
 # Workflows
@@ -24,3 +26,14 @@ Instead: check `isSuppressed()` synchronously in the observer, compute the chang
 Both `WorkflowCache` and `WorkflowSuppressor` must stay registered as container singletons. A fresh instance per resolution means the suppressor's depth is always zero (suppression silently does nothing) and the listening set is re-queried on every saved record.
 
 Never write back to the `workflows` row on a firing. 5.1 had `run_count`/`last_run_at` and 5.2 dropped them: an UPDATE of one row on every event, contended by every concurrent insert, and `n + 1` read in PHP is a race. `workflow_runs` already holds what happened — derive counts from it.
+
+## What a workflow step may touch, and where it may send
+Three constraints every handler is built around. Keep them when adding an action type.
+
+**A step writes only what a form could write.** `WorkflowModules::writableFields()` is the module's own declared field set intersected with the model's `$fillable`. That is why a workflow can filter on `created_at` and cannot rewrite it, and why no config can name `id`. Never reach past it to `forceFill` an arbitrary key from config.
+
+**A status goes through the action that owns it.** `UpdateFieldHandler` routes the module's status column to `ChangeLeadStatusAction` / `MoveDealStageAction` rather than writing the column. Those actions hold the transition rules and the qualification checks, and a workflow writing the column directly would be the single route that skips them. A refused transition becomes a failed step whose message is the refusal — which is what the log should say. Activities are deliberately refused: complete/reopen/cancel each do more than set a column, and picking one from a config string would be choosing an action from data.
+
+**An outbound URL is an SSRF primitive.** `WebhookTarget` refuses anything but http/https and anything resolving to a private, loopback or link-local address — 169.254.0.0/16 first, because that is the cloud metadata service. Every resolved address is checked, not just the first, and the client does not follow redirects (a redirect turns a checked public address into an unchecked private one). Known gap, stated in the class: DNS rebinding, which needs the connection pinned to the checked address and belongs with 7.10.
+
+Handlers **return** `WorkflowStepOutcome`, they do not throw. `skipped` means there was nothing to do and that is fine (no address, nobody matched); `failed` means it should have worked. Getting that wrong puts a red row in the log every night for a rule that is simply not applicable, which buries the failures that matter.

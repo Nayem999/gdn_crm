@@ -5,6 +5,7 @@ namespace App\Domain\CustomFields\DTOs;
 use App\Domain\CustomFields\CustomFieldRegistry;
 use App\Domain\CustomFields\Enums\CustomFieldType;
 use App\Domain\CustomFields\Models\CustomField;
+use App\Domain\CustomFields\VisibilityCondition;
 
 /**
  * A field definition as a form submitted it, already normalised.
@@ -22,6 +23,10 @@ readonly class CustomFieldData
         public string $label,
         public CustomFieldType $type,
         public ?string $help = null,
+        public ?string $section = null,
+        public bool $isFullWidth = false,
+        /** @var array{field: string, operator: string, value: string|null}|null */
+        public ?array $visibleWhen = null,
         public bool $isRequired = false,
         public bool $isActive = true,
         public array $options = [],
@@ -45,6 +50,9 @@ readonly class CustomFieldData
             label: trim((string) ($attributes['label'] ?? '')),
             type: $type,
             help: self::text($attributes, 'help'),
+            section: self::text($attributes, 'section'),
+            isFullWidth: (bool) ($attributes['is_full_width'] ?? false),
+            visibleWhen: self::condition($attributes['visible_when'] ?? null),
             isRequired: (bool) ($attributes['is_required'] ?? false),
             isActive: (bool) ($attributes['is_active'] ?? true),
             options: $type->hasOptions() ? self::normaliseOptions($attributes['options'] ?? []) : [],
@@ -97,6 +105,29 @@ readonly class CustomFieldData
     }
 
     /**
+     * A condition, normalised through the value object so a half-filled one —
+     * a field chosen but no operator yet — is stored as nothing rather than as
+     * a rule that can never match.
+     *
+     * @return array{field: string, operator: string, value: string|null}|null
+     */
+    private static function condition(mixed $submitted): ?array
+    {
+        $condition = VisibilityCondition::fromStored($submitted);
+
+        if ($condition === null) {
+            return null;
+        }
+
+        // An operator that compares needs something to compare against.
+        if ($condition->operator->needsValue() && $condition->value === null) {
+            return null;
+        }
+
+        return $condition->toArray();
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      */
     private static function lookupModule(array $attributes): ?string
@@ -131,6 +162,9 @@ readonly class CustomFieldData
             'label' => $this->label,
             'type' => $this->type->value,
             'help' => $this->help,
+            'section' => $this->section,
+            'is_full_width' => $this->isFullWidth,
+            'visible_when' => $this->visibleWhen,
             'is_required' => $this->isRequired,
             'is_active' => $this->isActive,
             'options' => $this->type->hasOptions() ? $this->options : null,

@@ -26,14 +26,22 @@ class CustomFieldValidator
      *
      * @param  iterable<int, CustomField>  $fields
      * @param  string  $prefix  The form key the answers sit under.
+     * @param  array<string, mixed>|null  $conditionValues  What the form holds
+     *                                                      now, for deciding which fields are on
+     *                                                      screen. Null means treat all as shown.
      * @return array<string, array<int, string>>
      */
-    public function rules(iterable $fields, string $prefix = 'customFields'): array
+    public function rules(iterable $fields, string $prefix = 'customFields', ?array $conditionValues = null): array
     {
         $rules = [];
 
         foreach ($fields as $field) {
-            $rules[$prefix.'.'.$field->key] = $field->rules();
+            // A field whose condition does not hold is still type-checked — a
+            // value can survive in the payload after the condition turned
+            // against it — but it is never required.
+            $rules[$prefix.'.'.$field->key] = $conditionValues !== null && ! $field->isVisible($conditionValues)
+                ? $field->hiddenRules()
+                : $field->rules();
 
             $itemRules = $field->itemRules();
 

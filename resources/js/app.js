@@ -357,6 +357,122 @@ document.addEventListener('alpine:init', () => {
     }));
 
     /**
+     * Live show/hide for a custom field whose visibility is conditional.
+     *
+     * This is a **mirror** of VisibilityOperator::matches on the server, not a
+     * second source of truth. The server decides what is validated and stored;
+     * this only decides what is on screen between keystrokes, so the field does
+     * not wait for a round trip to appear. If the two ever disagree, the server
+     * wins and the person sees a field they cannot submit — so keep any change
+     * here in step with that enum.
+     *
+     * The watched value is read from Livewire's own component state, which is
+     * why every input in the partial binds with `wire:model.live`.
+     */
+    window.Alpine.data('customFieldVisibility', (condition = {}) => ({
+        visible: true,
+
+        init() {
+            this.evaluate();
+
+            // Livewire replaces component state wholesale on each round trip,
+            // so re-evaluate after every one rather than watching one property.
+            this.$watch('$wire.customFields', () => this.evaluate());
+
+            document.addEventListener('livewire:navigated', () => this.evaluate());
+
+            if (window.Livewire) {
+                window.Livewire.hook('morph.updated', () => this.evaluate());
+            }
+        },
+
+        evaluate() {
+            this.visible = this.matches(this.actual(), condition.value ?? null);
+        },
+
+        /**
+         * The value being tested. `cf:` names a custom field's answer;
+         * anything else is one of the form's own properties.
+         */
+        actual() {
+            const field = String(condition.field ?? '');
+
+            if (field.startsWith('cf:')) {
+                return this.$wire?.customFields?.[field.slice(3)] ?? null;
+            }
+
+            return this.$wire?.[field] ?? null;
+        },
+
+        asText(value) {
+            if (Array.isArray(value)) {
+                return value.map((one) => String(one)).join(',').toLowerCase();
+            }
+
+            if (typeof value === 'boolean') {
+                return value ? '1' : '0';
+            }
+
+            return String(value ?? '').trim().toLowerCase();
+        },
+
+        isEmpty(value) {
+            return (
+                value === null ||
+                value === undefined ||
+                value === '' ||
+                value === false ||
+                (Array.isArray(value) && value.length === 0)
+            );
+        },
+
+        truthy(value) {
+            if (Array.isArray(value)) {
+                return value.length > 0;
+            }
+
+            return !['', '0', 'false', 'no'].includes(this.asText(value));
+        },
+
+        compare(actual, expected) {
+            if (expected === null || expected === undefined) {
+                return false;
+            }
+
+            const wanted = String(expected).trim().toLowerCase();
+
+            if (Array.isArray(actual)) {
+                return actual.some((one) => String(one).trim().toLowerCase() === wanted);
+            }
+
+            return this.asText(actual) === wanted;
+        },
+
+        matches(actual, expected) {
+            switch (condition.operator) {
+                case 'is_empty':
+                    return this.isEmpty(actual);
+                case 'is_not_empty':
+                    return !this.isEmpty(actual);
+                case 'is_true':
+                    return this.truthy(actual);
+                case 'is_false':
+                    return !this.truthy(actual);
+                case 'not_equals':
+                    return !this.compare(actual, expected);
+                case 'contains':
+                    return (
+                        expected !== null &&
+                        this.asText(actual).includes(String(expected).toLowerCase())
+                    );
+                case 'equals':
+                default:
+                    return this.compare(actual, expected);
+            }
+        },
+    }));
+
+    /**
      * Drag-to-reorder that reports the new order back to a Livewire method.
      */
     window.Alpine.data('sortableList', (config = {}) => ({

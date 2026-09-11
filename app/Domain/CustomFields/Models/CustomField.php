@@ -5,6 +5,7 @@ namespace App\Domain\CustomFields\Models;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\CustomFields\CustomFieldRegistry;
 use App\Domain\CustomFields\Enums\CustomFieldType;
+use App\Domain\CustomFields\VisibilityCondition;
 use Database\Factories\CustomFieldFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $label
  * @property string $type
  * @property string|null $help
+ * @property string|null $section
+ * @property bool $is_full_width
+ * @property array<string, mixed>|null $visible_when
  * @property bool $is_required
  * @property bool $is_active
  * @property int $position
@@ -32,6 +36,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class CustomField extends Model
 {
+    /**
+     * The heading a field with no section of its own appears under.
+     */
+    public const DEFAULT_SECTION = 'Additional details';
+
     /** @use HasFactory<CustomFieldFactory> */
     use HasFactory;
 
@@ -46,6 +55,9 @@ class CustomField extends Model
         'label',
         'type',
         'help',
+        'section',
+        'is_full_width',
+        'visible_when',
         'is_required',
         'is_active',
         'position',
@@ -68,6 +80,7 @@ class CustomField extends Model
         'module' => 'leads',
         'is_required' => false,
         'is_active' => true,
+        'is_full_width' => false,
         'position' => 0,
     ];
 
@@ -76,6 +89,8 @@ class CustomField extends Model
         return [
             'is_required' => 'boolean',
             'is_active' => 'boolean',
+            'is_full_width' => 'boolean',
+            'visible_when' => 'array',
             'position' => 'integer',
             'options' => 'array',
         ];
@@ -86,7 +101,7 @@ class CustomField extends Model
      */
     protected function activityAttributes(): array
     {
-        return ['module', 'key', 'label', 'type', 'is_required', 'is_active', 'position', 'lookup_module'];
+        return ['module', 'key', 'label', 'type', 'is_required', 'is_active', 'position', 'lookup_module', 'section'];
     }
 
     public static function activitySubjectLabel(): string
@@ -163,6 +178,37 @@ class CustomField extends Model
     }
 
     /**
+     * The section this field sits under on the form.
+     *
+     * Null is the default section, so a field defined before layouts existed
+     * keeps appearing exactly where it did.
+     */
+    public function sectionName(): string
+    {
+        $section = trim((string) $this->section);
+
+        return $section === '' ? self::DEFAULT_SECTION : $section;
+    }
+
+    /**
+     * When this field is shown, or null when it is always shown.
+     */
+    public function visibilityCondition(): ?VisibilityCondition
+    {
+        return VisibilityCondition::fromStored($this->visible_when);
+    }
+
+    /**
+     * Whether this field should be on screen, given what the form holds now.
+     *
+     * @param  array<string, mixed>  $formValues
+     */
+    public function isVisible(array $formValues): bool
+    {
+        return $this->visibilityCondition()?->matches($formValues) ?? true;
+    }
+
+    /**
      * The validation rules a submitted value for this field must pass.
      *
      * @return array<int, string>
@@ -170,6 +216,24 @@ class CustomField extends Model
     public function rules(): array
     {
         return $this->type()->rules((bool) $this->is_required, $this->optionKeys());
+    }
+
+    /**
+     * The rules for a field that is currently hidden.
+     *
+     * A hidden field is never required — the person cannot see it, so insisting
+     * on it makes the form unsubmittable with no visible error. It is still
+     * type-checked, because a value can survive in the payload after the
+     * condition turned against it.
+     *
+     * @return array<int, string>
+     */
+    public function hiddenRules(): array
+    {
+        return array_values(array_filter(
+            $this->type()->rules(false, $this->optionKeys()),
+            static fn (string $rule): bool => $rule !== 'accepted',
+        ));
     }
 
     /**

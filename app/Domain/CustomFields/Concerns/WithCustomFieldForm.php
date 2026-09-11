@@ -54,6 +54,61 @@ trait WithCustomFieldForm
     }
 
     /**
+     * The definitions grouped into the sections the form draws, in order.
+     *
+     * Sections appear in the order their first field does, so reordering fields
+     * reorders sections — there is no separate section ordering to keep in step
+     * with the field ordering.
+     *
+     * @return array<string, array<int, CustomField>>
+     */
+    public function customFieldSections(): array
+    {
+        $sections = [];
+
+        foreach ($this->customFieldDefinitions() as $field) {
+            $sections[$field->sectionName()][] = $field;
+        }
+
+        return $sections;
+    }
+
+    /**
+     * What a visibility condition is evaluated against: the form's own
+     * properties, plus the custom answers under `cf:` keys.
+     *
+     * Built here rather than in the component so every form answers the
+     * question the same way, and so a condition can name a standard field
+     * (`status`) and a custom one (`cf:industry_sector`) in one vocabulary.
+     *
+     * @return array<string, mixed>
+     */
+    public function customFieldConditionValues(): array
+    {
+        $values = [];
+
+        foreach (get_object_vars($this) as $name => $value) {
+            if ($name !== 'customFields') {
+                $values[$name] = $value;
+            }
+        }
+
+        foreach ($this->customFields as $key => $value) {
+            $values['cf:'.$key] = $value;
+        }
+
+        return $values;
+    }
+
+    /**
+     * Whether one field is currently on screen.
+     */
+    public function isCustomFieldVisible(CustomField $field): bool
+    {
+        return $field->isVisible($this->customFieldConditionValues());
+    }
+
+    /**
      * Fill the form: a record's stored answers when editing, the field's own
      * default when creating.
      *
@@ -74,6 +129,10 @@ trait WithCustomFieldForm
                 ?? $this->defaultFor($field);
         }
 
+        // Every active field gets a key whether it is currently visible or not:
+        // a condition can turn in its favour while the form is open, and a key
+        // Livewire never knew about cannot be bound to when it does.
+
         $this->customFields = $values;
     }
 
@@ -93,14 +152,21 @@ trait WithCustomFieldForm
         }
 
         $validator = app(CustomFieldValidator::class);
+        $conditionValues = $this->customFieldConditionValues();
 
+        // A hidden field is not required. The person cannot see it, so
+        // insisting on it makes the form unsubmittable with no visible error —
+        // and the server has to decide this, not the browser, or the two
+        // disagree the moment somebody has JavaScript off.
         $this->validate(
-            $validator->rules($fields),
+            $validator->rules($fields, conditionValues: $conditionValues),
             [],
             $validator->attributes($fields),
         );
 
-        $lookupErrors = $validator->lookupErrors($fields, $this->customFields, $viewer);
+        $visible = $fields->filter(fn (CustomField $field): bool => $field->isVisible($conditionValues));
+
+        $lookupErrors = $validator->lookupErrors($visible, $this->customFields, $viewer);
 
         if ($lookupErrors === []) {
             return;

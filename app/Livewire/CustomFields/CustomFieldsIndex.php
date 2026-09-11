@@ -9,10 +9,12 @@ use App\Domain\CustomFields\Actions\ToggleCustomFieldAction;
 use App\Domain\CustomFields\CustomFieldRegistry;
 use App\Domain\CustomFields\DTOs\CustomFieldData;
 use App\Domain\CustomFields\Enums\CustomFieldType;
+use App\Domain\CustomFields\Enums\VisibilityOperator;
 use App\Domain\CustomFields\Models\CustomField;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -50,6 +52,17 @@ class CustomFieldsIndex extends Component
     public string $type = 'text';
 
     public string $help = '';
+
+    public string $section = '';
+
+    public bool $isFullWidth = false;
+
+    /** The field this one's visibility depends on, or '' for always shown. */
+    public string $conditionField = '';
+
+    public string $conditionOperator = 'equals';
+
+    public string $conditionValue = '';
 
     public bool $isRequired = false;
 
@@ -107,6 +120,82 @@ class CustomFieldsIndex extends Component
         return CustomFieldType::options();
     }
 
+    /**
+     * What a condition may be tested against: the other **custom** fields on
+     * this module.
+     *
+     * Deliberately not the module's standard fields. Those differ per module
+     * and are declared in five separate form components rather than in one
+     * registry, so offering them here would mean a list that silently goes
+     * stale when a form changes — and a condition naming a field that no longer
+     * exists never matches, which looks like a field that will not appear.
+     * `VisibilityCondition` can name one (`status`) and the evaluator handles
+     * it; the picker just does not invent the list.
+     *
+     * @return array<string, string>
+     */
+    public function conditionFieldOptions(): array
+    {
+        $options = [];
+
+        foreach ($this->fields() as $field) {
+            // A field cannot depend on itself.
+            if ($field->id === $this->editingId) {
+                continue;
+            }
+
+            $options['cf:'.$field->key] = $field->label;
+        }
+
+        return $options;
+    }
+
+    /**
+     * The choices offered for the condition's value, when the field it names
+     * has a fixed set.
+     *
+     * @return array<string, string>
+     */
+    public function conditionValueOptions(): array
+    {
+        if (! str_starts_with($this->conditionField, 'cf:')) {
+            return [];
+        }
+
+        $key = substr($this->conditionField, 3);
+        $field = $this->fields()->firstWhere('key', $key);
+
+        return $field !== null && $field->type()->hasOptions() ? $field->optionMap() : [];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function conditionOperatorOptions(): array
+    {
+        return VisibilityOperator::options();
+    }
+
+    public function currentConditionOperator(): VisibilityOperator
+    {
+        return VisibilityOperator::tryFrom($this->conditionOperator) ?? VisibilityOperator::Equals;
+    }
+
+    /**
+     * The sections already in use on this module, so an administrator reuses
+     * one rather than inventing a near-duplicate.
+     *
+     * @return array<int, string>
+     */
+    public function sectionSuggestions(): array
+    {
+        return $this->fields()
+            ->map(fn (CustomField $field): string => $field->sectionName())
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function currentType(): CustomFieldType
     {
         return CustomFieldType::tryFrom($this->type) ?? CustomFieldType::Text;
@@ -152,6 +241,23 @@ class CustomFieldsIndex extends Component
         $this->label = $field->label;
         $this->type = $field->type()->value;
         $this->help = (string) $field->help;
+        $this->section = (string) $field->section;
+        $this->isFullWidth = (bool) $field->is_full_width;
+
+        // An explicit branch rather than a chain of nullsafe reads: `field` is
+        // non-nullable on the condition, so `?->field ?? ''` reads as though it
+        // could be null for two different reasons when only one applies.
+        $condition = $field->visibilityCondition();
+
+        if ($condition === null) {
+            $this->conditionField = '';
+            $this->conditionOperator = VisibilityOperator::Equals->value;
+            $this->conditionValue = '';
+        } else {
+            $this->conditionField = $condition->field;
+            $this->conditionOperator = $condition->operator->value;
+            $this->conditionValue = $condition->value ?? '';
+        }
         $this->isRequired = (bool) $field->is_required;
         $this->isActive = (bool) $field->is_active;
         $this->lookupModule = (string) $field->lookup_module;
@@ -215,6 +321,12 @@ class CustomFieldsIndex extends Component
             'label' => ['required', 'string', 'min:2', 'max:255'],
             'type' => ['required', 'string', 'in:'.implode(',', array_keys(CustomFieldType::options()))],
             'help' => ['nullable', 'string', 'max:500'],
+            'section' => ['nullable', 'string', 'max:64'],
+            // Only a field this module actually offers, so a condition cannot
+            // name something that will never be on the form.
+            'conditionField' => ['nullable', 'string', Rule::in(array_keys($this->conditionFieldOptions()))],
+            'conditionOperator' => ['required', 'string', Rule::in(array_keys(VisibilityOperator::options()))],
+            'conditionValue' => ['nullable', 'string', 'max:255'],
             'defaultValue' => ['nullable', 'string', 'max:255'],
             'lookupModule' => [
                 $type->isLookup() ? 'required' : 'nullable',
@@ -239,6 +351,13 @@ class CustomFieldsIndex extends Component
             'options' => $this->options,
             'lookup_module' => $this->lookupModule,
             'default_value' => $this->defaultValue,
+            'section' => $this->section,
+            'is_full_width' => $this->isFullWidth,
+            'visible_when' => $this->conditionField === '' ? null : [
+                'field' => $this->conditionField,
+                'operator' => $this->conditionOperator,
+                'value' => $this->conditionValue,
+            ],
         ]);
 
         $saved = app(SaveCustomFieldAction::class)($data, $field);
@@ -349,6 +468,11 @@ class CustomFieldsIndex extends Component
         $this->label = '';
         $this->type = CustomFieldType::Text->value;
         $this->help = '';
+        $this->section = '';
+        $this->isFullWidth = false;
+        $this->conditionField = '';
+        $this->conditionOperator = VisibilityOperator::Equals->value;
+        $this->conditionValue = '';
         $this->isRequired = false;
         $this->isActive = true;
         $this->lookupModule = '';

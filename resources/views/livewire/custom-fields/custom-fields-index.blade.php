@@ -161,6 +161,86 @@
                 </div>
             @endif
 
+            {{-- Layout: which section the field sits under, and how wide. --}}
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-form.label for="cf-section">Section</x-form.label>
+                    <x-form.input
+                        id="cf-section"
+                        wire:model="section"
+                        list="cf-section-suggestions"
+                        placeholder="{{ \App\Domain\CustomFields\Models\CustomField::DEFAULT_SECTION }}"
+                        class="mt-1"
+                    />
+                    <datalist id="cf-section-suggestions">
+                        @foreach ($this->sectionSuggestions() as $suggestion)
+                            <option value="{{ $suggestion }}"></option>
+                        @endforeach
+                    </datalist>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        Fields with the same section appear together under that heading.
+                    </p>
+                    <x-form.error for="section" class="mt-1" />
+                </div>
+
+                <div class="flex items-end pb-1">
+                    <label class="flex items-center gap-2 text-sm text-foreground">
+                        <input type="checkbox" wire:model="isFullWidth" class="rounded border-border text-accent focus:ring-accent/40">
+                        Full width
+                    </label>
+                </div>
+            </div>
+
+            {{-- Conditional visibility. Only offered once there is another
+                 field to depend on. --}}
+            @if ($this->conditionFieldOptions() !== [])
+                <div class="mt-4 rounded-lg border border-border p-4">
+                    <x-form.label>Only show this field when</x-form.label>
+
+                    <div class="mt-2 grid gap-3 sm:grid-cols-3">
+                        <x-select
+                            name="cf_condition_field"
+                            :options="$this->conditionFieldOptions()"
+                            :selected="$conditionField"
+                            placeholder="Always show it"
+                            clearable
+                            wire:model.live="conditionField"
+                        />
+
+                        @if ($conditionField !== '')
+                            <x-select
+                                name="cf_condition_operator"
+                                :options="$this->conditionOperatorOptions()"
+                                :selected="$conditionOperator"
+                                wire:model.live="conditionOperator"
+                            />
+
+                            @if ($this->currentConditionOperator()->needsValue())
+                                @if ($this->conditionValueOptions() !== [])
+                                    <x-select
+                                        name="cf_condition_value"
+                                        :options="$this->conditionValueOptions()"
+                                        :selected="$conditionValue"
+                                        placeholder="Choose a value"
+                                        wire:model="conditionValue"
+                                    />
+                                @else
+                                    <x-form.input wire:model="conditionValue" placeholder="Value" aria-label="Value" />
+                                @endif
+                            @endif
+                        @endif
+                    </div>
+
+                    <x-form.error for="conditionField" class="mt-1" />
+                    <x-form.error for="conditionValue" class="mt-1" />
+
+                    <p class="mt-2 text-xs text-muted-foreground">
+                        A hidden field is never required, so a condition cannot make the form
+                        impossible to submit.
+                    </p>
+                </div>
+            @endif
+
             <div class="mt-4 flex flex-wrap items-center gap-5">
                 <label class="flex items-center gap-2 text-sm text-foreground">
                     <input type="checkbox" wire:model="isRequired" class="rounded border-border text-accent focus:ring-accent/40">
@@ -255,6 +335,14 @@
                             @unless ($field->is_active)
                                 <span class="{{ ChipPalette::BASE }} {{ ChipPalette::classes('slate') }}">Hidden</span>
                             @endunless
+
+                            @if ($field->section)
+                                <span class="{{ ChipPalette::BASE }} {{ ChipPalette::classes('indigo') }}">{{ $field->section }}</span>
+                            @endif
+
+                            @if ($field->visibilityCondition())
+                                <span class="{{ ChipPalette::BASE }} {{ ChipPalette::classes('cyan') }}">Conditional</span>
+                            @endif
                         </div>
 
                         <p class="mt-0.5 text-xs text-muted-foreground">

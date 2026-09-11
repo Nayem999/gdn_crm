@@ -61,7 +61,13 @@ enum WorkflowActionType: string
             // would make it unexpressible.
             self::UpdateField => ['field'],
             self::CreateRecord => ['module'],
-            self::AssignOwner => ['assign_to'],
+            // Nothing, because what an assignment needs depends on how it
+            // chooses: a named person needs `assign_to`, a pool needs `pool`,
+            // a territory needs its field and list. `requiredKeys` cannot say
+            // "one of these", and it does not need to — AssignmentResolver
+            // returns nobody when it cannot choose, and the step reports a
+            // clean skip rather than a failure that repeats every firing.
+            self::AssignOwner => [],
             self::SendEmail => ['template', 'recipient'],
             // Not an event key: every workflow notification is the one event
             // `workflow.notified`, because the event is what the admin matrix

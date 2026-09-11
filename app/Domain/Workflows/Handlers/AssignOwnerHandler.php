@@ -2,18 +2,19 @@
 
 namespace App\Domain\Workflows\Handlers;
 
+use App\Domain\Workflows\Assignment\AssignmentResolver;
 use App\Domain\Workflows\Models\WorkflowAction;
 use App\Domain\Workflows\Runtime\WorkflowContext;
 use App\Domain\Workflows\Runtime\WorkflowStepOutcome;
-use App\Models\User;
 
 /**
  * Hands the record to somebody.
  *
- * `assign_to` is a small vocabulary rather than a user id alone, because the
- * useful answers are mostly relative: give it to whoever owns the related
- * account, give it back to whoever created it. 5.7 adds the distributing
- * strategies — round robin, load-based, territory — as further entries here.
+ * Who it goes to is worked out by `AssignmentResolver`, which holds the five
+ * strategies: a named person, whoever already owns it, round robin through a
+ * pool, whoever is carrying the least, or by territory. Keeping them there
+ * rather than here is what lets 5.7's distribution be tested on its own, without
+ * a workflow, a run and a record standing in the way of counting who got what.
  *
  * An assignment that resolves to nobody is **skipped, not failed**: a workflow
  * that cannot find a candidate has nothing to do, and marking that a failure
@@ -30,7 +31,7 @@ class AssignOwnerHandler implements WorkflowActionHandler
             return WorkflowStepOutcome::skipped('There is no record to assign.');
         }
 
-        $target = $this->resolve((string) $action->setting('assign_to'));
+        $target = app(AssignmentResolver::class)->resolve($action, $context);
 
         if ($target === null) {
             return WorkflowStepOutcome::skipped('Nobody matched the assignment rule.');
@@ -46,21 +47,5 @@ class AssignOwnerHandler implements WorkflowActionHandler
             'Assigned to '.$target->name,
             ['owner_id' => $target->id],
         );
-    }
-
-    /**
-     * The vocabulary a stored config may use.
-     *
-     * `user:<id>` is the only form that names somebody, and it is resolved
-     * through a query rather than trusted — a config written when a user
-     * existed outlives that user.
-     */
-    private function resolve(string $assignTo): ?User
-    {
-        if (! str_starts_with($assignTo, 'user:')) {
-            return null;
-        }
-
-        return User::query()->whereKey((int) str($assignTo)->after('user:')->toString())->first();
     }
 }

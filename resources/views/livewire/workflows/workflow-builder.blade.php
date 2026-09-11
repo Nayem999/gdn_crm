@@ -333,19 +333,125 @@
                                     @break
 
                                 @case(WorkflowActionType::AssignOwner->value)
-                                    <div wire:key="step-{{ $index }}-assign-{{ $step['config']['assign_to'] ?? '' }}">
-                                        <div>
-                                            <x-form.label :for="'steps.'.$index.'.config.assign_to'">Assign to</x-form.label>
+                                    @php
+                                        $strategy = $step['config']['assign_to_strategy']
+                                            ?? App\Domain\Workflows\Assignment\AssignmentStrategy::Fixed->value;
+                                        $people = collect($this->userOptions())->mapWithKeys(fn ($name, $id) => ['user:'.$id => $name])->all();
+                                    @endphp
+
+                                    <div wire:key="step-{{ $index }}-strategy-{{ $strategy }}">
+                                        <x-form.label :for="'steps.'.$index.'.config.assign_to_strategy'">How</x-form.label>
+                                        <x-select
+                                            :name="'steps.'.$index.'.config.assign_to_strategy'"
+                                            :options="App\Domain\Workflows\Assignment\AssignmentStrategy::options()"
+                                            :selected="$strategy"
+                                            wire:model.live="steps.{{ $index }}.config.assign_to_strategy"
+                                        />
+                                        <p class="mt-1 text-xs text-muted-foreground">
+                                            {{ (App\Domain\Workflows\Assignment\AssignmentStrategy::tryFrom($strategy) ?? App\Domain\Workflows\Assignment\AssignmentStrategy::Fixed)->description() }}
+                                        </p>
+                                    </div>
+
+                                    @if ($strategy === App\Domain\Workflows\Assignment\AssignmentStrategy::Fixed->value)
+                                        <div wire:key="step-{{ $index }}-assign-{{ $step['config']['assign_to'] ?? '' }}">
+                                            <x-form.label :for="'steps.'.$index.'.config.assign_to'">To</x-form.label>
                                             <x-select
                                                 :name="'steps.'.$index.'.config.assign_to'"
-                                                :options="collect($this->userOptions())->mapWithKeys(fn ($name, $id) => ['user:'.$id => $name])->all()"
+                                                :options="$people"
                                                 :selected="$step['config']['assign_to'] ?? ''"
                                                 placeholder="Choose a person"
                                                 wire:model.live="steps.{{ $index }}.config.assign_to"
                                             />
-                                            <x-form.error :for="'steps.'.$index.'.config.assign_to'" />
                                         </div>
-                                    </div>
+                                    @endif
+
+                                    @if (in_array($strategy, [
+                                        App\Domain\Workflows\Assignment\AssignmentStrategy::RoundRobin->value,
+                                        App\Domain\Workflows\Assignment\AssignmentStrategy::LoadBased->value,
+                                    ], true))
+                                        <div class="sm:col-span-2" wire:key="step-{{ $index }}-pool">
+                                            <x-form.label :for="'steps.'.$index.'.config.pool'">Between</x-form.label>
+                                            <x-select
+                                                :name="'steps.'.$index.'.config.pool'"
+                                                :options="$people"
+                                                :selected="$step['config']['pool'] ?? []"
+                                                multiple
+                                                wire:model.live="steps.{{ $index }}.config.pool"
+                                            />
+                                            <p class="mt-1 text-xs text-muted-foreground">
+                                                Round robin takes turns in this order. Load-based ignores the order and counts what each is already carrying.
+                                            </p>
+                                        </div>
+                                    @endif
+
+                                    @if ($strategy === App\Domain\Workflows\Assignment\AssignmentStrategy::Territory->value)
+                                        <div wire:key="step-{{ $index }}-territory-field-{{ $step['config']['territory_field'] ?? '' }}">
+                                            <x-form.label :for="'steps.'.$index.'.config.territory_field'">Match on</x-form.label>
+                                            <x-select
+                                                :name="'steps.'.$index.'.config.territory_field'"
+                                                :options="$this->conditionFieldOptions()"
+                                                :selected="$step['config']['territory_field'] ?? ''"
+                                                placeholder="Choose a field"
+                                                wire:model.live="steps.{{ $index }}.config.territory_field"
+                                            />
+                                        </div>
+
+                                        <div wire:key="step-{{ $index }}-territory-fallback-{{ $step['config']['territory_fallback'] ?? '' }}">
+                                            <x-form.label :for="'steps.'.$index.'.config.territory_fallback'">Anything unlisted goes to</x-form.label>
+                                            <x-select
+                                                :name="'steps.'.$index.'.config.territory_fallback'"
+                                                :options="$people"
+                                                :selected="$step['config']['territory_fallback'] ?? ''"
+                                                placeholder="Nobody — leave it be"
+                                                wire:model.live="steps.{{ $index }}.config.territory_fallback"
+                                            />
+                                        </div>
+
+                                        <div class="sm:col-span-2">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Territories</p>
+
+                                            <div class="mt-2 space-y-2">
+                                                @foreach ($step['config']['territories'] ?? [] as $tIndex => $territory)
+                                                    <div class="flex flex-wrap items-end gap-2" wire:key="step-{{ $index }}-t-{{ $tIndex }}">
+                                                        <div class="w-44">
+                                                            <x-form.input
+                                                                wire:model="steps.{{ $index }}.config.territories.{{ $tIndex }}.value"
+                                                                placeholder="Bangladesh"
+                                                            />
+                                                        </div>
+
+                                                        <div class="w-52" wire:key="step-{{ $index }}-t-{{ $tIndex }}-user-{{ $territory['user'] ?? '' }}">
+                                                            <x-select
+                                                                :name="'steps.'.$index.'.config.territories.'.$tIndex.'.user'"
+                                                                :options="$people"
+                                                                :selected="$territory['user'] ?? ''"
+                                                                placeholder="Goes to"
+                                                                wire:model.live="steps.{{ $index }}.config.territories.{{ $tIndex }}.user"
+                                                            />
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            class="mb-1 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                                                            wire:click="removeTerritory({{ $index }}, {{ $tIndex }})"
+                                                            aria-label="Remove this territory"
+                                                        >
+                                                            <x-icon name="lucide-trash-2" />
+                                                        </button>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+                                                wire:click="addTerritory({{ $index }})"
+                                            >
+                                                <x-icon name="lucide-plus" class="h-3.5 w-3.5" />
+                                                Add a territory
+                                            </button>
+                                        </div>
+                                    @endif
                                     @break
 
                                 @case(WorkflowActionType::CreateRecord->value)

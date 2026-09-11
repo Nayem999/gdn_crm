@@ -8,6 +8,7 @@ use App\Domain\Shared\Concerns\EditsConditions;
 use App\Domain\Shared\Filters\FilterField;
 use App\Domain\Shared\Filters\FilterGroup;
 use App\Domain\Workflows\Actions\SaveWorkflowAction;
+use App\Domain\Workflows\Assignment\AssignmentStrategy;
 use App\Domain\Workflows\Conditions\WorkflowConditions;
 use App\Domain\Workflows\DTOs\WorkflowData;
 use App\Domain\Workflows\Enums\WorkflowActionType;
@@ -168,6 +169,37 @@ class WorkflowBuilder extends Component
     public function conditionFields(): array
     {
         return array_values(WorkflowModules::fields($this->module));
+    }
+
+    /**
+     * The module's fields, as options — for a territory step, which matches on
+     * one of them.
+     *
+     * @return array<string, string>
+     */
+    public function conditionFieldOptions(): array
+    {
+        return WorkflowModules::fieldOptions($this->module);
+    }
+
+    public function addTerritory(int $index): void
+    {
+        if (isset($this->steps[$index])) {
+            $this->steps[$index]['config']['territories'][] = ['value' => '', 'user' => ''];
+        }
+    }
+
+    public function removeTerritory(int $index, int $territoryIndex): void
+    {
+        if (! isset($this->steps[$index]['config']['territories'][$territoryIndex])) {
+            return;
+        }
+
+        unset($this->steps[$index]['config']['territories'][$territoryIndex]);
+
+        $this->steps[$index]['config']['territories'] = array_values(
+            $this->steps[$index]['config']['territories']
+        );
     }
 
     public function trigger(): WorkflowTrigger
@@ -408,7 +440,9 @@ class WorkflowBuilder extends Component
         return match ($type) {
             WorkflowActionType::UpdateField => 'Set '.($this->writableFieldOptions()[$config['field'] ?? ''] ?? '?')
                 .' to "'.($config['value'] ?? '').'"',
-            WorkflowActionType::AssignOwner => 'Assign to '.($this->userOptions()[(int) str((string) ($config['assign_to'] ?? ''))->after('user:')->toString()] ?? '?'),
+            WorkflowActionType::AssignOwner => 'Assign '.strtolower(
+                (AssignmentStrategy::tryFrom((string) ($config['assign_to_strategy'] ?? '')) ?? AssignmentStrategy::Fixed)->label()
+            ),
             WorkflowActionType::CreateRecord => 'Create a '.WorkflowModules::label((string) ($config['module'] ?? '')).' record',
             WorkflowActionType::SendEmail => 'Email '.($config['recipient'] === 'record_email' ? 'the record' : (string) ($config['recipient'] ?? '?')),
             WorkflowActionType::SendNotification => 'Notify '.($config['recipient'] === 'record_owner' ? 'the owner' : 'a user'),

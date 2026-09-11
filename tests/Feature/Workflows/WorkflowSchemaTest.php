@@ -577,10 +577,15 @@ test('every action type declares what it needs and how it reads', function (stri
     $type = WorkflowActionType::from($value);
 
     expect($type->label())->not->toBeEmpty()
-        ->and($type->description())->not->toBeEmpty()
-        // Required keys are what lets 5.1 validate a step whose handler does
-        // not exist yet.
-        ->and($type->requiredKeys())->not->toBeEmpty();
+        ->and($type->description())->not->toBeEmpty();
+
+    // Required keys are what lets a step be skipped rather than attempted when
+    // it is half set up. Assigning an owner is the one type with nothing fixed
+    // to require: what it needs depends on which strategy it uses, and
+    // AssignmentResolver reports a clean skip when it cannot choose anybody.
+    if ($type !== WorkflowActionType::AssignOwner) {
+        expect($type->requiredKeys())->not->toBeEmpty();
+    }
 })->with(array_column(WorkflowActionType::cases(), 'value'));
 
 test('every run status has a label and a chip colour', function (string $value) {

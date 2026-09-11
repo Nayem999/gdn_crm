@@ -116,7 +116,10 @@ trait WithDataView
     {
         $resolved = ViewMode::tryFrom($mode);
 
-        if ($resolved === null) {
+        // A mode the screen does not offer is refused, not just an unknown
+        // one: a payload setting kanban on a list with nothing to group by
+        // would leave a board with no columns and no explanation.
+        if ($resolved === null || ! in_array($resolved, $this->availableViewModes(), true)) {
             return;
         }
 

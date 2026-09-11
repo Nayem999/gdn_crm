@@ -6,6 +6,9 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
+use App\Domain\CustomModules\CustomModuleRegistry;
+use App\Domain\CustomModules\Models\CustomModule;
+use App\Domain\CustomModules\Models\CustomRecord;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
 use App\Models\User;
@@ -47,6 +50,17 @@ final class CustomFieldRegistry
     public static function options(): array
     {
         return [
+            ...self::builtInOptions(),
+            ...app(CustomModuleRegistry::class)->options(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function builtInOptions(): array
+    {
+        return [
             'leads' => 'Leads',
             'contacts' => 'Contacts',
             'accounts' => 'Accounts',
@@ -60,17 +74,52 @@ final class CustomFieldRegistry
      */
     public static function keys(): array
     {
+        return array_keys(self::options());
+    }
+
+    /**
+     * The built-in modules alone, for the guard tests that walk the five
+     * classes this registry names directly.
+     *
+     * @return array<int, string>
+     */
+    public static function builtInKeys(): array
+    {
         return array_keys(self::subjects());
     }
 
     public static function has(string $module): bool
     {
-        return array_key_exists($module, self::subjects());
+        return array_key_exists($module, self::subjects())
+            || self::customModule($module) !== null;
+    }
+
+    /**
+     * The generated module a key names, or null when it is not one.
+     *
+     * A custom module's key is prefixed (`cm_projects`), so it can never
+     * collide with a built-in module's — a module an administrator calls
+     * "Leads" does not shadow the real one here, in a saved view's module
+     * column, or in a route.
+     */
+    public static function customModule(string $module): ?CustomModule
+    {
+        if (! str_starts_with($module, CustomModule::PREFIX)) {
+            return null;
+        }
+
+        return app(CustomModuleRegistry::class)->find($module);
     }
 
     public static function label(string $module): string
     {
-        return self::options()[$module] ?? 'Unknown';
+        // An explicit branch: `plural_name` is non-nullable on the model, so a
+        // chained nullsafe read would suggest two reasons for null when only
+        // the lookup can produce one.
+        $custom = self::customModule($module);
+
+        return self::options()[$module]
+            ?? ($custom !== null ? $custom->plural_name : 'Unknown');
     }
 
     /**
@@ -78,7 +127,10 @@ final class CustomFieldRegistry
      */
     public static function modelClass(string $module): ?string
     {
-        return self::subjects()[$module] ?? null;
+        // Every generated module is the same class; the discriminator is the
+        // row's custom_module_id, not its type.
+        return self::subjects()[$module]
+            ?? (self::customModule($module) !== null ? CustomRecord::class : null);
     }
 
     /**
@@ -97,6 +149,12 @@ final class CustomFieldRegistry
      */
     public static function keyFor(Model $record): ?string
     {
+        // A generated module's record knows which module it belongs to; asking
+        // its class would only ever say "a custom record".
+        if ($record instanceof CustomRecord) {
+            return $record->customFieldModule();
+        }
+
         foreach (self::subjects() as $key => $class) {
             if ($record instanceof $class) {
                 return $key;
@@ -126,7 +184,11 @@ final class CustomFieldRegistry
             'accounts' => Account::query()->visibleTo($user)->orderBy('name'),
             'deals' => Deal::query()->visibleTo($user)->orderBy('name'),
             'activities' => Activity::query()->visibleTo($user)->orderBy('due_at'),
-            default => null,
+            // A generated module: the same table for all of them, so the
+            // discriminator is what makes this one module's records.
+            default => ($custom = self::customModule($module)) === null
+                ? null
+                : CustomRecord::query()->visibleTo($user)->forModule($custom)->orderBy('name'),
         };
     }
 
@@ -150,6 +212,7 @@ final class CustomFieldRegistry
             $record instanceof Contact, $record instanceof Lead => $record->fullName(),
             $record instanceof Account, $record instanceof Deal => $record->name,
             $record instanceof Activity => $record->subject,
+            $record instanceof CustomRecord => $record->name,
             default => 'Record #'.$record->getKey(),
         };
     }

@@ -182,7 +182,9 @@ test('a new custom field appears in all four places automatically', function (st
     $row = $export->map($export->query()->findOrFail($record->getKey()));
 
     expect($row)->toBe(['Marked']);
-})->with(fn () => CustomFieldRegistry::keys());
+    // builtInKeys, not keys: a dataset closure is resolved before the test
+    // database exists, and keys() now reads the generated modules.
+})->with(fn () => CustomFieldRegistry::builtInKeys());
 
 // -- Columns -------------------------------------------------------------------
 

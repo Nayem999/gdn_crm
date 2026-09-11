@@ -16,6 +16,11 @@ use App\Domain\Contacts\Policies\ContactPolicy;
 use App\Domain\CustomFields\CustomFieldSchema;
 use App\Domain\CustomFields\Models\CustomField;
 use App\Domain\CustomFields\Policies\CustomFieldPolicy;
+use App\Domain\CustomModules\CustomModuleRegistry;
+use App\Domain\CustomModules\Models\CustomModule;
+use App\Domain\CustomModules\Models\CustomRecord;
+use App\Domain\CustomModules\Policies\CustomModulePolicy;
+use App\Domain\CustomModules\Policies\CustomRecordPolicy;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Deals\PipelineStatusCache;
@@ -67,6 +72,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CustomFieldSchema::class);
         // Same arrangement for the configured status sets — see PipelineStatusCache.
         $this->app->singleton(PipelineStatusCache::class);
+        // And the generated module definitions — see CustomModuleRegistry.
+        $this->app->singleton(CustomModuleRegistry::class);
     }
 
     /**
@@ -91,6 +98,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Deal::class, DealPolicy::class);
         Gate::policy(Pipeline::class, PipelinePolicy::class);
         Gate::policy(CustomField::class, CustomFieldPolicy::class);
+        Gate::policy(CustomModule::class, CustomModulePolicy::class);
+        Gate::policy(CustomRecord::class, CustomRecordPolicy::class);
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);

@@ -15,6 +15,20 @@
         ['label' => 'Reports', 'icon' => 'bar-chart-3'],
         ['label' => 'Automation', 'icon' => 'zap'],
     ];
+
+    // Modules an administrator added at runtime, appended after the built-in
+    // ones. Read through the memoised registry, so this costs one query per
+    // request however many there are.
+    if (auth()->user()?->can('custom-modules.view')) {
+        foreach (app(\App\Domain\CustomModules\CustomModuleRegistry::class)->all() as $custom) {
+            $navigation[] = [
+                'label' => $custom->plural_name,
+                'icon' => $custom->icon,
+                'route' => 'custom-modules.index',
+                'params' => ['module' => $custom->moduleKey()],
+            ];
+        }
+    }
 @endphp
 
 <div
@@ -48,9 +62,18 @@
             @continue(isset($item['permission']) && ! auth()->user()?->can($item['permission']))
 
             @php
-                $url = isset($item['route']) ? route($item['route']) : null;
+                // Generated modules pass route parameters; the built-in ones
+                // take none.
+                $url = isset($item['route']) ? route($item['route'], $item['params'] ?? []) : null;
                 $active = isset($item['route']) && request()->routeIs(str($item['route'])->before('.')->value() . '*')
                     && $item['route'] !== 'dashboard';
+
+                // Several generated modules share one route name, so the
+                // highlight has to compare the key too, or they all light up
+                // together.
+                if ($active && isset($item['params']['module'])) {
+                    $active = request()->route('module') === $item['params']['module'];
+                }
             @endphp
 
             <a

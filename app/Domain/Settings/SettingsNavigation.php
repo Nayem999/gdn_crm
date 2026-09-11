@@ -60,6 +60,7 @@ final class SettingsNavigation
                     ['label' => 'Lead scoring', 'icon' => 'gauge', 'route' => 'settings.lead-scoring', 'params' => [], 'permission' => 'leads.scoring'],
                     ['label' => 'Pipelines', 'icon' => 'git-branch', 'route' => 'settings.pipelines', 'params' => [], 'permission' => 'deals.pipelines'],
                     ['label' => 'Custom fields', 'icon' => 'sliders-horizontal', 'route' => 'settings.custom-fields', 'params' => [], 'permission' => 'custom-fields.view'],
+                    ['label' => 'Custom modules', 'icon' => 'box', 'route' => 'settings.custom-modules', 'params' => [], 'permission' => 'custom-modules.configure'],
                 ],
             ],
             [

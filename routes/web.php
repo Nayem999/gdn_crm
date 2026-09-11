@@ -16,6 +16,9 @@ use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\CustomFields\CustomFieldsIndex;
+use App\Livewire\CustomModules\CustomModulesIndex;
+use App\Livewire\CustomModules\CustomRecordForm;
+use App\Livewire\CustomModules\CustomRecordsIndex;
 use App\Livewire\Deals\DealForm;
 use App\Livewire\Deals\DealShow;
 use App\Livewire\Deals\DealsIndex;
@@ -72,6 +75,13 @@ Route::middleware('auth')->group(function () {
     // pager and reads a window chosen on the office clock, not the stored one.
     Route::get('/calendar', ActivityCalendar::class)->name('calendar');
 
+    // Generated modules live under /m/ so a module somebody calls "Leads"
+    // cannot take over the real one's routes. The key is matched against the
+    // registry inside the component, which 404s on anything unknown.
+    Route::get('/m/{module}', CustomRecordsIndex::class)->name('custom-modules.index');
+    Route::get('/m/{module}/create', CustomRecordForm::class)->name('custom-modules.create');
+    Route::get('/m/{module}/{record}/edit', CustomRecordForm::class)->name('custom-modules.edit');
+
     Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');
     Route::get('/contacts/{contact}', ContactShow::class)->withTrashed()->name('contacts.show');
@@ -125,6 +135,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/lead-scoring', LeadScoringRules::class)->name('settings.lead-scoring');
 
     Route::get('/settings/custom-fields', CustomFieldsIndex::class)->name('settings.custom-fields');
+    Route::get('/settings/custom-modules', CustomModulesIndex::class)->name('settings.custom-modules');
 
     Route::get('/settings/pipelines', PipelinesIndex::class)->name('settings.pipelines');
     Route::get('/settings/pipelines/create', PipelineForm::class)->name('settings.pipelines.create');

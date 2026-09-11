@@ -128,6 +128,23 @@ final class PermissionCatalogue
                     'activities.export' => 'Export activities',
                 ],
             ],
+            'custom-modules' => [
+                'label' => 'Custom modules',
+                'icon' => 'box',
+                'permissions' => [
+                    // One set across every generated module rather than a set
+                    // per module: the catalogue is a static list the roles
+                    // matrix renders, and permissions invented at runtime would
+                    // need discovering and syncing on every module save — a
+                    // change to how 1.5 works, not something to bolt on here.
+                    'custom-modules.view' => 'View records in modules you have added',
+                    'custom-modules.create' => 'Create records in modules you have added',
+                    'custom-modules.update' => 'Update records in modules you have added',
+                    'custom-modules.delete' => 'Remove records in modules you have added',
+                    'custom-modules.export' => 'Export records from modules you have added',
+                    'custom-modules.configure' => 'Add, change and remove modules themselves',
+                ],
+            ],
             'saved-views' => [
                 'label' => 'Saved views',
                 'icon' => 'bookmark',

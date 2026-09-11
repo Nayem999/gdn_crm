@@ -97,13 +97,17 @@ test('every module in the registry is a model that actually carries custom field
 
     expect($class)->not->toBeNull()
         ->and(in_array(HasCustomFields::class, class_uses_recursive($class), true))->toBeTrue();
-})->with(fn () => CustomFieldRegistry::keys());
+    // builtInKeys, not keys: a dataset closure is resolved before the test
+    // database exists, and keys() now reads the generated modules.
+})->with(fn () => CustomFieldRegistry::builtInKeys());
 
 test('every module in the registry can be queried for lookup choices', function (string $module) {
     // A module in subjects() with no branch in visibleQuery() would offer a
     // lookup field no choices at all.
     expect(CustomFieldRegistry::visibleQuery($module, customFieldUser()))->not->toBeNull();
-})->with(fn () => CustomFieldRegistry::keys());
+    // builtInKeys, not keys: a dataset closure is resolved before the test
+    // database exists, and keys() now reads the generated modules.
+})->with(fn () => CustomFieldRegistry::builtInKeys());
 
 test('a module the registry does not list resolves to nothing', function () {
     expect(CustomFieldRegistry::has('invoices'))->toBeFalse()
@@ -410,7 +414,9 @@ test('every module that carries custom fields can actually store one', function 
     $record->saveCustomFields([$field->key => 'Stored']);
 
     expect($record->fresh()->customField($field->key))->toBe('Stored');
-})->with(fn () => CustomFieldRegistry::keys());
+    // builtInKeys, not keys: a dataset closure is resolved before the test
+    // database exists, and keys() now reads the generated modules.
+})->with(fn () => CustomFieldRegistry::builtInKeys());
 
 test('two records answer the same field independently', function () {
     $field = leadField(CustomFieldType::Text, 'Sector');

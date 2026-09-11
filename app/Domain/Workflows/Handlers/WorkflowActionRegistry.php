@@ -25,6 +25,7 @@ final class WorkflowActionRegistry
             WorkflowActionType::SendEmail->value => SendEmailHandler::class,
             WorkflowActionType::SendNotification->value => SendNotificationHandler::class,
             WorkflowActionType::CallWebhook->value => CallWebhookHandler::class,
+            WorkflowActionType::RequestApproval->value => RequestApprovalHandler::class,
         ];
     }
 

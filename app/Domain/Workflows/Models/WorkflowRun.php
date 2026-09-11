@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $subject_type
  * @property int|null $subject_id
  * @property string $status
+ * @property int|null $resume_from_position
  * @property string|null $dedupe_key
  * @property string|null $message
  * @property array<string, mixed>|null $context
@@ -52,6 +53,7 @@ class WorkflowRun extends Model
         'subject_type',
         'subject_id',
         'status',
+        'resume_from_position',
         'dedupe_key',
         'message',
         'context',
@@ -79,6 +81,7 @@ class WorkflowRun extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
             'duration_ms' => 'integer',
+            'resume_from_position' => 'integer',
         ];
     }
 

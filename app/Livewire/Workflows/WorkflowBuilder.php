@@ -413,6 +413,10 @@ class WorkflowBuilder extends Component
             WorkflowActionType::SendEmail => 'Email '.($config['recipient'] === 'record_email' ? 'the record' : (string) ($config['recipient'] ?? '?')),
             WorkflowActionType::SendNotification => 'Notify '.($config['recipient'] === 'record_owner' ? 'the owner' : 'a user'),
             WorkflowActionType::CallWebhook => 'POST to '.(string) ($config['url'] ?? '?'),
+            WorkflowActionType::RequestApproval => 'Stop and ask '
+                .count(is_array($config['approvers'] ?? null) ? $config['approvers'] : [])
+                .' '.str('person')->plural(count(is_array($config['approvers'] ?? null) ? $config['approvers'] : []))
+                .' — everything below waits',
         };
     }
 

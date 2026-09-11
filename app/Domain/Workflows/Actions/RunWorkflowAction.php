@@ -43,7 +43,10 @@ class RunWorkflowAction
 
     public function __invoke(WorkflowRun $run): WorkflowRun
     {
-        if ($run->status() !== WorkflowRunStatus::Pending) {
+        // Pending is a new run; awaiting approval is one an approval has just
+        // released. Anything else — running, or already finished — is left
+        // alone, which is what makes a re-delivered job harmless.
+        if (! in_array($run->status(), [WorkflowRunStatus::Pending, WorkflowRunStatus::AwaitingApproval], true)) {
             return $run;
         }
 
@@ -61,7 +64,12 @@ class RunWorkflowAction
             return $this->finish($run, WorkflowRunStatus::Skipped, 'The record no longer exists.');
         }
 
-        $steps = $workflow->actions()->where('is_active', true)->get();
+        // Everything from where an approval left off. A resumed run must not
+        // repeat the steps that already ran before it paused.
+        $steps = $workflow->actions()
+            ->where('is_active', true)
+            ->where('position', '>=', $run->resume_from_position ?? 0)
+            ->get();
 
         if ($steps->isEmpty()) {
             return $this->finish($run, WorkflowRunStatus::Skipped, 'The workflow has no steps switched on.');
@@ -85,15 +93,24 @@ class RunWorkflowAction
     private function execute(WorkflowRun $run, array $steps, WorkflowContext $context): WorkflowRun
     {
         $failed = null;
+        $paused = null;
 
         // One suppression around the whole run rather than one per step: an
         // action that creates a record which another action then edits must not
         // raise triggers in between either.
-        $this->suppressor->while(function () use ($steps, $context, $run, &$failed): void {
+        $this->suppressor->while(function () use ($steps, $context, $run, &$failed, &$paused): void {
             foreach ($steps as $step) {
                 $outcome = $this->runStep($step, $context);
 
                 $this->record($run, $step, $outcome);
+
+                if ($outcome->pauses) {
+                    // An approval genuinely gates what comes after it. The run
+                    // stops here and waits; the position is where it picks up.
+                    $paused = $step->position + 1;
+
+                    return;
+                }
 
                 if ($outcome->failedOutright()) {
                     $failed ??= $outcome->message;
@@ -106,6 +123,10 @@ class RunWorkflowAction
                 }
             }
         });
+
+        if ($paused !== null) {
+            return $this->pause($run, $paused);
+        }
 
         return $failed === null
             ? $this->finish($run, WorkflowRunStatus::Success, null)
@@ -150,6 +171,23 @@ class RunWorkflowAction
             'result' => $outcome->result === [] ? null : $outcome->result,
             'attempts' => 1,
         ]);
+    }
+
+    /**
+     * Stop here, and remember where to carry on from.
+     *
+     * Not finished: `finished_at` and the duration stay empty, because a run
+     * waiting three days on a manager did not take three days to do its work,
+     * and recording that it did would make every timing figure meaningless.
+     */
+    private function pause(WorkflowRun $run, int $resumeFrom): WorkflowRun
+    {
+        $run->forceFill([
+            'status' => WorkflowRunStatus::AwaitingApproval->value,
+            'resume_from_position' => $resumeFrom,
+        ])->save();
+
+        return $run;
     }
 
     private function finish(WorkflowRun $run, WorkflowRunStatus $status, ?string $message): WorkflowRun

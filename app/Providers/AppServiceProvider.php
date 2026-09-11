@@ -7,6 +7,8 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Accounts\Policies\AccountPolicy;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Activities\Policies\ActivityPolicy;
+use App\Domain\Approvals\Models\ApprovalRequest;
+use App\Domain\Approvals\Policies\ApprovalRequestPolicy;
 use App\Domain\Audit\Policies\AuditEntryPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Company\Models\Company;
@@ -118,6 +120,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
         Gate::policy(LeadCaptureForm::class, LeadCaptureFormPolicy::class);
         Gate::policy(Workflow::class, WorkflowPolicy::class);
+        Gate::policy(ApprovalRequest::class, ApprovalRequestPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
         // Both ask the subject record's own policy before answering, so a note

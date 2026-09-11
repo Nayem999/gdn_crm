@@ -20,6 +20,7 @@ enum WorkflowActionType: string
     case SendEmail = 'send_email';
     case SendNotification = 'send_notification';
     case CallWebhook = 'call_webhook';
+    case RequestApproval = 'request_approval';
 
     public function label(): string
     {
@@ -30,6 +31,7 @@ enum WorkflowActionType: string
             self::SendEmail => 'Send an email',
             self::SendNotification => 'Send a notification',
             self::CallWebhook => 'Call a webhook',
+            self::RequestApproval => 'Ask for approval',
         };
     }
 
@@ -42,6 +44,7 @@ enum WorkflowActionType: string
             self::SendEmail => 'Send a templated email.',
             self::SendNotification => 'Notify a user through the notification engine.',
             self::CallWebhook => 'POST the record to an external URL.',
+            self::RequestApproval => 'Stop and ask somebody. The steps after this one wait for their answer.',
         };
     }
 
@@ -65,6 +68,7 @@ enum WorkflowActionType: string
             // governs. See SendNotificationHandler.
             self::SendNotification => ['recipient', 'message'],
             self::CallWebhook => ['url'],
+            self::RequestApproval => ['approvers'],
         };
     }
 
@@ -92,6 +96,17 @@ enum WorkflowActionType: string
             self::SendEmail, self::SendNotification, self::CallWebhook => true,
             default => false,
         };
+    }
+
+    /**
+     * Whether reaching this step stops the run until a person answers.
+     *
+     * Everything after it waits, which is what makes an approval an approval
+     * rather than a note recorded while the work happened anyway.
+     */
+    public function pausesTheRun(): bool
+    {
+        return $this === self::RequestApproval;
     }
 
     /**

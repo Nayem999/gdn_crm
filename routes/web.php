@@ -10,6 +10,7 @@ use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
 use App\Livewire\Activities\ActivitiesIndex;
 use App\Livewire\Activities\ActivityForm;
+use App\Livewire\Approvals\ApprovalsIndex;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Calendar\ActivityCalendar;
 use App\Livewire\Company\CompanyProfileForm;
@@ -123,6 +124,10 @@ Route::middleware('auth')->group(function () {
     // Automations. The builder is its own page rather than a settings panel:
     // it edits a trigger, a condition tree and a list of steps together, which
     // is more than a settings group's two columns can hold.
+    // Not permission-gated: being an approver is an instruction from a
+    // workflow to a named person, and the screen scopes itself to them.
+    Route::get('/approvals', ApprovalsIndex::class)->name('approvals.index');
+
     Route::get('/workflows', WorkflowsIndex::class)->name('workflows.index');
     Route::get('/workflows/create', WorkflowBuilder::class)->name('workflows.create');
     Route::get('/workflows/{workflow}/edit', WorkflowBuilder::class)->name('workflows.edit');

@@ -162,6 +162,28 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'approval.requested',
+                label: 'Approval waiting',
+                group: 'Workflows',
+                description: 'An automation stopped and is waiting for somebody to approve or reject.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                // Email as well as in-app: a workflow is sitting still until
+                // this person answers, and an approval nobody notices is the
+                // failure mode of the whole feature.
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: [
+                    'approval.summary' => 'What is being approved',
+                    'approval.module' => 'Which module the record is in',
+                    'approval.workflow' => 'Which automation asked',
+                    'approval.due' => 'When the answer is needed by',
+                    'app.name' => 'The application name',
+                ],
+                defaultSubject: 'Approval needed: {{approval.summary}}',
+                defaultTemplates: [
+                    '*' => '{{approval.workflow}} is waiting on you: {{approval.summary}}. Needed by {{approval.due}}.',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'workflow.notified',
                 label: 'Workflow notification',
                 group: 'Workflows',

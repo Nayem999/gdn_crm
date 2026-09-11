@@ -26,6 +26,8 @@ readonly class WorkflowStepOutcome
         public WorkflowRunStatus $status,
         public string $message,
         public array $result = [],
+        /** Whether the run stops here and waits for somebody. */
+        public bool $pauses = false,
     ) {}
 
     /**
@@ -50,6 +52,20 @@ readonly class WorkflowStepOutcome
     public static function failed(string $message, array $result = []): self
     {
         return new self(WorkflowRunStatus::Failed, $message, $result);
+    }
+
+    /**
+     * The step asked a person, and the run stops here until they answer.
+     *
+     * Not a status a *step* ends in — the step itself succeeded in asking — so
+     * it is carried beside the status rather than in it. What it changes is the
+     * run: everything after this step waits.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    public static function awaitingApproval(string $message, array $result = []): self
+    {
+        return new self(WorkflowRunStatus::Success, $message, $result, pauses: true);
     }
 
     public function failedOutright(): bool

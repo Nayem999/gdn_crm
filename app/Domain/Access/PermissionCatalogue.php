@@ -145,6 +145,11 @@ final class PermissionCatalogue
                     // that is a far wider audience than the people who should
                     // be able to change what happens tonight.
                     'workflows.logs' => 'View the workflow execution log',
+                    // Reading approvals that were never yours, for an audit.
+                    // Answering one is not a permission: it is an instruction
+                    // from a workflow to a named person, and a role that could
+                    // answer for anybody would defeat the chain.
+                    'workflows.approvals' => 'View every approval, not only your own',
                 ],
             ],
             'custom-modules' => [

@@ -423,6 +423,42 @@
                                     </div>
                                     @break
 
+                                @case(WorkflowActionType::RequestApproval->value)
+                                    <div class="sm:col-span-2" wire:key="step-{{ $index }}-approvers">
+                                        <x-form.label :for="'steps.'.$index.'.config.approvers'" required>Ask, in this order</x-form.label>
+                                        <x-select
+                                            :name="'steps.'.$index.'.config.approvers'"
+                                            :options="collect($this->userOptions())->mapWithKeys(fn ($name, $id) => ['user:'.$id => $name])->all()"
+                                            :selected="$step['config']['approvers'] ?? []"
+                                            multiple
+                                            wire:model.live="steps.{{ $index }}.config.approvers"
+                                        />
+                                        <p class="mt-1 text-xs text-muted-foreground">
+                                            One at a time, in order. Every step below this one waits for the answer.
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <x-form.label :for="'steps.'.$index.'.config.hours_to_respond'">Hours to answer</x-form.label>
+                                        <x-form.input type="number" min="1" wire:model="steps.{{ $index }}.config.hours_to_respond" placeholder="Leave empty to wait indefinitely" />
+                                    </div>
+
+                                    <div wire:key="step-{{ $index }}-timeout-{{ $step['config']['on_timeout'] ?? '' }}">
+                                        <x-form.label :for="'steps.'.$index.'.config.on_timeout'">If nobody answers</x-form.label>
+                                        <x-select
+                                            :name="'steps.'.$index.'.config.on_timeout'"
+                                            :options="App\Domain\Approvals\Enums\EscalationOutcome::options()"
+                                            :selected="$step['config']['on_timeout'] ?? App\Domain\Approvals\Enums\EscalationOutcome::Escalate->value"
+                                            wire:model.live="steps.{{ $index }}.config.on_timeout"
+                                        />
+                                    </div>
+
+                                    <div class="sm:col-span-2">
+                                        <x-form.label :for="'steps.'.$index.'.config.summary'">What they are agreeing to</x-form.label>
+                                        <x-form.input wire:model="steps.{{ $index }}.config.summary" placeholder="Left empty, this is written from the steps below" />
+                                    </div>
+                                    @break
+
                                 @case(WorkflowActionType::CallWebhook->value)
                                     <div class="sm:col-span-2">
                                         <div>

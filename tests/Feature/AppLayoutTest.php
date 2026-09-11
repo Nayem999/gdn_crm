@@ -51,17 +51,48 @@ test('the chosen theme is re-applied after a wire:navigate page swap', function 
     $response->assertSee("classList.toggle('dark', stored === 'dark'", escape: false);
 });
 
-test('the sidebar lists every core module with an icon', function () {
+test('the sidebar lists the modules whose phase has not landed as inert placeholders', function () {
     $response = $this->get('/');
 
     $response->assertSuccessful();
 
-    // Modules whose phase has not landed are inert placeholders, not links.
-    foreach (['Deals', 'Activities', 'Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
+    foreach (['Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
         $response->assertSee($module);
     }
 
     $response->assertSee('aria-disabled="true"', false);
+});
+
+/**
+ * Deals and Activities used to be asserted alongside the placeholders above,
+ * and the assertion passed without ever reading the sidebar: the old dashboard
+ * body printed both words in its own stub cards, so `assertSee` matched the
+ * page rather than the navigation. Task 3.7 replaced that body and the test
+ * failed — correctly, because a person holding no permission should not be
+ * offered a Deals link.
+ *
+ * So they are asserted here instead, against a user who may actually see them,
+ * and against one who may not.
+ */
+test('a module that has landed is a link for somebody who may see it, and absent for somebody who may not', function () {
+    $user = User::factory()->create();
+
+    foreach (PermissionResolver::models(['deals.view', 'activities.view']) as $model) {
+        $user->givePermissionTo($model);
+    }
+
+    $this->actingAs($user->fresh())
+        ->get('/')
+        ->assertSuccessful()
+        ->assertSee(route('deals.index'), false)
+        ->assertSee(route('activities.index'), false)
+        ->assertSee(route('calendar'), false);
+
+    $this->actingAs(User::factory()->create())
+        ->get('/')
+        ->assertSuccessful()
+        ->assertDontSee(route('deals.index'), false)
+        ->assertDontSee(route('activities.index'), false);
 });
 
 /**

@@ -13,7 +13,7 @@
         ['label' => 'Quotes & Invoices', 'icon' => 'file-text'],
         ['label' => 'Support', 'icon' => 'life-buoy'],
         ['label' => 'Reports', 'icon' => 'bar-chart-3'],
-        ['label' => 'Automation', 'icon' => 'zap'],
+        ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
     ];
 
     // Modules an administrator added at runtime, appended after the built-in

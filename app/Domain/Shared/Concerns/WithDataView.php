@@ -5,8 +5,6 @@ namespace App\Domain\Shared\Concerns;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Shared\DataView\Column;
-use App\Domain\Shared\Enums\FilterFieldType;
-use App\Domain\Shared\Enums\FilterOperator;
 use App\Domain\Shared\Enums\ViewMode;
 use App\Domain\Shared\Filters\FilterApplier;
 use App\Domain\Shared\Filters\FilterCondition;
@@ -32,6 +30,8 @@ use Livewire\WithPagination;
  */
 trait WithDataView
 {
+    use EditsConditions;
+
     // Every list screen pages, so paging arrives with the trait rather than
     // each screen having to remember it.
     use WithPagination;
@@ -71,7 +71,7 @@ trait WithDataView
      * @var array<string, mixed>
      */
     #[Url(as: 'f', except: ['match' => FilterGroup::MATCH_ALL, 'conditions' => [], 'groups' => []])]
-    public array $filters = ['match' => FilterGroup::MATCH_ALL, 'conditions' => [], 'groups' => []];
+    public array $filters = FilterGroup::EMPTY;
 
     /** @var array<int, int> */
     public array $selected = [];
@@ -278,69 +278,21 @@ trait WithDataView
 
     // -- Filters ------------------------------------------------------------
 
-    public function filterGroup(): FilterGroup
+    /**
+     * The fields this screen builds conditions on, for EditsConditions.
+     *
+     * @return array<int, FilterField>
+     */
+    public function conditionFields(): array
     {
-        return FilterGroup::fromArray($this->filters);
+        return $this->dataViewFilterFields();
     }
 
     /**
-     * @return array<string, FilterField>
+     * A changed filter means the current page may not exist any more.
      */
-    public function filterFieldMap(): array
+    protected function conditionsChanged(): void
     {
-        return collect($this->dataViewFilterFields())->keyBy('key')->all();
-    }
-
-    public function addCondition(?int $groupIndex = null): void
-    {
-        $first = collect($this->dataViewFilterFields())->first();
-
-        if ($first === null) {
-            return;
-        }
-
-        $condition = [
-            'field' => $first->key,
-            'operator' => $first->type->operators()[0]->value,
-            'value' => null,
-            'second_value' => null,
-            'selected' => [],
-        ];
-
-        if ($groupIndex === null) {
-            $this->filters['conditions'][] = $condition;
-
-            return;
-        }
-
-        $this->filters['groups'][$groupIndex]['conditions'][] = $condition;
-    }
-
-    public function removeCondition(int $index, ?int $groupIndex = null): void
-    {
-        if ($groupIndex === null) {
-            unset($this->filters['conditions'][$index]);
-            $this->filters['conditions'] = array_values($this->filters['conditions']);
-        } else {
-            unset($this->filters['groups'][$groupIndex]['conditions'][$index]);
-            $this->filters['groups'][$groupIndex]['conditions'] = array_values(
-                $this->filters['groups'][$groupIndex]['conditions']
-            );
-        }
-
-        $this->resetPage();
-    }
-
-    public function addFilterGroup(): void
-    {
-        $this->filters['groups'][] = ['match' => FilterGroup::MATCH_ANY, 'conditions' => [], 'groups' => []];
-        $this->addCondition(count($this->filters['groups']) - 1);
-    }
-
-    public function removeFilterGroup(int $groupIndex): void
-    {
-        unset($this->filters['groups'][$groupIndex]);
-        $this->filters['groups'] = array_values($this->filters['groups']);
         $this->resetPage();
     }
 
@@ -350,12 +302,6 @@ trait WithDataView
     public function updatedFilters(mixed $value, ?string $key = null): void
     {
         $this->normaliseConditions();
-        $this->resetPage();
-    }
-
-    public function clearFilters(): void
-    {
-        $this->filters = ['match' => FilterGroup::MATCH_ALL, 'conditions' => [], 'groups' => []];
         $this->resetPage();
     }
 
@@ -412,23 +358,6 @@ trait WithDataView
     public function hasActiveFilters(): bool
     {
         return $this->search !== '' || ! $this->filterGroup()->isEmpty();
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function operatorOptionsFor(string $fieldKey): array
-    {
-        $field = $this->filterFieldMap()[$fieldKey] ?? null;
-
-        return $field === null ? [] : FilterOperator::optionsFor($field->type);
-    }
-
-    public function fieldType(string $fieldKey): FilterFieldType
-    {
-        $field = $this->filterFieldMap()[$fieldKey] ?? null;
-
-        return $field === null ? FilterFieldType::Text : $field->type;
     }
 
     // -- Selection ----------------------------------------------------------
@@ -873,39 +802,6 @@ trait WithDataView
     /**
      * Coerce each condition so its operator is one its field type offers.
      */
-    private function normaliseConditions(): void
-    {
-        $fields = $this->filterFieldMap();
-
-        $fix = function (array $condition) use ($fields): array {
-            $field = $fields[$condition['field'] ?? ''] ?? null;
-
-            if ($field === null) {
-                return $condition;
-            }
-
-            $allowed = array_map(fn (FilterOperator $operator) => $operator->value, $field->type->operators());
-
-            if (! in_array($condition['operator'] ?? '', $allowed, true)) {
-                $condition['operator'] = $allowed[0];
-                $condition['value'] = null;
-                $condition['second_value'] = null;
-                $condition['selected'] = [];
-            }
-
-            return $condition;
-        };
-
-        $this->filters['conditions'] = array_map($fix, (array) ($this->filters['conditions'] ?? []));
-
-        foreach ((array) ($this->filters['groups'] ?? []) as $index => $group) {
-            $this->filters['groups'][$index]['conditions'] = array_map(
-                $fix,
-                (array) ($group['conditions'] ?? [])
-            );
-        }
-    }
-
     /**
      * @param  array<string, mixed>  $attributes
      */

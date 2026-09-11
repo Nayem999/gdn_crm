@@ -56,7 +56,9 @@ test('the sidebar lists the modules whose phase has not landed as inert placehol
 
     $response->assertSuccessful();
 
-    foreach (['Products', 'Quotes & Invoices', 'Support', 'Reports', 'Automation'] as $module) {
+    // Automation left this list in 5.5: it is a real, permissioned link now,
+    // so it is absent for a user without workflows.view rather than shown inert.
+    foreach (['Products', 'Quotes & Invoices', 'Support', 'Reports'] as $module) {
         $response->assertSee($module);
     }
 

@@ -46,6 +46,8 @@ use App\Livewire\Users\AcceptInvitation;
 use App\Livewire\Users\InviteUser;
 use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UsersIndex;
+use App\Livewire\Workflows\WorkflowBuilder;
+use App\Livewire\Workflows\WorkflowsIndex;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -117,6 +119,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/{lead}', LeadShow::class)->withTrashed()->name('leads.show');
     Route::get('/leads/{lead}/edit', LeadForm::class)->name('leads.edit');
     Route::get('/leads/{lead}/convert', LeadConvert::class)->name('leads.convert');
+
+    // Automations. The builder is its own page rather than a settings panel:
+    // it edits a trigger, a condition tree and a list of steps together, which
+    // is more than a settings group's two columns can hold.
+    Route::get('/workflows', WorkflowsIndex::class)->name('workflows.index');
+    Route::get('/workflows/create', WorkflowBuilder::class)->name('workflows.create');
+    Route::get('/workflows/{workflow}/edit', WorkflowBuilder::class)->name('workflows.edit');
 
     // One import screen for every module in ImportRegistry, resolved the same
     // way: an unlisted module 404s rather than becoming a class name.

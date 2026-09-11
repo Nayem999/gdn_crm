@@ -20,3 +20,13 @@ Schedule::command('activities:send-reminders')
 Schedule::command('activities:generate-recurrences')
     ->dailyAt('01:15')
     ->withoutOverlapping();
+
+// The two workflow triggers no record event can raise: a date arriving and a
+// schedule coming round. Every minute, because a cron expression is accurate to
+// the minute and a date trigger's lead time is configured in them. Both sweeps
+// are indexed queries that find nothing when there is nothing due.
+// withoutOverlapping so a slow sweep cannot be joined by the next one — though
+// the dedupe key would refuse the duplicate anyway.
+Schedule::command('workflows:run-triggers')
+    ->everyMinute()
+    ->withoutOverlapping();

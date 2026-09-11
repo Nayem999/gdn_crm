@@ -3,6 +3,7 @@
 namespace App\Domain\Workflows\Actions;
 
 use App\Domain\Workflows\Models\Workflow;
+use App\Domain\Workflows\WorkflowCache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -44,5 +45,8 @@ class ReorderWorkflowsAction
                 $position++;
             }
         });
+
+        // The memo holds them in order, so the order changing invalidates it.
+        app(WorkflowCache::class)->flush();
     }
 }

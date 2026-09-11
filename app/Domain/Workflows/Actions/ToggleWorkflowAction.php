@@ -3,6 +3,7 @@
 namespace App\Domain\Workflows\Actions;
 
 use App\Domain\Workflows\Models\Workflow;
+use App\Domain\Workflows\WorkflowCache;
 use RuntimeException;
 
 /**
@@ -25,6 +26,9 @@ class ToggleWorkflowAction
         }
 
         $workflow->forceFill(['is_active' => $active])->save();
+
+        // Switching one on is exactly the moment the memo must not be stale.
+        app(WorkflowCache::class)->flush();
 
         return $workflow->fresh() ?? $workflow;
     }

@@ -3,6 +3,7 @@
 namespace App\Domain\Workflows\Actions;
 
 use App\Domain\Workflows\Models\Workflow;
+use App\Domain\Workflows\WorkflowCache;
 
 /**
  * Removes a workflow and its steps.
@@ -19,5 +20,7 @@ class DeleteWorkflowAction
     public function __invoke(Workflow $workflow): void
     {
         $workflow->delete();
+
+        app(WorkflowCache::class)->flush();
     }
 }

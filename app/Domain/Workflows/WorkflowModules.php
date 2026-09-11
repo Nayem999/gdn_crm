@@ -11,6 +11,7 @@ use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\CustomFieldRegistry;
 use App\Domain\CustomModules\CustomModuleFields;
 use App\Domain\CustomModules\CustomModuleRegistry;
+use App\Domain\CustomModules\Models\CustomModule;
 use App\Domain\CustomModules\Models\CustomRecord;
 use App\Domain\Deals\DealFields;
 use App\Domain\Deals\Models\Deal;
@@ -94,6 +95,14 @@ final class WorkflowModules
             || CustomFieldRegistry::customModule($module) !== null;
     }
 
+    /**
+     * The generated module a key names, or null when it is not one.
+     */
+    public static function customModule(string $module): ?CustomModule
+    {
+        return CustomFieldRegistry::customModule($module);
+    }
+
     public static function label(string $module): string
     {
         $custom = CustomFieldRegistry::customModule($module);
@@ -154,6 +163,45 @@ final class WorkflowModules
         };
     }
 
+    /**
+     * The module key a record belongs to, matched on the class rather than on
+     * anything the record carries, so nothing here can be steered by data.
+     */
+    public static function keyFor(Model $record): ?string
+    {
+        // A generated module's record knows which module it is; asking its
+        // class would only ever say "a custom record".
+        if ($record instanceof CustomRecord) {
+            return $record->customFieldModule();
+        }
+
+        foreach (self::builtIn() as $key => $module) {
+            if ($record instanceof $module['model']) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The database column behind a field key, or null when the module does not
+     * have that field or keeps it somewhere a plain `where` cannot reach.
+     *
+     * Nothing from a stored definition reaches a query without passing through
+     * here.
+     */
+    public static function column(string $module, string $field): ?string
+    {
+        $definition = self::fields($module)[$field] ?? null;
+
+        if ($definition === null || $definition->isCustomField()) {
+            return null;
+        }
+
+        return $definition->column();
+    }
+
     public static function hasField(string $module, string $field): bool
     {
         return array_key_exists($field, self::fields($module));
@@ -183,7 +231,11 @@ final class WorkflowModules
         $options = [];
 
         foreach (self::fields($module) as $key => $field) {
-            if ($field->type === FilterFieldType::Date) {
+            // A custom field's answers live in `custom_field_values`, and the
+            // date sweep is a `where` on the module's own table. Offering one
+            // here would let somebody build a workflow that silently never
+            // fires, which is worse than not offering it.
+            if ($field->type === FilterFieldType::Date && ! $field->isCustomField()) {
                 $options[$key] = $field->label;
             }
         }

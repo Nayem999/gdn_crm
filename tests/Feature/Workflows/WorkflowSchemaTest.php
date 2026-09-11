@@ -619,8 +619,14 @@ test('the workflow tables exist with the columns the engine will need', function
     expect(Schema::hasColumns('workflows', [
         'name', 'module', 'trigger_event', 'trigger_field', 'date_offset_minutes',
         'conditions', 'is_active', 'position', 'run_once_per_record', 'created_by',
-        'run_count', 'last_run_at',
+        'schedule_expression',
     ]))->toBeTrue();
+
+    // What a workflow has done lives in workflow_runs. A counter beside the log
+    // cost an UPDATE of one row on every event and raced with itself; 5.2
+    // dropped the pair.
+    expect(Schema::hasColumn('workflows', 'run_count'))->toBeFalse()
+        ->and(Schema::hasColumn('workflows', 'last_run_at'))->toBeFalse();
 
     // `trigger` is a reserved word in MySQL, so the column is `trigger_event`.
     expect(Schema::hasColumn('workflows', 'trigger'))->toBeFalse();

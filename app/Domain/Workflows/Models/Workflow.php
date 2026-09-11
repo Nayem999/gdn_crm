@@ -7,13 +7,13 @@ use App\Domain\Shared\Filters\FilterGroup;
 use App\Domain\Workflows\Enums\WorkflowTrigger;
 use App\Domain\Workflows\WorkflowModules;
 use App\Models\User;
+use Cron\CronExpression;
 use Database\Factories\WorkflowFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * One automation: what fires it, what it checks, and what it does.
@@ -31,13 +31,12 @@ use Illuminate\Support\Carbon;
  * @property string $trigger_event
  * @property string|null $trigger_field
  * @property int|null $date_offset_minutes
+ * @property string|null $schedule_expression
  * @property array<string, mixed> $conditions
  * @property bool $is_active
  * @property int $position
  * @property bool $run_once_per_record
  * @property int|null $created_by
- * @property int $run_count
- * @property Carbon|null $last_run_at
  */
 class Workflow extends Model
 {
@@ -56,6 +55,7 @@ class Workflow extends Model
         'trigger_event',
         'trigger_field',
         'date_offset_minutes',
+        'schedule_expression',
         'conditions',
         'is_active',
         'position',
@@ -84,7 +84,6 @@ class Workflow extends Model
         'is_active' => false,
         'position' => 0,
         'run_once_per_record' => false,
-        'run_count' => 0,
     ];
 
     protected function casts(): array
@@ -95,8 +94,6 @@ class Workflow extends Model
             'position' => 'integer',
             'run_once_per_record' => 'boolean',
             'date_offset_minutes' => 'integer',
-            'run_count' => 'integer',
-            'last_run_at' => 'datetime',
         ];
     }
 
@@ -105,9 +102,8 @@ class Workflow extends Model
      */
     protected function activityAttributes(): array
     {
-        // The definition, not the counters: `run_count` changes on every
-        // firing, and logging that would bury the edits somebody actually
-        // wants to find in the audit trail.
+        // The definition only. What a workflow has done lives in
+        // `workflow_runs`, which is a log rather than an audit trail.
         return ['name', 'module', 'trigger_event', 'trigger_field', 'conditions', 'is_active', 'position'];
     }
 
@@ -181,7 +177,32 @@ class Workflow extends Model
             return false;
         }
 
+        if ($this->trigger()->needsSchedule() && ! $this->hasValidSchedule()) {
+            return false;
+        }
+
+        // Through the loaded relation when there is one: this is asked for
+        // every workflow on every saved record, and a query each would make a
+        // bulk import one query per workflow per row.
+        if ($this->relationLoaded('actions')) {
+            return $this->actions->contains(fn (WorkflowAction $action): bool => $action->is_active);
+        }
+
         return $this->actions()->where('is_active', true)->exists();
+    }
+
+    /**
+     * Whether the stored schedule is one the cron parser can read.
+     *
+     * Checked rather than assumed: the expression is read back by the scheduler
+     * command, and an unparseable one would throw there — once a minute,
+     * forever — rather than where somebody could see it.
+     */
+    public function hasValidSchedule(): bool
+    {
+        $expression = $this->schedule_expression;
+
+        return $expression !== null && CronExpression::isValidExpression($expression);
     }
 
     /**
@@ -191,6 +212,23 @@ class Workflow extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where($query->qualifyColumn('is_active'), true);
+    }
+
+    /**
+     * Every active workflow on one trigger, across all modules.
+     *
+     * What the two sweeps ask — they are looking for work to do rather than
+     * reacting to one record, so they have no module to narrow by.
+     *
+     * @param  Builder<Workflow>  $query
+     * @return Builder<Workflow>
+     */
+    public function scopeWithTrigger(Builder $query, WorkflowTrigger $trigger): Builder
+    {
+        return $query->active()
+            ->where($query->qualifyColumn('trigger_event'), $trigger->value)
+            ->orderBy($query->qualifyColumn('position'))
+            ->orderBy($query->qualifyColumn('id'));
     }
 
     /**

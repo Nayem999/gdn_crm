@@ -6,6 +6,7 @@ use App\Domain\Workflows\DTOs\WorkflowActionData;
 use App\Domain\Workflows\DTOs\WorkflowData;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Models\WorkflowAction;
+use App\Domain\Workflows\WorkflowCache;
 use App\Domain\Workflows\WorkflowModules;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -43,6 +44,11 @@ class SaveWorkflowAction
                 : $this->update($workflow, $data);
 
             $this->syncActions($workflow, $data->actions);
+
+            // The listening set is memoised per request, and a workflow just
+            // saved has to be considered on the very next save rather than
+            // eventually.
+            app(WorkflowCache::class)->flush();
 
             return $workflow->fresh() ?? $workflow;
         });

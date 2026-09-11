@@ -47,6 +47,10 @@ use App\Domain\Timeline\Policies\NotePolicy;
 use App\Domain\Users\Policies\UserPolicy;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Policies\WorkflowPolicy;
+use App\Domain\Workflows\Triggers\WorkflowObserver;
+use App\Domain\Workflows\Triggers\WorkflowSuppressor;
+use App\Domain\Workflows\WorkflowCache;
+use App\Domain\Workflows\WorkflowModules;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -78,6 +82,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PipelineStatusCache::class);
         // And the generated module definitions — see CustomModuleRegistry.
         $this->app->singleton(CustomModuleRegistry::class);
+
+        // The listening set is asked for on every save of every record, and the
+        // suppressor's depth has to be one value for the whole request — a
+        // fresh instance per resolution would mean an action's writes were
+        // suppressed for nobody.
+        $this->app->singleton(WorkflowCache::class);
+        $this->app->singleton(WorkflowSuppressor::class);
     }
 
     /**
@@ -113,6 +124,14 @@ class AppServiceProvider extends ServiceProvider
         // or an attachment is never a way round a module's access level.
         Gate::policy(Note::class, NotePolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+
+        // Every module a workflow can watch, from the registry's own list, so a
+        // module cannot be observed without being one. CustomRecord is named
+        // separately because it is the single class behind every generated
+        // module rather than a module of its own.
+        foreach ([...array_column(WorkflowModules::builtIn(), 'model'), CustomRecord::class] as $watched) {
+            $watched::observe(WorkflowObserver::class);
+        }
 
         Event::subscribe(RecordLoginHistory::class);
 

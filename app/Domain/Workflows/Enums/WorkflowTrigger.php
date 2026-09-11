@@ -52,6 +52,14 @@ enum WorkflowTrigger: string
     }
 
     /**
+     * Whether this trigger is meaningless without a schedule to run on.
+     */
+    public function needsSchedule(): bool
+    {
+        return $this === self::Scheduled;
+    }
+
+    /**
      * Whether a firing is about one record.
      *
      * A scheduled workflow is the exception: it fires because the clock said

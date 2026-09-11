@@ -5,6 +5,7 @@ namespace App\Domain\Workflows\DTOs;
 use App\Domain\Shared\Filters\FilterGroup;
 use App\Domain\Workflows\Enums\WorkflowTrigger;
 use App\Domain\Workflows\WorkflowModules;
+use Cron\CronExpression;
 
 /**
  * A workflow definition as a form submitted it, already normalised.
@@ -28,6 +29,7 @@ readonly class WorkflowData
         public ?string $description = null,
         public ?string $triggerField = null,
         public ?int $dateOffsetMinutes = null,
+        public ?string $scheduleExpression = null,
         public array $conditions = FilterGroup::EMPTY,
         public bool $isActive = false,
         public bool $runOncePerRecord = false,
@@ -58,6 +60,11 @@ readonly class WorkflowData
             dateOffsetMinutes: $trigger === WorkflowTrigger::DateReached
                 ? self::offset($attributes['date_offset_minutes'] ?? null)
                 : null,
+            // Only a scheduled trigger carries one, for the same reason the
+            // offset belongs only to a date trigger.
+            scheduleExpression: $trigger === WorkflowTrigger::Scheduled
+                ? self::schedule($attributes['schedule_expression'] ?? null)
+                : null,
             conditions: self::conditions($attributes['conditions'] ?? null),
             isActive: (bool) ($attributes['is_active'] ?? false),
             runOncePerRecord: (bool) ($attributes['run_once_per_record'] ?? false),
@@ -79,6 +86,7 @@ readonly class WorkflowData
             'trigger_event' => $this->trigger->value,
             'trigger_field' => $this->triggerField,
             'date_offset_minutes' => $this->dateOffsetMinutes,
+            'schedule_expression' => $this->scheduleExpression,
             'conditions' => $this->conditions,
             'is_active' => $this->isActive,
             'run_once_per_record' => $this->runOncePerRecord,
@@ -174,6 +182,21 @@ readonly class WorkflowData
         }
 
         return $normalised;
+    }
+
+    /**
+     * A cron expression, but only one the parser can actually read.
+     *
+     * Stored unparseable, it would throw inside the scheduler command once a
+     * minute rather than anywhere somebody would see it.
+     */
+    private static function schedule(mixed $value): ?string
+    {
+        $expression = trim((string) $value);
+
+        return $expression !== '' && CronExpression::isValidExpression($expression)
+            ? $expression
+            : null;
     }
 
     private static function offset(mixed $value): ?int

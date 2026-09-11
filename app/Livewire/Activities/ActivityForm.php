@@ -445,7 +445,9 @@ class ActivityForm extends Component
     }
 
     /**
-     * @return array<string, string>
+     * Int-keyed, because the ranks are numeric. See ActivityPriority::options().
+     *
+     * @return array<int, string>
      */
     public function priorityOptions(): array
     {
@@ -469,7 +471,10 @@ class ActivityForm extends Component
     }
 
     /**
-     * @return array<string, string>
+     * Keyed by minutes before the due time. Written as strings for the
+     * dropdown, but a numeric string key is an int once PHP holds it.
+     *
+     * @return array<int, string>
      */
     public function reminderOptions(): array
     {

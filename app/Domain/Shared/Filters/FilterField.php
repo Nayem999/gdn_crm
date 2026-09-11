@@ -13,7 +13,11 @@ use App\Domain\Shared\Enums\FilterFieldType;
 readonly class FilterField
 {
     /**
-     * @param  array<string, string>  $options  Choices for a select field.
+     * @param  array<array-key, string>  $options  Choices for a select field.
+     *                                             Keyed by the stored value, which
+     *                                             is an int wherever that value is
+     *                                             numeric — PHP will not hold a
+     *                                             numeric string as an array key.
      */
     public function __construct(
         public string $key,
@@ -47,7 +51,7 @@ readonly class FilterField
     }
 
     /**
-     * @param  array<string, string>  $options
+     * @param  array<array-key, string>  $options
      */
     public static function select(string $key, string $label, array $options, ?string $column = null): self
     {

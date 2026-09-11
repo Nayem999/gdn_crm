@@ -70,16 +70,14 @@ final class ActivityFields
     }
 
     /**
-     * @return array<string, string>
+     * Keyed by user id, which is an int — PHP will not hold "7" as a string key,
+     * so there is nothing to be gained by casting it to one.
+     *
+     * @return array<int, string>
      */
     public static function ownerOptions(): array
     {
-        /** @var array<string, string> $options */
-        $options = User::query()->orderBy('name')->pluck('name', 'id')
-            ->mapWithKeys(fn (string $name, int $id) => [(string) $id => $name])
-            ->all();
-
-        return $options;
+        return User::query()->orderBy('name')->pluck('name', 'id')->all();
     }
 
     /**

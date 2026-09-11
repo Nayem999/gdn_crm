@@ -27,7 +27,9 @@ final class ActivityMergeData
                 'type' => $activity->type()->label(),
                 'due' => $activity->dueLabel(),
                 'priority' => $activity->priority()->label(),
-                'owner' => $activity->owner?->name ?? 'nobody',
+                // owner_id is NOT NULL and restrictOnDelete, so there is
+                // always somebody on the other end of this.
+                'owner' => $activity->owner->name,
                 'related' => $related === null
                     ? 'nothing in particular'
                     : ActivityRelations::typeLabel($related).' '.ActivityRelations::label($related),

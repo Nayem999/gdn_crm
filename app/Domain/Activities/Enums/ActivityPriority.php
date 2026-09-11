@@ -52,10 +52,12 @@ enum ActivityPriority: int
     }
 
     /**
-     * Keyed by the stored rank as a string, because that is what a dropdown and
-     * a filter condition carry.
+     * Keyed by the stored rank. The keys are written as strings because that is
+     * what a dropdown and a filter condition carry, but PHP turns a numeric
+     * string key straight back into an int — so unlike every other enum here,
+     * which is string-backed, this map really is int-keyed.
      *
-     * @return array<string, string>
+     * @return array<int, string>
      */
     public static function options(): array
     {

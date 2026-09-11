@@ -35,6 +35,7 @@ trait WithDataView
     // Every list screen pages, so paging arrives with the trait rather than
     // each screen having to remember it.
     use WithPagination;
+    use WithSavedViews;
 
     public string $viewMode = ViewMode::Table->value;
 
@@ -46,6 +47,14 @@ trait WithDataView
 
     #[Url(except: 'asc')]
     public string $sortDirection = 'asc';
+
+    /**
+     * The page sizes the screen offers. A constant because `setPerPage` and a
+     * restored saved view both have to accept exactly this set.
+     *
+     * @var array<int, int>
+     */
+    public const PER_PAGE_OPTIONS = [25, 50, 100];
 
     public int $perPage = 25;
 
@@ -78,6 +87,8 @@ trait WithDataView
             : null;
 
         if ($preference === null) {
+            $this->applyDefaultSavedView();
+
             return;
         }
 
@@ -93,6 +104,10 @@ trait WithDataView
         if (is_array($preference->pinned_columns)) {
             $this->pinnedColumns = $this->sanitisePins($preference->pinned_columns);
         }
+
+        // Last, so a chosen default view wins over the layout somebody happened
+        // to leave the module in — that is what choosing one means.
+        $this->applyDefaultSavedView();
     }
 
     // -- View mode ----------------------------------------------------------
@@ -491,7 +506,7 @@ trait WithDataView
 
     public function setPerPage(int $perPage): void
     {
-        $this->perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
+        $this->perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 25;
         $this->rememberPreference(['per_page' => $this->perPage]);
         $this->resetPage();
     }
@@ -796,7 +811,7 @@ trait WithDataView
     /**
      * @return array<int, string>
      */
-    private function defaultVisibleColumns(): array
+    protected function defaultVisibleColumns(): array
     {
         return collect($this->dataViewColumns())
             ->reject(fn (Column $column) => $column->hiddenByDefault)
@@ -810,7 +825,7 @@ trait WithDataView
      * @param  array<int, mixed>  $keys
      * @return array<int, string>
      */
-    private function sanitiseColumns(array $keys): array
+    protected function sanitiseColumns(array $keys): array
     {
         $available = collect($this->dataViewColumns());
         $known = $available->pluck('key')->all();
@@ -902,7 +917,7 @@ trait WithDataView
         UserViewPreference::remember($user, $this->dataViewModule(), $attributes);
     }
 
-    private function currentUser(): ?User
+    protected function currentUser(): ?User
     {
         $user = auth()->user();
 

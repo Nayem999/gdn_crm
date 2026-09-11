@@ -32,6 +32,7 @@ class UserViewPreference extends Model
     protected $fillable = [
         'user_id',
         'module',
+        'default_saved_view_id',
         'view_mode',
         'columns',
         'pinned_columns',

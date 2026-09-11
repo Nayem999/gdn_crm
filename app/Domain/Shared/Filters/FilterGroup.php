@@ -9,6 +9,14 @@ readonly class FilterGroup
 {
     public const MATCH_ALL = 'all';
 
+    /**
+     * An empty filter tree, in the array shape the builder UI edits.
+     *
+     * Written once here because three places need the same literal — the data
+     * view's property default, a saved view with no filters, and clearing.
+     */
+    public const EMPTY = ['match' => self::MATCH_ALL, 'conditions' => [], 'groups' => []];
+
     public const MATCH_ANY = 'any';
 
     /**

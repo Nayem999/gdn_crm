@@ -105,6 +105,24 @@ class LeadsIndex extends Component
         return LeadFields::searchColumns();
     }
 
+    /**
+     * The status chip, named and coloured as this module is configured.
+     *
+     * Falls back to the lead's own enum for a key the configured set does not
+     * hold — a record can outlive the stage it was put in, and a blank chip
+     * would hide it rather than explain it.
+     */
+    private function statusChip(Lead $record): HtmlString
+    {
+        $key = (string) $record->getAttributeValue('status');
+        $status = PipelineModules::status('leads', $key);
+
+        return new HtmlString(ChipPalette::chip(
+            $status['label'] ?? $record->status()->label(),
+            $status['color'] ?? $record->status()->color(),
+        ));
+    }
+
     public function dataViewKanbanField(): ?string
     {
         return 'status';
@@ -157,10 +175,10 @@ class LeadsIndex extends Component
                 .'class="font-medium text-foreground hover:text-accent hover:underline">'
                 .e($record->fullName()).'</a>'
             ),
-            'status' => new HtmlString(ChipPalette::chip(
-                $record->status()->label(),
-                $record->status()->color()
-            )),
+            // Through the registry, not the enum: a configured pipeline renames
+            // and recolours these, and a chip that read the enum would disagree
+            // with the board and the filter beside it.
+            'status' => $this->statusChip($record),
             'source' => $record->source() === null
                 ? $this->blank()
                 : new HtmlString(ChipPalette::chip(

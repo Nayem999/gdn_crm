@@ -128,6 +128,17 @@ final class PermissionCatalogue
                     'activities.export' => 'Export activities',
                 ],
             ],
+            'saved-views' => [
+                'label' => 'Saved views',
+                'icon' => 'bookmark',
+                'permissions' => [
+                    // Saving a private view needs nothing: it is the person's
+                    // own arrangement of a list they can already see. Sharing
+                    // one puts it in front of everybody, which is the act worth
+                    // gating.
+                    'saved-views.share' => 'Share a saved view with everyone',
+                ],
+            ],
             'custom-fields' => [
                 'label' => 'Custom fields',
                 'icon' => 'sliders-horizontal',

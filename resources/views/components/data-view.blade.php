@@ -55,6 +55,10 @@
             </div>
         @endif
 
+        {{-- Saved arrangements of this list, before the filter builder: it is
+             the thing that puts a filter *on*, so it reads first. --}}
+        <x-saved-views :view="$view" />
+
         @if ($view->dataViewFilterFields() !== [])
             <x-filter-builder
                 :fields="$view->filterFieldMap()"

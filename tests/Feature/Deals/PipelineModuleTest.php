@@ -270,6 +270,38 @@ test('a filter on a configured status returns the right leads', function () {
     expect($warming->status()->value)->toBe('nurturing');
 });
 
+test('the status chip on the list is named as the module is configured', function () {
+    // The chip is the third place a status appears; reading the enum here would
+    // make it disagree with the board and the filter beside it.
+    modulePipeline('leads', 'Lead flow', leadStages(
+        [LeadStatus::New],
+        [LeadStatus::New->value => 'Fresh enquiry'],
+    ));
+    app(PipelineStatusCache::class)->flush();
+
+    $user = leadUser();
+    Lead::factory()->ownedBy($user)->create(['status' => LeadStatus::New->value]);
+
+    Livewire::actingAs($user)
+        ->test(LeadsIndex::class)
+        ->assertSee('Fresh enquiry');
+});
+
+test('a lead left behind by a removed stage still shows a chip', function () {
+    // Configured without Nurturing, but a lead is already sitting in it.
+    modulePipeline('leads', 'Lead flow', leadStages([LeadStatus::New]));
+    app(PipelineStatusCache::class)->flush();
+
+    $user = leadUser();
+    Lead::factory()->ownedBy($user)->create(['status' => LeadStatus::Nurturing->value, 'last_name' => 'Oyelaran']);
+
+    Livewire::actingAs($user)
+        ->test(LeadsIndex::class)
+        ->assertSee('Oyelaran')
+        // The enum's own label, rather than a blank chip that hides the record.
+        ->assertSee('Nurturing');
+});
+
 // -- What an enum-backed module may not do ------------------------------------
 
 test('an enum backed module refuses a stage key it does not recognise', function () {

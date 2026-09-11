@@ -48,6 +48,7 @@ use App\Livewire\Users\InviteUser;
 use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UsersIndex;
 use App\Livewire\Workflows\WorkflowBuilder;
+use App\Livewire\Workflows\WorkflowRunsIndex;
 use App\Livewire\Workflows\WorkflowsIndex;
 use Illuminate\Support\Facades\Route;
 
@@ -129,6 +130,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/approvals', ApprovalsIndex::class)->name('approvals.index');
 
     Route::get('/workflows', WorkflowsIndex::class)->name('workflows.index');
+    // Before /workflows/{workflow}/edit, so "log" is never taken for an id.
+    Route::get('/workflows/log', WorkflowRunsIndex::class)->name('workflows.log');
     Route::get('/workflows/create', WorkflowBuilder::class)->name('workflows.create');
     Route::get('/workflows/{workflow}/edit', WorkflowBuilder::class)->name('workflows.edit');
 

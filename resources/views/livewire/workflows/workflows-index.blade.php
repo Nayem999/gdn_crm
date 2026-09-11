@@ -18,6 +18,17 @@
                 />
             </div>
 
+            @can('viewLog', App\Domain\Workflows\Models\Workflow::class)
+                <a
+                    href="{{ route('workflows.log') }}"
+                    wire:navigate
+                    class="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                    <x-icon name="lucide-scroll-text" />
+                    Log
+                </a>
+            @endcan
+
             @can('create', App\Domain\Workflows\Models\Workflow::class)
                 <a
                     href="{{ route('workflows.create') }}"

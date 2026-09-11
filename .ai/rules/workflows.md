@@ -1,10 +1,14 @@
 ---
 paths:
   - 'app/Domain/Workflows/**'
+  - 'app/Domain/Approvals/**'
   - 'app/Livewire/Workflows/**'
+  - 'app/Livewire/Approvals/**'
   - 'app/Jobs/RunWorkflow.php'
   - 'database/migrations/*workflow*.php'
+  - 'database/migrations/*approval*.php'
   - 'resources/views/livewire/workflows/**'
+  - 'resources/views/livewire/approvals/**'
 ---
 
 # Workflows
@@ -37,3 +41,15 @@ Three constraints every handler is built around. Keep them when adding an action
 **An outbound URL is an SSRF primitive.** `WebhookTarget` refuses anything but http/https and anything resolving to a private, loopback or link-local address — 169.254.0.0/16 first, because that is the cloud metadata service. Every resolved address is checked, not just the first, and the client does not follow redirects (a redirect turns a checked public address into an unchecked private one). Known gap, stated in the class: DNS rebinding, which needs the connection pinned to the checked address and belongs with 7.10.
 
 Handlers **return** `WorkflowStepOutcome`, they do not throw. `skipped` means there was nothing to do and that is fine (no address, nobody matched); `failed` means it should have worked. Getting that wrong puts a red row in the log every night for a rule that is simply not applicable, which buries the failures that matter.
+
+## A run pauses and resumes by position — approvals and retries share it
+`workflow_runs.resume_from_position` is the one mechanism behind two features, which is why it is not named after either:
+
+- **Approvals** (5.6): a `request_approval` step returns an outcome with `pauses: true`, the executor stops, records the position after that step, and marks the run `awaiting_approval`. Approving sets the run back to `pending` and re-dispatches the same job, so an approved workflow finishes exactly the way an unapproved one would have.
+- **Retry** (5.8): a failed run resumes from the position of the *first failed step*, never from zero. Repeating earlier steps would send a second email, make a second task, call a webhook twice — a retry that does the work twice is worse than one that does nothing.
+
+A paused run gets no `finished_at` and no `duration_ms`. A run waiting three days on a manager did not take three days to do its work, and recording that it did makes every timing figure meaningless. A retry restarts `started_at` for the same reason.
+
+Run steps are appended, never replaced, so both attempts stay in the log — "did this ever work" needs to see that it failed at nine and succeeded at ten.
+
+When adding a status to `WorkflowRunStatus`, check `isFinished()` and `isRetryable()`: `skipped` and `rejected` are finished and NOT failures (conditions not matching, or somebody saying no, is the workflow working), and `awaiting_approval` is the one non-terminal state that is not retryable — it needs a person, not another attempt.

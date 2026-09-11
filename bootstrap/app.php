@@ -17,6 +17,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AuthenticateSession::class,
         ]);
+
+        // The public capture form is embedded in an iframe on other people's
+        // sites, where the session cookie is a third-party cookie and browsers
+        // increasingly refuse to send it — so a CSRF token could not be checked
+        // even when one was issued. What stands in for it: the route is a
+        // random 32-character token, the only thing it can do is create a lead
+        // owned by whoever the form names, and it is rate limited, honeypotted
+        // and timed. Nothing else in the application is exempt.
+        $middleware->validateCsrfTokens(except: [
+            'f/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -4,6 +4,7 @@ use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Domain\Shared\Imports\ImportRegistry;
 use App\Http\Controllers\DownloadDocument;
+use App\Http\Controllers\LeadCaptureController;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -26,6 +27,7 @@ use App\Livewire\Deals\PipelineForm;
 use App\Livewire\Deals\PipelinesIndex;
 use App\Livewire\Duplicates\MergeRecords;
 use App\Livewire\Imports\ImportRecords;
+use App\Livewire\Leads\LeadCaptureForms;
 use App\Livewire\Leads\LeadConvert;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadScoringRules;
@@ -45,6 +47,24 @@ use App\Livewire\Users\InviteUser;
 use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UsersIndex;
 use Illuminate\Support\Facades\Route;
+
+/**
+ * The public lead capture form — the only unauthenticated write path here.
+ *
+ * Rate limited per IP, because the honeypot and the timing check are signals a
+ * determined script can eventually satisfy and a throttle is the one that
+ * answers before any work is done. Not in the auth group, and deliberately
+ * CSRF-exempt: it is embedded in an iframe on other people's sites, where a
+ * session cookie is a third-party cookie and cannot be relied on. See
+ * bootstrap/app.php.
+ */
+Route::get('/f/{token}', [LeadCaptureController::class, 'show'])
+    ->middleware('throttle:30,1')
+    ->name('lead-capture.show');
+
+Route::post('/f/{token}', [LeadCaptureController::class, 'submit'])
+    ->middleware('throttle:10,1')
+    ->name('lead-capture.submit');
 
 Route::get('/invitations/{token}', AcceptInvitation::class)
     ->middleware('guest')
@@ -133,6 +153,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 
     Route::get('/settings/lead-scoring', LeadScoringRules::class)->name('settings.lead-scoring');
+    Route::get('/settings/lead-forms', LeadCaptureForms::class)->name('settings.lead-forms');
 
     Route::get('/settings/custom-fields', CustomFieldsIndex::class)->name('settings.custom-fields');
     Route::get('/settings/custom-modules', CustomModulesIndex::class)->name('settings.custom-modules');

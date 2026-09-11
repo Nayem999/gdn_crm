@@ -20,6 +20,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | * | .ai/rules/general.md |
 | app/Domain/Shared/Imports/**, app/Domain/Shared/Actions/RunImportAction.php, app/Domain/Shared/Models/ImportRun.php, app/Domain/*/[A-Z]*ImportSource.php, app/Livewire/Imports/**, app/Jobs/RunImport.php, resources/views/livewire/imports/** | .ai/rules/imports.md |
 | resources/views/components/layouts/** | .ai/rules/layouts.md |
+| app/Domain/Leads/Capture/**, app/Domain/Leads/Actions/SubmitLeadCaptureAction.php, app/Http/Controllers/LeadCaptureController.php, resources/views/lead-capture/** | .ai/rules/lead-capture.md |
 | app/Domain/Leads/**, app/Livewire/Leads/**, app/Jobs/RescoreLeads.php, database/seeders/LeadScoringRulesSeeder.php, resources/views/livewire/leads/** | .ai/rules/leads.md |
 | app/Livewire/** | .ai/rules/livewire.md |
 | database/migrations/** | .ai/rules/migrations.md |

@@ -93,6 +93,10 @@ final class PermissionCatalogue
                     // Configuring how every lead is scored is administration,
                     // not lead work, so it stands apart from leads.update.
                     'leads.scoring' => 'Configure lead scoring and qualification rules',
+                    // Its own permission: a capture form opens a write path
+                    // into the CRM from the internet, which is a different
+                    // thing from being allowed to type a lead in.
+                    'leads.forms' => 'Configure public lead capture forms',
                 ],
             ],
             'deals' => [

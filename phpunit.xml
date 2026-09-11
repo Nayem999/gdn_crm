@@ -18,6 +18,14 @@
         </include>
     </source>
     <php>
+        <!--
+            The whole suite runs in one process, so peak memory is the sum of
+            everything it has touched; PHP's 128M default stopped being enough
+            somewhere in phase 4 and failed as a fatal mid-run rather than as a
+            test failure. Pinned here so `php artisan test` works without
+            anybody having to know that.
+        -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_URL" value="http://localhost"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

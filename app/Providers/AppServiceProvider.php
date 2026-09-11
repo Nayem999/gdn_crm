@@ -27,7 +27,9 @@ use App\Domain\Deals\PipelineStatusCache;
 use App\Domain\Deals\Policies\DealPolicy;
 use App\Domain\Deals\Policies\PipelinePolicy;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadCaptureForm;
 use App\Domain\Leads\Models\LeadScoringRule;
+use App\Domain\Leads\Policies\LeadCaptureFormPolicy;
 use App\Domain\Leads\Policies\LeadPolicy;
 use App\Domain\Leads\Policies\LeadScoringRulePolicy;
 use App\Domain\Notifications\ChannelManager;
@@ -101,6 +103,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CustomModule::class, CustomModulePolicy::class);
         Gate::policy(CustomRecord::class, CustomRecordPolicy::class);
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
+        Gate::policy(LeadCaptureForm::class, LeadCaptureFormPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
         // Both ask the subject record's own policy before answering, so a note

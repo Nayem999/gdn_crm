@@ -58,6 +58,7 @@ final class SettingsNavigation
                 'label' => 'Modules',
                 'items' => [
                     ['label' => 'Lead scoring', 'icon' => 'gauge', 'route' => 'settings.lead-scoring', 'params' => [], 'permission' => 'leads.scoring'],
+                    ['label' => 'Lead capture forms', 'icon' => 'clipboard-list', 'route' => 'settings.lead-forms', 'params' => [], 'permission' => 'leads.forms'],
                     ['label' => 'Pipelines', 'icon' => 'git-branch', 'route' => 'settings.pipelines', 'params' => [], 'permission' => 'deals.pipelines'],
                     ['label' => 'Custom fields', 'icon' => 'sliders-horizontal', 'route' => 'settings.custom-fields', 'params' => [], 'permission' => 'custom-fields.view'],
                     ['label' => 'Custom modules', 'icon' => 'box', 'route' => 'settings.custom-modules', 'params' => [], 'permission' => 'custom-modules.configure'],

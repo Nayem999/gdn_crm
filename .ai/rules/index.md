@@ -11,6 +11,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | resources/views/components/select.blade.php, resources/views/components/status-chip.blade.php | .ai/rules/components.md |
 | config/fortify.php | .ai/rules/config.md |
 | app/Domain/Contacts/**, app/Livewire/Contacts/**, resources/views/livewire/contacts/** | .ai/rules/contacts.md |
+| app/Domain/CustomFields/**, app/Livewire/CustomFields/**, resources/views/livewire/custom-fields/** | .ai/rules/custom-fields.md |
 | app/Domain/Dashboard/**, app/Livewire/Dashboard/**, resources/views/dashboard.blade.php, resources/views/livewire/dashboard/** | .ai/rules/dashboard.md |
 | app/Domain/Shared/Concerns/**, app/Domain/Shared/DataView/**, app/Domain/Shared/Filters/**, app/Domain/Shared/Exports/**, app/Jobs/GenerateDataViewExport.php, resources/views/components/data-view.blade.php, resources/views/components/data-view/**, resources/views/components/filter-builder*, resources/views/components/column-manager.blade.php, resources/views/components/export-menu.blade.php | .ai/rules/data-view.md |
 | app/Domain/Deals/Models/Deal.php, app/Domain/Deals/Models/DealStageEntry.php, app/Domain/Deals/Concerns/TracksStageHistory.php, app/Domain/Deals/Actions/{CreateDeal,UpdateDeal,DeleteDeal,MoveDealStage,CloseDeal}Action.php, app/Domain/Deals/DTOs/DealData.php, app/Domain/Deals/DealFields.php, app/Domain/Deals/DealExportSource.php, app/Domain/Deals/Enums/DealCloseReason.php, app/Livewire/Deals/Deal*.php, resources/views/livewire/deals/deal*.blade.php | .ai/rules/deals.md |

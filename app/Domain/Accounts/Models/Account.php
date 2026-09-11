@@ -6,6 +6,7 @@ use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Domain\Timeline\Concerns\HasTimeline;
@@ -47,6 +48,8 @@ use Illuminate\Support\Collection;
  */
 class Account extends Model
 {
+    use HasCustomFields;
+
     /** @use HasFactory<AccountFactory> */
     use HasFactory;
 

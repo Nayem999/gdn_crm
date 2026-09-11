@@ -15,6 +15,7 @@ use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
 use App\Livewire\Contacts\ContactsIndex;
+use App\Livewire\CustomFields\CustomFieldsIndex;
 use App\Livewire\Deals\DealForm;
 use App\Livewire\Deals\DealShow;
 use App\Livewire\Deals\DealsIndex;
@@ -122,6 +123,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/roles/{role}/edit', RoleForm::class)->name('settings.roles.edit');
 
     Route::get('/settings/lead-scoring', LeadScoringRules::class)->name('settings.lead-scoring');
+
+    Route::get('/settings/custom-fields', CustomFieldsIndex::class)->name('settings.custom-fields');
 
     Route::get('/settings/pipelines', PipelinesIndex::class)->name('settings.pipelines');
     Route::get('/settings/pipelines/create', PipelineForm::class)->name('settings.pipelines.create');

@@ -6,6 +6,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Deals\Concerns\TracksStageHistory;
 use App\Domain\Deals\DealFields;
 use App\Domain\Deals\Enums\DealCloseReason;
@@ -48,6 +49,8 @@ use Illuminate\Support\Carbon;
  */
 class Deal extends Model
 {
+    use HasCustomFields;
+
     /** @use HasFactory<DealFactory> */
     use HasFactory;
 

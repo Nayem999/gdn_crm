@@ -128,6 +128,18 @@ final class PermissionCatalogue
                     'activities.export' => 'Export activities',
                 ],
             ],
+            'custom-fields' => [
+                'label' => 'Custom fields',
+                'icon' => 'sliders-horizontal',
+                'permissions' => [
+                    'custom-fields.view' => 'View the custom fields configured for each module',
+                    // Defining a field changes what every record in a module can
+                    // hold, so it is one administrative permission rather than a
+                    // create/update/delete trio. Answering a field needs nothing
+                    // extra: the record's own policy governs that.
+                    'custom-fields.manage' => 'Add, change and remove custom fields',
+                ],
+            ],
             'contacts' => [
                 'label' => 'Contacts',
                 'icon' => 'contact',

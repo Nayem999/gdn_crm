@@ -13,6 +13,8 @@ use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Contacts\Policies\ContactPolicy;
+use App\Domain\CustomFields\Models\CustomField;
+use App\Domain\CustomFields\Policies\CustomFieldPolicy;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Deals\Policies\DealPolicy;
@@ -81,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Lead::class, LeadPolicy::class);
         Gate::policy(Deal::class, DealPolicy::class);
         Gate::policy(Pipeline::class, PipelinePolicy::class);
+        Gate::policy(CustomField::class, CustomFieldPolicy::class);
         Gate::policy(LeadScoringRule::class, LeadScoringRulePolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);

@@ -9,6 +9,7 @@ use App\Domain\Activities\Enums\ActivityStatus;
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Enums\RecurrenceFrequency;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Models\User;
 use Database\Factories\ActivityFactory;
@@ -56,6 +57,8 @@ use Illuminate\Support\Carbon;
  */
 class Activity extends Model
 {
+    use HasCustomFields;
+
     /** @use HasFactory<ActivityFactory> */
     use HasFactory;
 

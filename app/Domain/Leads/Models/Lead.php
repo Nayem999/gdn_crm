@@ -6,6 +6,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadGrade;
 use App\Domain\Leads\Enums\LeadSource;
@@ -58,6 +59,8 @@ use Illuminate\Support\Carbon;
  */
 class Lead extends Model
 {
+    use HasCustomFields;
+
     /** @use HasFactory<LeadFactory> */
     use HasFactory;
 

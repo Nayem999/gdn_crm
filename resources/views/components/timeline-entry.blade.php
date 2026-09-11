@@ -99,6 +99,43 @@
             @if ($entry->body)
                 <p class="mt-1.5 text-sm text-muted-foreground">{{ $entry->body }}</p>
             @endif
+        @elseif ($entry->isActivity())
+            @php($scheduled = $entry->scheduled)
+            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border p-3 text-sm">
+                <span class="flex items-center gap-1.5 text-foreground">
+                    <x-icon name="lucide-clock" class="h-3.5 w-3.5 text-muted-foreground" />
+                    <span class="tabular-nums">{{ $entry->occurredLabel() }}</span>
+                </span>
+
+                @if ($scheduled?->location)
+                    <span class="flex items-center gap-1.5 text-muted-foreground">
+                        <x-icon name="lucide-map-pin" class="h-3.5 w-3.5" />
+                        {{ $scheduled->location }}
+                    </span>
+                @endif
+
+                <span class="{{ ChipPalette::BASE }} {{ ChipPalette::classes($scheduled?->status()->color()) }}">
+                    {{ $scheduled?->status()->label() }}
+                </span>
+
+                @if ($scheduled?->isOverdue())
+                    <span class="{{ ChipPalette::BASE }} {{ ChipPalette::classes('rose') }}">Overdue</span>
+                @endif
+
+                @if ($scheduled && (auth()->user()?->can('update', $scheduled) ?? false))
+                    <a
+                        href="{{ route('activities.edit', $scheduled->id) }}"
+                        wire:navigate
+                        class="ml-auto text-xs font-medium text-accent hover:underline"
+                    >{{-- Not "Open": the status chip beside it already says
+                         that, and the two together read as "Open Open". --}}
+                        View activity</a>
+                @endif
+            </div>
+
+            @if ($entry->body)
+                <p class="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">{{ $entry->body }}</p>
+            @endif
         @elseif ($entry->changes !== [])
             <dl class="mt-2 space-y-1">
                 @foreach ($entry->changes as $attribute => $change)

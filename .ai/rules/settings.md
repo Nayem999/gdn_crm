@@ -3,8 +3,10 @@ paths:
   - 'app/Domain/Settings/**'
   - 'app/Livewire/Settings/**'
   - 'resources/views/livewire/settings/**'
-  - 'resources/views/components/settings-shell.blade.php'
-  - 'resources/views/components/form/secret.blade.php'
+  - resources/views/components/settings-shell.blade.php
+  - resources/views/components/form/secret.blade.php
+  - app/Domain/Settings/DisplayTime.php
+  - app/Domain/Settings/SettingField.php
 ---
 
 # Settings
@@ -64,3 +66,17 @@ first interaction on the page. Every settings screen passes its own.
 `landingRouteFor()` gives the sidebar the first page the viewer can actually
 open — the sidebar link is hidden entirely when there is none, rather than
 pointing at a guaranteed 403.
+
+## Stored time is UTC; the company timezone is a display timezone
+`app.timezone` is UTC and every datetime column holds UTC. The timezone on the company profile is what the **office reads**, and until 3.6 nothing connected the two — the same gap the `localisation.date_format` / `time_format` / `week_starts_on` settings had.
+
+`DisplayTime` is the only place that converts. `display()` takes a stored moment to the office clock, `store()` takes what somebody typed back. Do not call `setTimezone` anywhere else, and do not compare a stored value against a displayed one.
+
+The consequence worth knowing: a task stored at 23:30 UTC is *tomorrow* in Dhaka. So a calendar window is chosen in display terms and converted before it hits SQL (`CalendarPeriod::from()`/`to()`), never queried as though the stored day and the displayed day were the same. Changing the company timezone moves every existing row's apparent time by the offset; that is inherent to having a display timezone at all, not a bug.
+
+## A select whose values are numbers must be an Integer field
+PHP turns a numeric array key into an int however it was quoted, so `SettingField::select('x', 'X', ['30' => '30 minutes'])` produces int keys. A `SettingType::String` field's own `string` rule then rejects the very options it offers, and `Rule::in(array_keys(...))` carries ints into a string field.
+
+Use `SettingField::numberSelect()` for those — it declares `SettingType::Integer`, so the rules pass and `settings()` hands back an int rather than a string somebody has to cast.
+
+`SettingsFrameworkTest`'s "every select option passes its own rules" is what catches this; it found both scheduling fields the moment they were added. The same int-key trap applies to `FilterField::select()` options and to any enum `options()` map keyed by a numeric value — see [[activities]] on ActivityPriority.

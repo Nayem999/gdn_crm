@@ -49,6 +49,8 @@
                     <span class="tabular-nums opacity-70">{{ $page->noteCount }}</span>
                 @elseif ($kind->value === 'document' && $page->documentCount > 0)
                     <span class="tabular-nums opacity-70">{{ $page->documentCount }}</span>
+                @elseif ($kind->value === 'activity' && $page->activityCount > 0)
+                    <span class="tabular-nums opacity-70">{{ $page->activityCount }}</span>
                 @endif
             </button>
         @endforeach

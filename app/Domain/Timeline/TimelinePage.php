@@ -15,6 +15,7 @@ final readonly class TimelinePage
         public bool $hasMore,
         public int $noteCount,
         public int $documentCount,
+        public int $activityCount = 0,
     ) {}
 
     public function isEmpty(): bool

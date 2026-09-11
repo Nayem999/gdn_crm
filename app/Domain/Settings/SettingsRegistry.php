@@ -59,6 +59,45 @@ final class SettingsRegistry
                     ], 'dot'),
                 ],
             ],
+            'scheduling' => [
+                'label' => 'Scheduling',
+                'icon' => 'calendar-clock',
+                'description' => 'The working week meetings are booked into, and how long a slot is.',
+                'fields' => [
+                    // A preset rather than seven checkboxes: a setting field is
+                    // one typed value, and "which days" is a shape the registry
+                    // does not carry. The presets cover the working weeks people
+                    // actually keep.
+                    SettingField::select('working_week', 'Working week', [
+                        'mon_fri' => 'Monday to Friday',
+                        'mon_sat' => 'Monday to Saturday',
+                        'sun_thu' => 'Sunday to Thursday',
+                        'sat_wed' => 'Saturday to Wednesday',
+                        'all' => 'Every day',
+                    ], 'mon_fri'),
+                    new SettingField('day_starts_at', 'Working day starts', SettingType::String,
+                        default: '09:00', help: '24-hour time, e.g. 09:00.', extraRules: 'date_format:H:i'),
+                    new SettingField('day_ends_at', 'Working day ends', SettingType::String,
+                        default: '17:30', help: '24-hour time, e.g. 17:30.', extraRules: 'date_format:H:i'),
+                    // Integer rather than string selects: the keys of a map
+                    // written with numeric labels are ints however they are
+                    // quoted, and a String field's own "string" rule then
+                    // rejects its own options — which the settings framework's
+                    // guard test catches.
+                    SettingField::numberSelect('slot_minutes', 'Booking slots every', [
+                        15 => '15 minutes',
+                        30 => '30 minutes',
+                        60 => 'Hour',
+                    ], 30),
+                    SettingField::numberSelect('default_meeting_minutes', 'Default meeting length', [
+                        15 => '15 minutes',
+                        30 => '30 minutes',
+                        45 => '45 minutes',
+                        60 => '1 hour',
+                        90 => '1 hour 30 minutes',
+                    ], 30),
+                ],
+            ],
             'notifications' => [
                 'label' => 'Notification limits',
                 'icon' => 'bell',

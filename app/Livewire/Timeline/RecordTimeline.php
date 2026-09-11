@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -123,6 +124,24 @@ class RecordTimeline extends Component
     // -- Reading --------------------------------------------------------------
 
     /**
+     * The strands this viewer may see at all.
+     *
+     * Activities are a module of their own, with their own permission: someone
+     * who may read an account but not its calls gets no chip for them, and the
+     * builder leaves the strand out regardless of what the chip state says.
+     *
+     * @return array<int, TimelineEntryKind>
+     */
+    public function availableKinds(): array
+    {
+        return array_values(array_filter(
+            TimelineEntryKind::cases(),
+            fn (TimelineEntryKind $kind): bool => $kind !== TimelineEntryKind::Activity
+                || $this->currentUser()->can('activities.view'),
+        ));
+    }
+
+    /**
      * @return array<int, TimelineEntryKind>
      */
     public function selectedKinds(): array
@@ -146,6 +165,7 @@ class RecordTimeline extends Component
             $this->subject(),
             $this->visible,
             $this->selectedKinds(),
+            $this->currentUser(),
         );
     }
 
@@ -178,6 +198,20 @@ class RecordTimeline extends Component
     public function loadMore(): void
     {
         $this->visible += self::PAGE_SIZE;
+    }
+
+    /**
+     * Something elsewhere on the page added to this record's timeline.
+     *
+     * A named event rather than Livewire's magic `$refresh`: the page can hold
+     * several components, and this says which of them is meant to re-read. The
+     * booking modal is the first to fire it; anything later that writes a
+     * strand entry should fire the same one.
+     */
+    #[On('timeline-changed')]
+    public function timelineChanged(): void
+    {
+        $this->visible = self::PAGE_SIZE;
     }
 
     // -- Notes ----------------------------------------------------------------
@@ -371,7 +405,7 @@ class RecordTimeline extends Component
     {
         return view('livewire.timeline.record-timeline', [
             'page' => $this->page(),
-            'filterKinds' => TimelineEntryKind::cases(),
+            'filterKinds' => $this->availableKinds(),
             'canAddNote' => $this->canAddNote(),
             'canAttach' => $this->canAttach(),
         ]);

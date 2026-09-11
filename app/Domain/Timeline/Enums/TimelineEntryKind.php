@@ -3,15 +3,20 @@
 namespace App\Domain\Timeline\Enums;
 
 /**
- * The three things a record's timeline is made of.
+ * The four things a record's timeline is made of.
  *
  * The filter on the timeline is this enum, so a value arriving from the browser
  * either resolves to a case or is ignored — it never becomes a table name.
+ *
+ * `Activity` here is a scheduled task, call or meeting — 3.5's module, not
+ * spatie's audit entry, which is `History`. The two words collide throughout
+ * this codebase; see .ai/rules/activities.md.
  */
 enum TimelineEntryKind: string
 {
     case Note = 'note';
     case Document = 'document';
+    case Activity = 'activity';
     case History = 'history';
 
     public function label(): string
@@ -19,6 +24,7 @@ enum TimelineEntryKind: string
         return match ($this) {
             self::Note => 'Note',
             self::Document => 'Document',
+            self::Activity => 'Activity',
             self::History => 'History',
         };
     }
@@ -32,6 +38,7 @@ enum TimelineEntryKind: string
         return match ($this) {
             self::Note => 'Notes',
             self::Document => 'Documents',
+            self::Activity => 'Activities',
             self::History => 'History',
         };
     }
@@ -41,6 +48,7 @@ enum TimelineEntryKind: string
         return match ($this) {
             self::Note => 'lucide-message-square-text',
             self::Document => 'lucide-paperclip',
+            self::Activity => 'lucide-calendar-clock',
             self::History => 'lucide-history',
         };
     }
@@ -50,6 +58,9 @@ enum TimelineEntryKind: string
         return match ($this) {
             self::Note => 'amber',
             self::Document => 'cyan',
+            // The module's own colour, so a meeting reads the same here as it
+            // does on the calendar and in the navigation.
+            self::Activity => 'violet',
             self::History => 'slate',
         };
     }

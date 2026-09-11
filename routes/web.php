@@ -10,6 +10,7 @@ use App\Livewire\Accounts\AccountsIndex;
 use App\Livewire\Activities\ActivitiesIndex;
 use App\Livewire\Activities\ActivityForm;
 use App\Livewire\Audit\ActivityLogIndex;
+use App\Livewire\Calendar\ActivityCalendar;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
@@ -65,6 +66,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/activities', ActivitiesIndex::class)->name('activities.index');
     Route::get('/activities/create', ActivityForm::class)->name('activities.create');
     Route::get('/activities/{activity}/edit', ActivityForm::class)->name('activities.edit');
+
+    // Its own screen rather than a fifth mode of the list: a calendar has no
+    // pager and reads a window chosen on the office clock, not the stored one.
+    Route::get('/calendar', ActivityCalendar::class)->name('calendar');
 
     Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');

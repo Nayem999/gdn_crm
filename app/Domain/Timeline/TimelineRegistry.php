@@ -84,6 +84,10 @@ final class TimelineRegistry
         return [
             ['table' => 'notes', 'column' => 'notable_id', 'where' => ['notable_type' => $morphClass]],
             ['table' => 'documents', 'column' => 'documentable_id', 'where' => ['documentable_type' => $morphClass]],
+            // Activities are the timeline's fourth strand but they are *not*
+            // listed here: ActivityRelations::inboundRelations() already
+            // declares them, and every duplicate source spreads both. Declaring
+            // them twice would move the same rows twice on every merge.
         ];
     }
 

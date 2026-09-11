@@ -213,6 +213,22 @@
             </section>
             {{-- The record's own history, keyed so switching records rebuilds
                  it rather than showing the previous one's entries. --}}
+            {{-- Booking sits above the timeline: it is the thing people come
+                 to a record to do, and the meeting it creates appears in the
+                 strand directly below it.
+
+                 Not offered on a merged record. Its page stays readable so its
+                 history survives, but the live record is the one to book with,
+                 and the picker resolves through a query that — rightly — does
+                 not return soft-deleted rows. --}}
+            @unless ($account->trashed())
+                <livewire:activities.book-meeting
+                    :module="'accounts'"
+                    :record="$account->id"
+                    :key="'book-accounts-'.$account->id"
+                />
+            @endunless
+
             <livewire:timeline.record-timeline
                 :module="'accounts'"
                 :record="$account->id"

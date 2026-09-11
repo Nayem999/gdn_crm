@@ -86,7 +86,10 @@ class ActivityFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'all_day' => true,
-            'due_at' => Carbon::parse((string) ($due ?? $attributes['due_at']))->startOfDay(),
+            // No string cast: the definition's due_at is a DateTime from faker,
+            // and casting one to a string is a fatal error — so allDay() with
+            // no argument of its own used to crash. Carbon::parse takes either.
+            'due_at' => Carbon::parse($due ?? $attributes['due_at'])->startOfDay(),
         ]);
     }
 

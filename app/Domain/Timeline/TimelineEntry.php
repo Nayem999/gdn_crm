@@ -2,7 +2,9 @@
 
 namespace App\Domain\Timeline;
 
+use App\Domain\Activities\Models\Activity as ScheduledActivity;
 use App\Domain\Audit\ActivityPresenter;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Timeline\Enums\TimelineEntryKind;
 use App\Domain\Timeline\Models\Document;
 use App\Domain\Timeline\Models\Note;
@@ -32,6 +34,7 @@ final readonly class TimelineEntry
         public array $changes = [],
         public ?Note $note = null,
         public ?Document $document = null,
+        public ?ScheduledActivity $scheduled = null,
     ) {}
 
     public static function fromNote(Note $note): self
@@ -68,6 +71,34 @@ final readonly class TimelineEntry
         );
     }
 
+    /**
+     * A scheduled task, call or meeting.
+     *
+     * Its moment is **when it is due**, not when it was written down. A record's
+     * timeline is read as "what is going on with this account", and a call
+     * booked for Thursday belongs on Thursday — which does mean an upcoming
+     * appointment sits above today at the top of a newest-first list. That is
+     * the point: the next thing due is the thing somebody needs to see.
+     */
+    public static function fromScheduledActivity(ScheduledActivity $activity): self
+    {
+        $owner = $activity->owner;
+
+        return new self(
+            kind: TimelineEntryKind::Activity,
+            id: $activity->id,
+            occurredAt: $activity->due_at,
+            title: $activity->type()->label().': '.$activity->subject,
+            body: $activity->description,
+            actor: $owner,
+            color: $activity->type()->color(),
+            scheduled: $activity,
+        );
+    }
+
+    /**
+     * An audit entry — spatie's Activity, not the scheduled kind above.
+     */
     public static function fromActivity(Activity $activity): self
     {
         /** @var User|null $causer */
@@ -113,8 +144,9 @@ final readonly class TimelineEntry
     public function sortKey(): string
     {
         $rank = match ($this->kind) {
-            TimelineEntryKind::Note => 2,
-            TimelineEntryKind::Document => 1,
+            TimelineEntryKind::Note => 3,
+            TimelineEntryKind::Document => 2,
+            TimelineEntryKind::Activity => 1,
             TimelineEntryKind::History => 0,
         };
 
@@ -133,8 +165,22 @@ final readonly class TimelineEntry
         return $this->kind === TimelineEntryKind::Document;
     }
 
+    public function isActivity(): bool
+    {
+        return $this->kind === TimelineEntryKind::Activity;
+    }
+
     public function isHistory(): bool
     {
         return $this->kind === TimelineEntryKind::History;
+    }
+
+    /**
+     * When it happened, as the office reads it. The calendar and the timeline
+     * must not disagree about which day a meeting is on.
+     */
+    public function occurredLabel(): string
+    {
+        return DisplayTime::dateTime($this->occurredAt);
     }
 }

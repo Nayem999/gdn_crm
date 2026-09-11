@@ -14,7 +14,11 @@ readonly class SettingField
 {
     /**
      * @param  string  $key  The name within its group, e.g. "s3_key".
-     * @param  array<string, string>  $options  Choices, for a select field.
+     * @param  array<array-key, string>  $options  Choices, for a select field.
+     *                                             Keyed by the stored value,
+     *                                             which is an int wherever that
+     *                                             value is numeric — PHP will
+     *                                             not hold "30" as a string key.
      */
     public function __construct(
         public string $key,
@@ -70,10 +74,24 @@ readonly class SettingField
     }
 
     /**
-     * @param  array<string, string>  $options
+     * @param  array<array-key, string>  $options
      */
     public static function select(string $key, string $label, array $options, mixed $default = null, ?string $help = null): self
     {
         return new self($key, $label, SettingType::String, default: $default, help: $help, options: $options, required: true);
+    }
+
+    /**
+     * A select whose values are numbers.
+     *
+     * It has to declare itself Integer: PHP turns a numeric array key into an
+     * int whatever it was written as, so a String field's own "string" rule
+     * would reject the very options it offers.
+     *
+     * @param  array<int, string>  $options
+     */
+    public static function numberSelect(string $key, string $label, array $options, ?int $default = null, ?string $help = null): self
+    {
+        return new self($key, $label, SettingType::Integer, default: $default, help: $help, options: $options, required: true);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Domain\CustomFields\Actions;
 
+use App\Domain\CustomFields\CustomFieldSchema;
 use App\Domain\CustomFields\Models\CustomField;
 
 /**
@@ -16,5 +17,11 @@ class DeleteCustomFieldAction
     public function __invoke(CustomField $field): void
     {
         $field->delete();
+
+        // The definitions are memoised per request (CustomFieldSchema), and a
+        // field added, hidden or reordered has to show up on the very next
+        // render rather than eventually.
+        app(CustomFieldSchema::class)->flush();
+
     }
 }

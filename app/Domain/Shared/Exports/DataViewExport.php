@@ -2,6 +2,8 @@
 
 namespace App\Domain\Shared\Exports;
 
+use App\Domain\CustomFields\Concerns\HasCustomFields;
+use App\Domain\CustomFields\CustomFieldColumns;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -27,7 +29,13 @@ class DataViewExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMap
      */
     public function query(): Builder
     {
-        return $this->source->exportQuery($this->request);
+        $query = $this->source->exportQuery($this->request);
+
+        if (in_array(HasCustomFields::class, class_uses_recursive($query->getModel()), true)) {
+            $query->with('customFieldValues');
+        }
+
+        return $query;
     }
 
     /**
@@ -44,6 +52,19 @@ class DataViewExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMap
      */
     public function map($row): array
     {
-        return $this->source->exportRow($row, $this->request);
+        $cells = $this->source->exportRow($row, $this->request);
+
+        // Custom field cells are filled here rather than in each module's
+        // exportRow: the source has no attribute to read for them and would
+        // return null, and doing it once is what stops one module quietly
+        // exporting a blank column. Positional, because a row is an ordered
+        // array matching the requested column keys.
+        foreach ($this->request->columnKeys() as $index => $key) {
+            if (CustomFieldColumns::isCustom($key)) {
+                $cells[$index] = CustomFieldColumns::exportValue($row, $key);
+            }
+        }
+
+        return $cells;
     }
 }

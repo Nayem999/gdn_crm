@@ -25,6 +25,17 @@ readonly class FilterField
         public FilterFieldType $type = FilterFieldType::Text,
         public array $options = [],
         public ?string $column = null,
+        /**
+         * Set when this field is a custom field (4.1), whose answers live in
+         * `custom_field_values` rather than on the model's own table. The
+         * applier reaches them through an EXISTS subquery — see
+         * FilterApplier::applyCustomField.
+         */
+        public ?int $customFieldId = null,
+        /** Which value_* column that field's type is stored in. */
+        public ?string $customFieldColumn = null,
+        /** Whether the answer is a list, which is a containment test. */
+        public bool $customFieldIsList = false,
     ) {}
 
     /**
@@ -33,6 +44,14 @@ readonly class FilterField
     public function column(): string
     {
         return $this->column ?? $this->key;
+    }
+
+    /**
+     * Whether this field's answers live in `custom_field_values`.
+     */
+    public function isCustomField(): bool
+    {
+        return $this->customFieldId !== null && $this->customFieldColumn !== null;
     }
 
     public static function text(string $key, string $label, ?string $column = null): self

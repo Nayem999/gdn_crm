@@ -139,6 +139,11 @@
             </div>
         </section>
 
+        {{-- The fields an administrator has added to this module. Renders
+             nothing at all until there are some, so a module with none looks
+             exactly as it did before custom fields existed. --}}
+        <x-custom-fields :form="$this" />
+
         <div class="flex items-center gap-2">
             <x-button type="submit" wire:loading.attr="disabled" wire:target="save">
                 <x-icon name="lucide-check" class="h-4 w-4" />

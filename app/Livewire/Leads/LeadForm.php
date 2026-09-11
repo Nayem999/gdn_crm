@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leads;
 
+use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
@@ -28,6 +29,7 @@ class LeadForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCustomFieldForm;
 
     #[Locked]
     public ?int $leadId = null;
@@ -68,6 +70,14 @@ class LeadForm extends Component
 
     public ?string $owner_id = null;
 
+    /**
+     * The module whose custom fields this form shows.
+     */
+    public function customFieldModule(): string
+    {
+        return 'leads';
+    }
+
     public function mount(?Lead $lead = null): void
     {
         if ($lead?->exists) {
@@ -75,6 +85,7 @@ class LeadForm extends Component
 
             $this->leadId = $lead->id;
             $this->fillFrom($lead);
+            $this->loadCustomFields($lead);
 
             return;
         }
@@ -82,6 +93,7 @@ class LeadForm extends Component
         $this->authorize('create', Lead::class);
 
         $this->owner_id = (string) auth()->id();
+        $this->loadCustomFields();
     }
 
     public function lead(): ?Lead
@@ -162,11 +174,13 @@ class LeadForm extends Component
             : $this->authorize('update', $lead);
 
         $this->validate();
+        $this->validateCustomFields($this->customFieldViewer());
 
         $data = LeadData::fromArray($this->formFields());
 
         if ($lead === null) {
             $created = app(CreateLeadAction::class)($data, auth()->user());
+            $created->saveCustomFields($this->customFields);
 
             session()->flash('status', $created->fullName().' was captured.');
 
@@ -176,6 +190,7 @@ class LeadForm extends Component
         }
 
         app(UpdateLeadAction::class)($lead, $data);
+        $lead->saveCustomFields($this->customFields);
 
         session()->flash('status', $lead->fullName().' was saved.');
 

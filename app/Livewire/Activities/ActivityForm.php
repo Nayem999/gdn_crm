@@ -13,6 +13,7 @@ use App\Domain\Activities\Enums\ActivityPriority;
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Enums\RecurrenceFrequency;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +34,7 @@ use RuntimeException;
 class ActivityForm extends Component
 {
     use AuthorizesRequests;
+    use WithCustomFieldForm;
 
     /**
      * How many rows one page of the record picker returns.
@@ -95,6 +97,14 @@ class ActivityForm extends Component
 
     public ?string $owner_id = null;
 
+    /**
+     * The module whose custom fields this form shows.
+     */
+    public function customFieldModule(): string
+    {
+        return 'activities';
+    }
+
     public function mount(?Activity $activity = null): void
     {
         if ($activity?->exists) {
@@ -131,6 +141,8 @@ class ActivityForm extends Component
                 $this->related_id = (string) $related->getKey();
             }
 
+            $this->loadCustomFields($activity);
+
             return;
         }
 
@@ -145,6 +157,8 @@ class ActivityForm extends Component
             $this->related_module = null;
             $this->related_id = null;
         }
+
+        $this->loadCustomFields();
     }
 
     public function activity(): ?Activity
@@ -293,6 +307,8 @@ class ActivityForm extends Component
             return;
         }
 
+        $this->validateCustomFields($user);
+
         $data = ActivityData::fromArray([
             'type' => $this->type,
             'subject' => $this->subject,
@@ -323,6 +339,8 @@ class ActivityForm extends Component
 
             return;
         }
+
+        $saved->saveCustomFields($this->customFields);
 
         session()->flash('status', $saved->subject.' was saved.');
 

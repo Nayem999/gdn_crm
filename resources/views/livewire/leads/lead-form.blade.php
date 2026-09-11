@@ -171,6 +171,11 @@
             </div>
         </section>
 
+        {{-- The fields an administrator has added to this module. Renders
+             nothing at all until there are some, so a module with none looks
+             exactly as it did before custom fields existed. --}}
+        <x-custom-fields :form="$this" />
+
         <div class="flex flex-wrap items-center gap-3">
             <x-button type="submit" wire:loading.attr="disabled" wire:target="save">
                 <span wire:loading wire:target="save" class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>

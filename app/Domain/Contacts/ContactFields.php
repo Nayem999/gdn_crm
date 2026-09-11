@@ -3,6 +3,7 @@
 namespace App\Domain\Contacts;
 
 use App\Domain\Contacts\Enums\Department;
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
 
@@ -19,7 +20,7 @@ final class ContactFields
      */
     public static function columns(): array
     {
-        return [
+        return CustomFieldColumns::mergeColumns('contacts', [
             // Sorted by surname: "Dana Scully" is not a column, so sorting the
             // name column on first_name would surprise anyone scanning a list.
             new Column('name', 'Name', locked: true, sortColumn: 'last_name'),
@@ -34,7 +35,7 @@ final class ContactFields
             Column::optional('city', 'City'),
             Column::optional('country', 'Country'),
             Column::optional('created_at', 'Created'),
-        ];
+        ]);
     }
 
     /**
@@ -61,7 +62,11 @@ final class ContactFields
             $keyed[$field->key] = $field;
         }
 
-        return $keyed;
+        // Custom fields are appended here rather than at each call site,
+        // because this class is already the one thing the screen and the export
+        // both read — merging them anywhere else is how a field becomes
+        // filterable on screen and absent from a queued export.
+        return CustomFieldColumns::mergeFilters('contacts', $keyed);
     }
 
     /**

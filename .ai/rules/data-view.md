@@ -162,3 +162,12 @@ rebuild is actually needed.
 The panel is anchored `right-0`: the toolbar sits at the right edge of the list,
 and a left-anchored panel this wide runs off the viewport, taking the per-row
 remove buttons with it and forcing a page-wide horizontal scrollbar.
+
+## A custom field filters through EXISTS, and its negatives through NOT EXISTS
+`FilterField` carries `customFieldId`, `customFieldColumn` and `customFieldIsList` when the field is a custom one (4.1). `FilterApplier` then reaches the answer through a correlated EXISTS subquery on `custom_field_values`, scoped to that one field id — which comes from the screen's own registry, never from the request.
+
+The load-bearing part is the negatives. A record may have **no value row at all**, so `EXISTS(value NOT LIKE x)` silently drops every unanswered record and "does not contain" hides most of the list. Every negative operator is therefore expressed as `NOT EXISTS(the positive match)`: not_contains, not_equals, not_in, is_empty and is_false all go through the `NEGATIONS` map. That also gives the right answer for a checkbox nobody ticked — it counts as "no", matching what the non-custom branch already does for a NULL column.
+
+A multiselect is stored as a JSON list, so "is" and "is any of" are `JSON_CONTAINS` containment tests rather than comparisons. JSON_CONTAINS exists on both MySQL 8 and the MariaDB this project develops against.
+
+Note the pre-existing kit behaviour this sits on: an unknown operator or field is **dropped**, so the condition stops narrowing and the list returns everything. Get an operator's enum value wrong in a test and it will look like the filter matched too much.

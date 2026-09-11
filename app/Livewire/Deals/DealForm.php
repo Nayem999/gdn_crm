@@ -4,6 +4,7 @@ namespace App\Livewire\Deals;
 
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Deals\Actions\CreateDealAction;
 use App\Domain\Deals\Actions\UpdateDealAction;
 use App\Domain\Deals\DTOs\DealData;
@@ -28,6 +29,7 @@ use RuntimeException;
 class DealForm extends Component
 {
     use AuthorizesRequests;
+    use WithCustomFieldForm;
 
     /**
      * How many rows one page of a picker returns.
@@ -57,6 +59,14 @@ class DealForm extends Component
 
     public ?string $owner_id = null;
 
+    /**
+     * The module whose custom fields this form shows.
+     */
+    public function customFieldModule(): string
+    {
+        return 'deals';
+    }
+
     public function mount(?Deal $deal = null): void
     {
         if ($deal?->exists) {
@@ -71,6 +81,7 @@ class DealForm extends Component
             $this->expected_close_date = $deal->expected_close_date?->format('Y-m-d');
             $this->description = $deal->description;
             $this->owner_id = (string) $deal->owner_id;
+            $this->loadCustomFields($deal);
 
             return;
         }
@@ -79,6 +90,7 @@ class DealForm extends Component
 
         $this->owner_id = (string) auth()->id();
         $this->pipeline_id = ($id = Pipeline::default()?->id) === null ? null : (string) $id;
+        $this->loadCustomFields();
     }
 
     public function deal(): ?Deal
@@ -157,6 +169,8 @@ class DealForm extends Component
             return;
         }
 
+        $this->validateCustomFields($this->currentUser());
+
         $data = DealData::fromArray([
             'name' => $this->name,
             'account_id' => $this->account_id,
@@ -177,6 +191,8 @@ class DealForm extends Component
 
             return;
         }
+
+        $saved->saveCustomFields($this->customFields);
 
         session()->flash('status', $saved->name.' was saved.');
 

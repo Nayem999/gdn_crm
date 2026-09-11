@@ -13,6 +13,7 @@ use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Contacts\Policies\ContactPolicy;
+use App\Domain\CustomFields\CustomFieldSchema;
 use App\Domain\CustomFields\Models\CustomField;
 use App\Domain\CustomFields\Policies\CustomFieldPolicy;
 use App\Domain\Deals\Models\Deal;
@@ -60,6 +61,9 @@ class AppServiceProvider extends ServiceProvider
         // instance the dispatcher uses.
         $this->app->singleton(NotificationMatrix::class);
         $this->app->singleton(ChannelManager::class);
+        // One memo of the custom field definitions per request, flushed by the
+        // actions that change one. See CustomFieldSchema.
+        $this->app->singleton(CustomFieldSchema::class);
     }
 
     /**

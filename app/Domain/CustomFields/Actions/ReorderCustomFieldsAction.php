@@ -2,6 +2,7 @@
 
 namespace App\Domain\CustomFields\Actions;
 
+use App\Domain\CustomFields\CustomFieldSchema;
 use App\Domain\CustomFields\Models\CustomField;
 
 /**
@@ -43,6 +44,11 @@ class ReorderCustomFieldsAction
         foreach ($final as $position => $id) {
             CustomField::query()->whereKey($id)->update(['position' => $position + 1]);
         }
+
+        // The definitions are memoised per request (CustomFieldSchema), and a
+        // field added, hidden or reordered has to show up on the very next
+        // render rather than eventually.
+        app(CustomFieldSchema::class)->flush();
 
         return count($final);
     }

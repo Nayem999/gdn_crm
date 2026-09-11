@@ -4,6 +4,7 @@ namespace App\Domain\Accounts;
 
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
 
@@ -20,7 +21,7 @@ final class AccountFields
      */
     public static function columns(): array
     {
-        return [
+        return CustomFieldColumns::mergeColumns('accounts', [
             Column::locked('name', 'Name'),
             Column::make('industry', 'Industry'),
             Column::make('size', 'Size'),
@@ -33,7 +34,7 @@ final class AccountFields
             Column::optional('phone', 'Phone'),
             Column::optional('website', 'Website'),
             Column::optional('created_at', 'Created'),
-        ];
+        ]);
     }
 
     /**
@@ -59,7 +60,11 @@ final class AccountFields
             $keyed[$field->key] = $field;
         }
 
-        return $keyed;
+        // Custom fields are appended here rather than at each call site,
+        // because this class is already the one thing the screen and the export
+        // both read — merging them anywhere else is how a field becomes
+        // filterable on screen and absent from a queued export.
+        return CustomFieldColumns::mergeFilters('accounts', $keyed);
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Domain\Accounts\DTOs\AccountData;
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
 use App\Domain\Accounts\Models\Account;
+use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
@@ -26,6 +27,7 @@ class AccountForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCustomFieldForm;
 
     #[Locked]
     public ?int $accountId = null;
@@ -64,6 +66,14 @@ class AccountForm extends Component
 
     public ?string $owner_id = null;
 
+    /**
+     * The module whose custom fields this form shows.
+     */
+    public function customFieldModule(): string
+    {
+        return 'accounts';
+    }
+
     public function mount(?Account $account = null): void
     {
         if ($account?->exists) {
@@ -71,6 +81,7 @@ class AccountForm extends Component
 
             $this->accountId = $account->id;
             $this->fillFrom($account);
+            $this->loadCustomFields($account);
 
             return;
         }
@@ -78,6 +89,7 @@ class AccountForm extends Component
         $this->authorize('create', Account::class);
 
         $this->owner_id = (string) auth()->id();
+        $this->loadCustomFields();
     }
 
     public function account(): ?Account
@@ -144,11 +156,14 @@ class AccountForm extends Component
 
         $this->validate();
 
+        $this->validateCustomFields($this->customFieldViewer());
+
         $data = AccountData::fromArray($this->onlyFormFields());
 
         try {
             if ($account === null) {
                 $created = app(CreateAccountAction::class)($data, auth()->user());
+                $created->saveCustomFields($this->customFields);
 
                 session()->flash('status', $created->name.' was created.');
 
@@ -158,6 +173,7 @@ class AccountForm extends Component
             }
 
             app(UpdateAccountAction::class)($account, $data);
+            $account->saveCustomFields($this->customFields);
         } catch (RuntimeException $exception) {
             $this->addError('parent_id', $exception->getMessage());
 

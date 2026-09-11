@@ -5,6 +5,7 @@ namespace App\Domain\Activities;
 use App\Domain\Activities\Enums\ActivityPriority;
 use App\Domain\Activities\Enums\ActivityStatus;
 use App\Domain\Activities\Enums\ActivityType;
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
 use App\Models\User;
@@ -22,7 +23,7 @@ final class ActivityFields
      */
     public static function columns(): array
     {
-        return [
+        return CustomFieldColumns::mergeColumns('activities', [
             Column::locked('subject', 'Activity'),
             Column::make('type', 'Type'),
             Column::make('due_at', 'Due'),
@@ -38,7 +39,7 @@ final class ActivityFields
             new Column('location', 'Location', hiddenByDefault: true),
             Column::optional('completed_at', 'Completed'),
             Column::optional('created_at', 'Created'),
-        ];
+        ]);
     }
 
     /**
@@ -66,7 +67,11 @@ final class ActivityFields
             $keyed[$field->key] = $field;
         }
 
-        return $keyed;
+        // Custom fields are appended here rather than at each call site,
+        // because this class is already the one thing the screen and the export
+        // both read — merging them anywhere else is how a field becomes
+        // filterable on screen and absent from a queued export.
+        return CustomFieldColumns::mergeFilters('activities', $keyed);
     }
 
     /**

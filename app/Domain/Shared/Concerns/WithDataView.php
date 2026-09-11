@@ -2,6 +2,8 @@
 
 namespace App\Domain\Shared\Concerns;
 
+use App\Domain\CustomFields\Concerns\HasCustomFields;
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Enums\FilterFieldType;
 use App\Domain\Shared\Enums\FilterOperator;
@@ -505,6 +507,13 @@ trait WithDataView
     {
         $query = $this->dataViewBaseQuery();
 
+        // One query for every row's answers rather than one per cell. Loaded
+        // whenever the model can carry them, because the column manager can
+        // turn a custom column on at any time.
+        if (in_array(HasCustomFields::class, class_uses_recursive($query->getModel()), true)) {
+            $query->with('customFieldValues');
+        }
+
         if ($this->search !== '') {
             $columns = $this->dataViewSearchColumns();
 
@@ -538,6 +547,18 @@ trait WithDataView
      */
     public function cellFor(Model $record, Column $column): string|HtmlString
     {
+        // Custom fields (4.1) are answered in another table, so there is no
+        // attribute to read. Handled in the kit rather than in each module's
+        // cellFor, which is what makes a new field appear on every list without
+        // anybody editing five components.
+        if (CustomFieldColumns::isCustom($column->key)) {
+            $display = CustomFieldColumns::display($record, $column->key);
+
+            return $display === null || $display === ''
+                ? new HtmlString('<span class="text-muted-foreground">&mdash;</span>')
+                : $display;
+        }
+
         $value = $record->getAttribute($column->key);
 
         return match (true) {

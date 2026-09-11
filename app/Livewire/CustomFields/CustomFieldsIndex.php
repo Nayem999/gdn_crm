@@ -5,6 +5,7 @@ namespace App\Livewire\CustomFields;
 use App\Domain\CustomFields\Actions\DeleteCustomFieldAction;
 use App\Domain\CustomFields\Actions\ReorderCustomFieldsAction;
 use App\Domain\CustomFields\Actions\SaveCustomFieldAction;
+use App\Domain\CustomFields\Actions\ToggleCustomFieldAction;
 use App\Domain\CustomFields\CustomFieldRegistry;
 use App\Domain\CustomFields\DTOs\CustomFieldData;
 use App\Domain\CustomFields\Enums\CustomFieldType;
@@ -260,7 +261,7 @@ class CustomFieldsIndex extends Component
 
         $this->authorize('update', $field);
 
-        $field->forceFill(['is_active' => ! $field->is_active])->save();
+        app(ToggleCustomFieldAction::class)($field);
 
         unset($this->fields);
 

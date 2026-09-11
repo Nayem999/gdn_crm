@@ -3,6 +3,7 @@
 namespace App\Domain\CustomFields\Actions;
 
 use App\Domain\CustomFields\CustomFieldRegistry;
+use App\Domain\CustomFields\CustomFieldSchema;
 use App\Domain\CustomFields\DTOs\CustomFieldData;
 use App\Domain\CustomFields\Models\CustomField;
 use RuntimeException;
@@ -36,6 +37,11 @@ class SaveCustomFieldAction
 
         $field->forceFill($data->toAttributes())->save();
 
+        // The definitions are memoised per request (CustomFieldSchema), and a
+        // field added, hidden or reordered has to show up on the very next
+        // render rather than eventually.
+        app(CustomFieldSchema::class)->flush();
+
         return $field->fresh() ?? $field;
     }
 
@@ -60,6 +66,11 @@ class SaveCustomFieldAction
             // the form for everybody already using it.
             'position' => (int) CustomField::query()->forModule($data->module)->max('position') + 1,
         ])->save();
+
+        // The definitions are memoised per request (CustomFieldSchema), and a
+        // field added, hidden or reordered has to show up on the very next
+        // render rather than eventually.
+        app(CustomFieldSchema::class)->flush();
 
         return $field->fresh() ?? $field;
     }

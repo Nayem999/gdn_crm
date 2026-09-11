@@ -2,6 +2,7 @@
 
 namespace App\Domain\Deals;
 
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Pipeline;
@@ -21,7 +22,7 @@ final class DealFields
      */
     public static function columns(): array
     {
-        return [
+        return CustomFieldColumns::mergeColumns('deals', [
             Column::locked('name', 'Deal'),
             new Column('account', 'Account', sortable: false),
             Column::make('stage', 'Stage'),
@@ -36,7 +37,7 @@ final class DealFields
             Column::optional('close_reason', 'Close reason'),
             Column::optional('closed_at', 'Closed'),
             Column::optional('created_at', 'Created'),
-        ];
+        ]);
     }
 
     /**
@@ -61,7 +62,11 @@ final class DealFields
             $keyed[$field->key] = $field;
         }
 
-        return $keyed;
+        // Custom fields are appended here rather than at each call site,
+        // because this class is already the one thing the screen and the export
+        // both read — merging them anywhere else is how a field becomes
+        // filterable on screen and absent from a queued export.
+        return CustomFieldColumns::mergeFilters('deals', $keyed);
     }
 
     /**

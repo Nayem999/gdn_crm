@@ -9,6 +9,7 @@ use App\Domain\Contacts\ContactDuplicates;
 use App\Domain\Contacts\DTOs\ContactData;
 use App\Domain\Contacts\Enums\Department;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
@@ -27,6 +28,7 @@ class ContactForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCustomFieldForm;
 
     /**
      * How many accounts one page of the account picker returns.
@@ -74,6 +76,14 @@ class ContactForm extends Component
 
     public ?string $owner_id = null;
 
+    /**
+     * The module whose custom fields this form shows.
+     */
+    public function customFieldModule(): string
+    {
+        return 'contacts';
+    }
+
     public function mount(?Contact $contact = null): void
     {
         if ($contact?->exists) {
@@ -81,6 +91,7 @@ class ContactForm extends Component
 
             $this->contactId = $contact->id;
             $this->fillFrom($contact);
+            $this->loadCustomFields($contact);
 
             return;
         }
@@ -94,6 +105,8 @@ class ContactForm extends Component
         if ($this->account_id !== null && $this->visibleAccount((int) $this->account_id) === null) {
             $this->account_id = null;
         }
+
+        $this->loadCustomFields();
     }
 
     public function contact(): ?Contact
@@ -168,11 +181,14 @@ class ContactForm extends Component
             return;
         }
 
+        $this->validateCustomFields($this->customFieldViewer());
+
         $data = ContactData::fromArray($this->formFields());
 
         try {
             if ($contact === null) {
                 $created = app(CreateContactAction::class)($data, auth()->user());
+                $created->saveCustomFields($this->customFields);
 
                 session()->flash('status', $created->fullName().' was created.');
 
@@ -182,6 +198,7 @@ class ContactForm extends Component
             }
 
             app(UpdateContactAction::class)($contact, $data);
+            $contact->saveCustomFields($this->customFields);
         } catch (RuntimeException $exception) {
             $this->addError('account_id', $exception->getMessage());
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Fixtures;
 
+use App\Domain\CustomFields\Concerns\HasCustomFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,15 @@ use Illuminate\Support\Facades\Schema;
  */
 class DataViewRecord extends Model
 {
+    /**
+     * The harness is the reference implementation of a list module, so it
+     * carries what one carries — including the custom field relation the kit
+     * eager-loads. It is deliberately not in CustomFieldRegistry: nothing here
+     * asks it which module it is, and a fixture in the registry would be a
+     * module the application does not have.
+     */
+    use HasCustomFields;
+
     protected $table = 'data_view_records';
 
     /**

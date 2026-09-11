@@ -2,6 +2,7 @@
 
 namespace App\Domain\Leads;
 
+use App\Domain\CustomFields\CustomFieldColumns;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\DataView\Column;
@@ -29,7 +30,7 @@ final class LeadFields
      */
     public static function columns(): array
     {
-        return [
+        return CustomFieldColumns::mergeColumns('leads', [
             // No name column exists, so sort the displayed full name by surname.
             new Column('name', 'Name', locked: true, sortColumn: 'last_name'),
             Column::make('company_name', 'Company'),
@@ -45,7 +46,7 @@ final class LeadFields
             Column::optional('city', 'City'),
             Column::optional('country', 'Country'),
             Column::optional('created_at', 'Captured'),
-        ];
+        ]);
     }
 
     /**
@@ -76,7 +77,11 @@ final class LeadFields
             $keyed[$field->key] = $field;
         }
 
-        return $keyed;
+        // Custom fields are appended here rather than at each call site,
+        // because this class is already the one thing the screen and the export
+        // both read — merging them anywhere else is how a field becomes
+        // filterable on screen and absent from a queued export.
+        return CustomFieldColumns::mergeFilters('leads', $keyed);
     }
 
     /**

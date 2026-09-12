@@ -5,6 +5,7 @@ namespace App\Domain\Timeline;
 use App\Domain\Activities\Models\Activity as ScheduledActivity;
 use App\Domain\Audit\ActivityPresenter;
 use App\Domain\Settings\DisplayTime;
+use App\Domain\Timeline\Communications\Communication;
 use App\Domain\Timeline\Enums\TimelineEntryKind;
 use App\Domain\Timeline\Models\Document;
 use App\Domain\Timeline\Models\Note;
@@ -35,7 +36,32 @@ final readonly class TimelineEntry
         public ?Note $note = null,
         public ?Document $document = null,
         public ?ScheduledActivity $scheduled = null,
+        public ?Communication $communication = null,
     ) {}
+
+    /**
+     * A message, on whichever channel carried it.
+     *
+     * Its id is a hash of the source key rather than a row id: these come from
+     * four different tables whose ids collide, and the sort key needs one
+     * number that is stable for a given entry and different for different ones.
+     */
+    public static function fromCommunication(Communication $communication): self
+    {
+        return new self(
+            kind: TimelineEntryKind::Communication,
+            id: (int) sprintf('%u', crc32($communication->sourceKey)),
+            occurredAt: $communication->occurredAt,
+            // The subject is what a person scans for, so it goes in the
+            // heading; the channel, the direction and who it was with are the
+            // line underneath.
+            title: $communication->channel->label().' '.strtolower($communication->directionLabel()).' — '.$communication->title,
+            body: $communication->body,
+            actor: null,
+            color: TimelineEntryKind::Communication->color(),
+            communication: $communication,
+        );
+    }
 
     public static function fromNote(Note $note): self
     {
@@ -148,6 +174,9 @@ final readonly class TimelineEntry
             TimelineEntryKind::Document => 2,
             TimelineEntryKind::Activity => 1,
             TimelineEntryKind::History => 0,
+            // Above the bookkeeping, below what a person typed: a message is
+            // something that happened rather than something somebody wrote here.
+            TimelineEntryKind::Communication => 1,
         };
 
         return $this->occurredAt->format('YmdHis')
@@ -163,6 +192,11 @@ final readonly class TimelineEntry
     public function isDocument(): bool
     {
         return $this->kind === TimelineEntryKind::Document;
+    }
+
+    public function isCommunication(): bool
+    {
+        return $this->kind === TimelineEntryKind::Communication;
     }
 
     public function isActivity(): bool

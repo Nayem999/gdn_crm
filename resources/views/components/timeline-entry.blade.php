@@ -136,6 +136,25 @@
             @if ($entry->body)
                 <p class="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">{{ $entry->body }}</p>
             @endif
+        @elseif ($entry->isCommunication())
+            @php($message = $entry->communication)
+
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <span class="inline-flex items-center gap-1 text-muted-foreground">
+                    <x-icon :name="$message->channel->icon()" class="h-3.5 w-3.5" />
+                    {{ $message->channel->label() }}
+                </span>
+                @if ($message->counterparty)
+                    <span class="text-muted-foreground">{{ $message->counterparty }}</span>
+                @endif
+                @if ($message->status)
+                    <x-status-chip color="{{ $message->outbound ? 'blue' : 'slate' }}">{{ $message->status }}</x-status-chip>
+                @endif
+            </div>
+
+            @if ($entry->body)
+                <p class="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">{{ $entry->body }}</p>
+            @endif
         @elseif ($entry->changes !== [])
             <dl class="mt-2 space-y-1">
                 @foreach ($entry->changes as $attribute => $change)

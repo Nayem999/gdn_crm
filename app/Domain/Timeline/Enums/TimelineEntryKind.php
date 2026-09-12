@@ -3,7 +3,7 @@
 namespace App\Domain\Timeline\Enums;
 
 /**
- * The four things a record's timeline is made of.
+ * The five things a record's timeline is made of.
  *
  * The filter on the timeline is this enum, so a value arriving from the browser
  * either resolves to a case or is ignored — it never becomes a table name.
@@ -18,6 +18,15 @@ enum TimelineEntryKind: string
     case Document = 'document';
     case Activity = 'activity';
     case History = 'history';
+    /**
+     * Email, SMS, WhatsApp and website chat — everything the application sent
+     * to the customer or received from them.
+     *
+     * Calls are not here. A call in this system is a scheduled activity and is
+     * already on the timeline as one; a second strand for it would put every
+     * call on the page twice.
+     */
+    case Communication = 'communication';
 
     public function label(): string
     {
@@ -26,6 +35,7 @@ enum TimelineEntryKind: string
             self::Document => 'Document',
             self::Activity => 'Activity',
             self::History => 'History',
+            self::Communication => 'Message',
         };
     }
 
@@ -40,6 +50,7 @@ enum TimelineEntryKind: string
             self::Document => 'Documents',
             self::Activity => 'Activities',
             self::History => 'History',
+            self::Communication => 'Messages',
         };
     }
 
@@ -50,6 +61,7 @@ enum TimelineEntryKind: string
             self::Document => 'lucide-paperclip',
             self::Activity => 'lucide-calendar-clock',
             self::History => 'lucide-history',
+            self::Communication => 'lucide-send',
         };
     }
 
@@ -62,6 +74,7 @@ enum TimelineEntryKind: string
             // does on the calendar and in the navigation.
             self::Activity => 'violet',
             self::History => 'slate',
+            self::Communication => 'blue',
         };
     }
 

@@ -4,6 +4,7 @@ namespace App\Domain\Timeline;
 
 use App\Domain\Activities\Models\Activity as ScheduledActivity;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Timeline\Communications\CommunicationGatherer;
 use App\Domain\Timeline\Enums\TimelineEntryKind;
 use App\Domain\Timeline\Models\Document;
 use App\Domain\Timeline\Models\Note;
@@ -23,9 +24,16 @@ use Spatie\Activitylog\Models\Activity;
  * The activity strand is ordered by `due_at` rather than `created_at`, because
  * that is the moment a task or meeting belongs to. Everything else here is
  * ordered by when it was written.
+ *
+ * 7.8 adds a fifth strand: every message to or from the customer, on whichever
+ * channel carried it. It is gathered rather than read here because it is itself
+ * four tables — sent mail, received mail, the notification log's text messages,
+ * and website chat — and the builder's job is the merge, not the gathering.
  */
 class TimelineBuilder
 {
+    public function __construct(private readonly CommunicationGatherer $communications) {}
+
     /**
      * The newest slice of a record's timeline.
      *
@@ -59,6 +67,12 @@ class TimelineBuilder
         if ($this->readsActivities($viewer) && in_array(TimelineEntryKind::Activity, $wanted, true)) {
             foreach ($this->scheduledActivities($subject, $take, $viewer) as $scheduled) {
                 $entries[] = TimelineEntry::fromScheduledActivity($scheduled);
+            }
+        }
+
+        if (in_array(TimelineEntryKind::Communication, $wanted, true)) {
+            foreach ($this->communications->for($subject, $take) as $communication) {
+                $entries[] = TimelineEntry::fromCommunication($communication);
             }
         }
 

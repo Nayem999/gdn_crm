@@ -7,6 +7,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Accounts\Policies\AccountPolicy;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\Activities\Policies\ActivityPolicy;
+use App\Domain\Api\ApiModules;
 use App\Domain\Approvals\Models\ApprovalRequest;
 use App\Domain\Approvals\Policies\ApprovalRequestPolicy;
 use App\Domain\Audit\Policies\AuditEntryPolicy;
@@ -64,6 +65,9 @@ use App\Domain\Timeline\Models\Note;
 use App\Domain\Timeline\Policies\DocumentPolicy;
 use App\Domain\Timeline\Policies\NotePolicy;
 use App\Domain\Users\Policies\UserPolicy;
+use App\Domain\Webhooks\Models\WebhookEndpoint;
+use App\Domain\Webhooks\Policies\WebhookEndpointPolicy;
+use App\Domain\Webhooks\WebhookObserver;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Policies\WorkflowPolicy;
 use App\Domain\Workflows\Triggers\WorkflowObserver;
@@ -165,6 +169,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
         Gate::policy(EmailMessage::class, EmailMessagePolicy::class);
         Gate::policy(EmailTemplate::class, EmailTemplatePolicy::class);
+        Gate::policy(WebhookEndpoint::class, WebhookEndpointPolicy::class);
         // Both ask the subject record's own policy before answering, so a note
         // or an attachment is never a way round a module's access level.
         Gate::policy(Note::class, NotePolicy::class);
@@ -176,6 +181,17 @@ class AppServiceProvider extends ServiceProvider
         // module rather than a module of its own.
         foreach ([...array_column(WorkflowModules::builtIn(), 'model'), CustomRecord::class] as $watched) {
             $watched::observe(WorkflowObserver::class);
+        }
+
+        // Outbound webhooks watch the modules the REST API publishes, which is
+        // a shorter list on purpose: an event key is part of a promise to
+        // somebody else's system, and the payload is the API's own shape.
+        foreach (ApiModules::keys() as $published) {
+            $module = ApiModules::find($published);
+
+            if ($module !== null) {
+                $module->modelClass()::observe(WebhookObserver::class);
+            }
         }
 
         // The API's rate limit, keyed by the **token** rather than the person.

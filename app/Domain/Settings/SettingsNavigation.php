@@ -72,6 +72,7 @@ final class SettingsNavigation
                     ['label' => 'Notification rules', 'icon' => 'bell-ring', 'route' => 'settings.notifications', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'Email delivery', 'icon' => 'mail-check', 'route' => 'settings.mail-log', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'API keys', 'icon' => 'key-round', 'route' => 'settings.api-tokens', 'params' => [], 'permission' => 'api.tokens'],
+                    ['label' => 'Webhooks', 'icon' => 'webhook', 'route' => 'settings.webhooks', 'params' => [], 'permission' => 'api.webhooks'],
                     ['label' => 'Audit log', 'icon' => 'scroll-text', 'route' => 'settings.audit', 'params' => [], 'permission' => 'audit.view'],
                 ],
             ],

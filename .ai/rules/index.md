@@ -18,6 +18,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Shared/Duplicates/**, app/Domain/Shared/Actions/MergeRecordsAction.php, app/Domain/Shared/Actions/SyncDuplicateKeysAction.php, app/Domain/Shared/Concerns/MergesWithDuplicates.php, app/Domain/Shared/Concerns/FindsDuplicates.php, app/Domain/Shared/Concerns/WarnsAboutDuplicates.php, app/Domain/*/[A-Z]*Duplicates.php, app/Livewire/Duplicates/**, resources/views/livewire/duplicates/**, resources/views/components/duplicate-* | .ai/rules/duplicates.md |
 | database/factories/** | .ai/rules/factories.md |
 | * | .ai/rules/general.md |
+| app/Domain/Api/**, app/Domain/Webhooks/**, app/Domain/Messaging/**, app/Domain/Chat/**, app/Http/Controllers/Api/**, app/Jobs/DeliverWebhook.php, routes/api.php, config/cors.php | .ai/rules/integrations.md |
 | app/Domain/Shared/Imports/**, app/Domain/Shared/Actions/RunImportAction.php, app/Domain/Shared/Models/ImportRun.php, app/Domain/*/[A-Z]*ImportSource.php, app/Livewire/Imports/**, app/Jobs/RunImport.php, resources/views/livewire/imports/** | .ai/rules/imports.md |
 | resources/views/components/layouts/** | .ai/rules/layouts.md |
 | app/Domain/Leads/Capture/**, app/Domain/Leads/Actions/SubmitLeadCaptureAction.php, app/Http/Controllers/LeadCaptureController.php, resources/views/lead-capture/** | .ai/rules/lead-capture.md |

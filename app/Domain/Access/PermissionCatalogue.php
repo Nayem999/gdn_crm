@@ -301,6 +301,7 @@ final class PermissionCatalogue
                 'icon' => 'plug',
                 'permissions' => [
                     'api.tokens' => 'Create and revoke API keys',
+                    'api.webhooks' => 'Configure outbound webhooks',
                 ],
             ],
             // Separate from notifications on purpose: a notification template

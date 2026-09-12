@@ -37,6 +37,9 @@ use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
+use App\Livewire\Products\PriceBooks;
+use App\Livewire\Products\ProductForm;
+use App\Livewire\Products\ProductsIndex;
 use App\Livewire\Profile\ProfileForm;
 use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
@@ -116,6 +119,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/deals/{deal}', DealShow::class)->withTrashed()->name('deals.show');
     Route::get('/deals/{deal}/edit', DealForm::class)->name('deals.edit');
 
+    Route::get('/products', ProductsIndex::class)->name('products.index');
+    Route::get('/products/create', ProductForm::class)->name('products.create');
+    Route::get('/products/{product}/edit', ProductForm::class)->name('products.edit');
+
     Route::get('/leads', LeadsIndex::class)->name('leads.index');
     Route::get('/leads/create', LeadForm::class)->name('leads.create');
     Route::get('/leads/{lead}', LeadShow::class)->withTrashed()->name('leads.show');
@@ -173,6 +180,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/lead-forms', LeadCaptureForms::class)->name('settings.lead-forms');
 
     Route::get('/settings/custom-fields', CustomFieldsIndex::class)->name('settings.custom-fields');
+    Route::get('/settings/price-books', PriceBooks::class)->name('settings.price-books');
     Route::get('/settings/custom-modules', CustomModulesIndex::class)->name('settings.custom-modules');
 
     Route::get('/settings/pipelines', PipelinesIndex::class)->name('settings.pipelines');

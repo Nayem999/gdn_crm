@@ -19,6 +19,8 @@ use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\LeadExportSource;
 use App\Domain\Leads\LeadFields;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Products\Models\Product;
+use App\Domain\Products\ProductExportSource;
 use App\Domain\Shared\Enums\DataAccessLevel;
 use App\Domain\Shared\Enums\ExportFormat;
 use App\Domain\Shared\Exports\DataViewExport;
@@ -31,6 +33,7 @@ use App\Livewire\Contacts\ContactsIndex;
 use App\Livewire\Deals\DealsIndex;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadsIndex;
+use App\Livewire\Products\ProductsIndex;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -70,6 +73,11 @@ function integrationModules(): array
             'source' => ActivityExportSource::class,
             'model' => Activity::class,
         ],
+        'products' => [
+            'index' => ProductsIndex::class,
+            'source' => ProductExportSource::class,
+            'model' => Product::class,
+        ],
     ];
 }
 
@@ -85,6 +93,7 @@ function integrationUser(): User
         'accounts.view', 'accounts.export',
         'deals.view', 'deals.export',
         'activities.view', 'activities.export',
+        'products.view', 'products.export',
     ]);
 }
 
@@ -115,6 +124,7 @@ function integrationRecord(string $module): Model
         'accounts' => Account::factory()->create(),
         'deals' => Deal::factory()->create(),
         'activities' => Activity::factory()->create(),
+        'products' => Product::factory()->create(),
     };
 }
 

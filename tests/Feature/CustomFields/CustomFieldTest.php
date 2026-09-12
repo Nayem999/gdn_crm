@@ -17,6 +17,7 @@ use App\Domain\CustomFields\Models\CustomField;
 use App\Domain\CustomFields\Models\CustomFieldValue;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Products\Models\Product;
 use App\Domain\Shared\Enums\DataAccessLevel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -402,6 +403,7 @@ test('every module that carries custom fields can actually store one', function 
         'contacts' => Contact::factory()->create(),
         'accounts' => Account::factory()->create(),
         'deals' => Deal::factory()->create(),
+        'products' => Product::factory()->create(),
         'activities' => Activity::factory()->create(),
     };
 

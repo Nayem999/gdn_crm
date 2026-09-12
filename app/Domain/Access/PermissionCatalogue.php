@@ -132,6 +132,21 @@ final class PermissionCatalogue
                     'activities.export' => 'Export activities',
                 ],
             ],
+            'products' => [
+                'label' => 'Products',
+                'icon' => 'package',
+                'permissions' => [
+                    'products.view' => 'View the catalogue',
+                    'products.create' => 'Add products and services',
+                    'products.update' => 'Update the catalogue',
+                    'products.delete' => 'Remove products',
+                    'products.export' => 'Export the catalogue',
+                    // Deciding what the company charges is administration, not
+                    // catalogue work — the same way deals.pipelines stands
+                    // apart from deals.update.
+                    'products.pricing' => 'Configure price books',
+                ],
+            ],
             'workflows' => [
                 'label' => 'Workflows',
                 'icon' => 'zap',

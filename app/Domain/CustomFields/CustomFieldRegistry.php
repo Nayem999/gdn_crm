@@ -11,6 +11,7 @@ use App\Domain\CustomModules\Models\CustomModule;
 use App\Domain\CustomModules\Models\CustomRecord;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Products\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +42,7 @@ final class CustomFieldRegistry
             'accounts' => Account::class,
             'deals' => Deal::class,
             'activities' => Activity::class,
+            'products' => Product::class,
         ];
     }
 
@@ -66,6 +68,7 @@ final class CustomFieldRegistry
             'accounts' => 'Accounts',
             'deals' => 'Deals',
             'activities' => 'Activities',
+            'products' => 'Products',
         ];
     }
 
@@ -184,6 +187,7 @@ final class CustomFieldRegistry
             'accounts' => Account::query()->visibleTo($user)->orderBy('name'),
             'deals' => Deal::query()->visibleTo($user)->orderBy('name'),
             'activities' => Activity::query()->visibleTo($user)->orderBy('due_at'),
+            'products' => Product::query()->visibleTo($user)->orderBy('name'),
             // A generated module: the same table for all of them, so the
             // discriminator is what makes this one module's records.
             default => ($custom = self::customModule($module)) === null
@@ -210,7 +214,7 @@ final class CustomFieldRegistry
     {
         return match (true) {
             $record instanceof Contact, $record instanceof Lead => $record->fullName(),
-            $record instanceof Account, $record instanceof Deal => $record->name,
+            $record instanceof Account, $record instanceof Deal, $record instanceof Product => $record->name,
             $record instanceof Activity => $record->subject,
             $record instanceof CustomRecord => $record->name,
             default => 'Record #'.$record->getKey(),

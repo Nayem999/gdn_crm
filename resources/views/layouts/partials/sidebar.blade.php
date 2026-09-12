@@ -9,7 +9,7 @@
         ['label' => 'Deals', 'icon' => 'handshake', 'route' => 'deals.index', 'permission' => 'deals.view'],
         ['label' => 'Activities', 'icon' => 'calendar-clock', 'route' => 'activities.index', 'permission' => 'activities.view'],
         ['label' => 'Calendar', 'icon' => 'calendar-days', 'route' => 'calendar', 'permission' => 'activities.view'],
-        ['label' => 'Products', 'icon' => 'package'],
+        ['label' => 'Products', 'icon' => 'package', 'route' => 'products.index', 'permission' => 'products.view'],
         ['label' => 'Quotes & Invoices', 'icon' => 'file-text'],
         ['label' => 'Support', 'icon' => 'life-buoy'],
         ['label' => 'Reports', 'icon' => 'bar-chart-3'],

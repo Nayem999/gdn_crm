@@ -29,6 +29,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Notifications/**, app/Livewire/Notifications/**, app/Jobs/SendNotification.php, app/Notifications/**, app/Mail/**, resources/views/livewire/notifications/** | .ai/rules/notifications.md |
 | app/Domain/Deals/Models/Pipeline.php, app/Domain/Deals/Models/PipelineStage.php, app/Domain/Deals/Actions/**, app/Domain/Deals/DTOs/**, app/Domain/Deals/Enums/StageOutcome.php, app/Livewire/Deals/**, resources/views/livewire/deals/**, database/seeders/PipelinesSeeder.php | .ai/rules/pipelines.md |
 | app/Domain/*/Policies/*.php | .ai/rules/policies.md |
+| app/Domain/Products/**, app/Livewire/Products/**, resources/views/livewire/products/** | .ai/rules/products.md |
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/livewire/settings/**, resources/views/components/settings-shell.blade.php, resources/views/components/form/secret.blade.php, app/Domain/Settings/DisplayTime.php, app/Domain/Settings/SettingField.php | .ai/rules/settings.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |

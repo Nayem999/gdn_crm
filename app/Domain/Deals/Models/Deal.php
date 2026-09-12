@@ -13,6 +13,7 @@ use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Sales\Concerns\HasDocumentLines;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
@@ -50,6 +51,11 @@ use Illuminate\Support\Carbon;
 class Deal extends Model
 {
     use HasCustomFields;
+
+    // A deal carries the products being sold, as document lines — the same
+    // lines a quote will carry in 6.3, totalled by the same calculator. 3.2
+    // specified "products attached" and this is what that is.
+    use HasDocumentLines;
 
     /** @use HasFactory<DealFactory> */
     use HasFactory;

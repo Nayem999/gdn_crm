@@ -309,7 +309,7 @@ test('csrf is waived for the public form path and the provider webhooks, and not
     $excluded = (new ReflectionMethod(ValidateCsrfToken::class, 'getExcludedPaths'));
     $excluded->setAccessible(true);
 
-    expect($excluded->invoke(app(ValidateCsrfToken::class)))->toBe(['f/*', 'webhooks/*']);
+    expect($excluded->invoke(app(ValidateCsrfToken::class)))->toBe(['f/*', 'webhooks/*', 'c/*']);
 });
 
 // -- The builder ----------------------------------------------------------------

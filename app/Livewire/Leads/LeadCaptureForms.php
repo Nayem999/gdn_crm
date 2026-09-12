@@ -33,6 +33,14 @@ class LeadCaptureForms extends Component
 
     public string $name = '';
 
+    /**
+     * Whether this is an embedded form or a chat widget.
+     *
+     * The same record either way: both are a token in a URL, an owner who gets
+     * the lead, a source to record and a switch. Only the interface differs.
+     */
+    public string $kind = 'form';
+
     public string $description = '';
 
     public string $ownerId = '';
@@ -112,6 +120,7 @@ class LeadCaptureForms extends Component
         ];
 
         $this->ownerId = (string) auth()->id();
+        $this->kind = 'form';
         $this->editing = true;
     }
 
@@ -127,6 +136,7 @@ class LeadCaptureForms extends Component
 
         $this->editingId = $form->id;
         $this->name = $form->name;
+        $this->kind = $form->getAttributeValue('kind');
         $this->description = (string) $form->description;
         $this->ownerId = (string) $form->owner_id;
         $this->source = (string) $form->source;
@@ -182,6 +192,7 @@ class LeadCaptureForms extends Component
 
         $this->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
+            'kind' => ['required', Rule::in(array_keys(LeadCaptureForm::kindOptions()))],
             'description' => ['nullable', 'string', 'max:1000'],
             'ownerId' => ['required', 'integer', 'exists:users,id'],
             'source' => ['nullable', 'string', Rule::in(array_keys(LeadSource::options()))],
@@ -205,6 +216,7 @@ class LeadCaptureForms extends Component
             // every page that already embeds the form.
             'token' => $form->token ?? LeadCaptureForm::newToken(),
             'name' => $this->name,
+            'kind' => $this->kind,
             'description' => $this->description === '' ? null : $this->description,
             'owner_id' => (int) $this->ownerId,
             'source' => $this->source === '' ? null : $this->source,

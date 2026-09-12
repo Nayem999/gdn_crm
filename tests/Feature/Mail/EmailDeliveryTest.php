@@ -272,12 +272,15 @@ it('refuses a provider that reports nothing', function () {
     $this->postJson(webhookUrl('smtp'), ['anything' => true])->assertNotFound();
 });
 
-it('does not need a CSRF token, and nothing else gained that exemption', function () {
+it('does not need a CSRF token', function () {
+    // Only that the webhook path is exempt. The whole exemption list is guarded
+    // in one place — LeadCaptureTest — because two copies of that assertion
+    // means the next person to add an exemption updates one of them and
+    // believes the other was already right.
     $excluded = new ReflectionMethod(ValidateCsrfToken::class, 'getExcludedPaths');
     $excluded->setAccessible(true);
 
-    expect($excluded->invoke(app(ValidateCsrfToken::class)))
-        ->toBe(['f/*', 'webhooks/*']);
+    expect($excluded->invoke(app(ValidateCsrfToken::class)))->toContain('webhooks/*');
 });
 
 // -- The screen ---------------------------------------------------------------

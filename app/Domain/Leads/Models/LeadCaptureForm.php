@@ -63,7 +63,7 @@ class LeadCaptureForm extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'token', 'name', 'description', 'fields', 'owner_id', 'source',
+        'token', 'name', 'kind', 'description', 'fields', 'owner_id', 'source',
         'submit_label', 'success_message', 'redirect_url', 'is_active',
     ];
 
@@ -75,6 +75,7 @@ class LeadCaptureForm extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
+        'kind' => 'form',
         'source' => null,
         'submit_label' => 'Send',
         'is_active' => true,
@@ -163,6 +164,14 @@ class LeadCaptureForm extends Model
      */
     public function embedSnippet(): string
     {
+        if ($this->isChat()) {
+            // The endpoint rather than an iframe: a chat widget is whatever
+            // front end the site already has, and this is the address it posts
+            // to. Shipping a widget script would mean shipping a second front
+            // end to maintain.
+            return $this->endpoint();
+        }
+
         return '<iframe src="'.e($this->publicUrl()).'" width="100%" height="620" '
             .'style="border:0" title="'.e($this->name).'" loading="lazy"></iframe>';
     }
@@ -182,5 +191,37 @@ class LeadCaptureForm extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where($query->qualifyColumn('is_active'), true);
+    }
+
+    /**
+     * The two interfaces a capture record can wear.
+     *
+     * @return array<string, string>
+     */
+    public static function kindOptions(): array
+    {
+        return [
+            'form' => 'Embedded form',
+            'chat' => 'Chat widget',
+        ];
+    }
+
+    public function isChat(): bool
+    {
+        return $this->getAttributeValue('kind') === 'chat';
+    }
+
+    /**
+     * Where the widget or form posts to.
+     *
+     * Different paths because they answer differently — a form renders a page
+     * and redirects, a widget exchanges JSON — and because the form route must
+     * not render a chat widget as a form.
+     */
+    public function endpoint(): string
+    {
+        return $this->isChat()
+            ? url('/c/'.$this->token)
+            : route('lead-capture.submit', $this->token);
     }
 }

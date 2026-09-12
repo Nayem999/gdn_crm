@@ -39,6 +39,13 @@
                     </div>
 
                     <div>
+                        <x-form.label for="lcf-kind" required>Interface</x-form.label>
+                        <x-select name="lcf_kind" :options="\App\Domain\Leads\Models\LeadCaptureForm::kindOptions()" :selected="$kind" wire:model.live="kind" class="mt-1" />
+                        <p class="mt-1 text-xs text-muted-foreground">A chat widget takes messages instead of a form, and makes a lead as soon as the visitor leaves an address.</p>
+                        <x-form.error for="kind" class="mt-1" />
+                    </div>
+
+                    <div>
                         <x-form.label for="lcf-owner" required>New leads go to</x-form.label>
                         <x-select name="lcf_owner" :options="$this->ownerOptions()" :selected="$ownerId" wire:model="ownerId" class="mt-1" />
                         <p class="mt-1 text-xs text-muted-foreground">An unowned lead is how a captured lead goes nowhere.</p>

@@ -36,6 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'f/*',
             'webhooks/*',
+            // The chat widget is the capture form's problem again: embedded on
+            // somebody else's site, no usable session, an unguessable token in
+            // the path and a rate limit on the route.
+            'c/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

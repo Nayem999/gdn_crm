@@ -3,6 +3,7 @@
 use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Domain\Shared\Imports\ImportRegistry;
+use App\Http\Controllers\ChatCaptureController;
 use App\Http\Controllers\DownloadDocument;
 use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\EmailTrackingController;
@@ -241,3 +242,12 @@ Route::get('/e/o/{tracking}', [EmailTrackingController::class, 'open'])
 Route::get('/e/c/{tracking}', [EmailTrackingController::class, 'click'])
     ->middleware('signed')
     ->name('mail.track.click');
+
+/**
+ * The website chat widget. Public, cross-site, and guarded the same way the
+ * capture form is: an unguessable token, a rate limit, and nothing in the
+ * payload that can name an owner. See ChatCaptureController.
+ */
+Route::post('/c/{token}', ChatCaptureController::class)
+    ->middleware('throttle:30,1')
+    ->name('chat.message');

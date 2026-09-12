@@ -40,7 +40,7 @@ class RecordEmailEventAction
         $applied = 0;
 
         foreach ($messages as $message) {
-            if ($this->record($provider, $event, $message)) {
+            if ($this->applyTo($provider, $event, $message)) {
                 $applied++;
             }
         }
@@ -48,7 +48,14 @@ class RecordEmailEventAction
         return $applied;
     }
 
-    private function record(string $provider, EmailEventData $event, EmailMessage $message): bool
+    /**
+     * Apply one event to one row, once.
+     *
+     * Public because the tracking pixel and the click route have the row in
+     * hand rather than a provider's id, and the invariants above are not worth
+     * having twice.
+     */
+    public function applyTo(string $provider, EmailEventData $event, EmailMessage $message): bool
     {
         return DB::transaction(function () use ($provider, $event, $message): bool {
             try {

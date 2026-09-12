@@ -296,6 +296,18 @@ final class PermissionCatalogue
                     'notifications.update' => 'Change the notification matrix and templates',
                 ],
             ],
+            // Separate from notifications on purpose: a notification template
+            // is wording the system sends on its own, while an email template
+            // is something a salesperson picks and sends to a customer. The
+            // people who write the two are rarely the same people.
+            'email-templates' => [
+                'label' => 'Email templates',
+                'icon' => 'mail-plus',
+                'permissions' => [
+                    'email-templates.view' => 'View email templates',
+                    'email-templates.update' => 'Create and change email templates',
+                ],
+            ],
             'audit' => [
                 'label' => 'Audit log',
                 'icon' => 'scroll-text',

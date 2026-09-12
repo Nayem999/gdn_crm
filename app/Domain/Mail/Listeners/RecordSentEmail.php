@@ -5,6 +5,7 @@ namespace App\Domain\Mail\Listeners;
 use App\Domain\Mail\Enums\EmailStatus;
 use App\Domain\Mail\MailConfiguration;
 use App\Domain\Mail\Models\EmailMessage;
+use App\Mail\TemplatedEmail;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Carbon;
 use Symfony\Component\Mime\Address;
@@ -33,18 +34,23 @@ class RecordSentEmail
         $sentAt = Carbon::now();
         $subject = $message->getSubject();
 
+        // Our own id, put in the body's tracking links before the provider ever
+        // saw the message. Without storing it here, a pixel fetched later
+        // reports an open against nothing.
+        $tracking = $message->getHeaders()->get(TemplatedEmail::TRACKING_HEADER)?->getBodyAsString();
+
         /** @var array<string, mixed> $data */
         $data = $event->data;
 
         foreach ($message->getTo() as $recipient) {
-            $this->record($provider, $messageId, $recipient, $subject, $sentAt, $data);
+            $this->record($provider, $messageId, $recipient, $subject, $sentAt, $data, $tracking);
         }
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function record(string $provider, ?string $messageId, Address $recipient, ?string $subject, Carbon $sentAt, array $data): void
+    private function record(string $provider, ?string $messageId, Address $recipient, ?string $subject, Carbon $sentAt, array $data, ?string $tracking = null): void
     {
         // Sent through a provider that reports nothing back, or with no id to
         // report against: the row is still worth having — it is the record that
@@ -54,6 +60,7 @@ class RecordSentEmail
             [
                 'to_name' => $recipient->getName() === '' ? null : $recipient->getName(),
                 'subject' => $subject,
+                'tracking_id' => $tracking,
                 'status' => EmailStatus::Sent,
                 'sent_at' => $sentAt,
                 'notification_log_id' => is_int($data['notification_log_id'] ?? null) ? $data['notification_log_id'] : null,

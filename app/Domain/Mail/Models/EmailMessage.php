@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $provider
  * @property string|null $message_id
+ * @property string|null $tracking_id
  * @property string $to_email
  * @property string|null $to_name
  * @property string|null $subject
@@ -50,6 +51,7 @@ class EmailMessage extends Model
     protected $fillable = [
         'provider',
         'message_id',
+        'tracking_id',
         'to_email',
         'to_name',
         'subject',

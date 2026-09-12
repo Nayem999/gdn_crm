@@ -40,7 +40,9 @@ use App\Domain\Mail\Inbound\InboundMailConfiguration;
 use App\Domain\Mail\Listeners\RecordSentEmail;
 use App\Domain\Mail\MailConfiguration;
 use App\Domain\Mail\Models\EmailMessage;
+use App\Domain\Mail\Models\EmailTemplate;
 use App\Domain\Mail\Policies\EmailMessagePolicy;
+use App\Domain\Mail\Policies\EmailTemplatePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
@@ -157,6 +159,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
         Gate::policy(EmailMessage::class, EmailMessagePolicy::class);
+        Gate::policy(EmailTemplate::class, EmailTemplatePolicy::class);
         // Both ask the subject record's own policy before answering, so a note
         // or an attachment is never a way round a module's access level.
         Gate::policy(Note::class, NotePolicy::class);

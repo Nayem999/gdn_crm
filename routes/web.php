@@ -5,6 +5,7 @@ use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Domain\Shared\Imports\ImportRegistry;
 use App\Http\Controllers\DownloadDocument;
 use App\Http\Controllers\DownloadQuotePdf;
+use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\MailWebhookController;
 use App\Livewire\Accounts\AccountForm;
@@ -37,6 +38,7 @@ use App\Livewire\Leads\LeadScoringRules;
 use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Mail\EmailDeliveryLog;
+use App\Livewire\Mail\EmailTemplates;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -203,6 +205,7 @@ Route::middleware('auth')->group(function () {
     // Deliberately not /settings/mail: that path is the email provider settings
     // group, and a dedicated route there would shadow it.
     Route::get('/settings/email-delivery', EmailDeliveryLog::class)->name('settings.mail-log');
+    Route::get('/settings/email-templates', EmailTemplates::class)->name('settings.email-templates');
 
     // Deliberately not /settings/notifications: that path belongs to the
     // settings registry group of the same name (quiet hours and limits), and
@@ -225,3 +228,16 @@ Route::middleware('auth')->group(function () {
  */
 Route::post('/webhooks/mail/{provider}/{token}', MailWebhookController::class)
     ->name('webhooks.mail');
+
+/**
+ * Open and click tracking. Signed rather than authenticated — the caller is a
+ * customer's mail client — and the signature is what stops the click route
+ * being an open redirect. See EmailTrackingController.
+ */
+Route::get('/e/o/{tracking}', [EmailTrackingController::class, 'open'])
+    ->middleware('signed')
+    ->name('mail.track.open');
+
+Route::get('/e/c/{tracking}', [EmailTrackingController::class, 'click'])
+    ->middleware('signed')
+    ->name('mail.track.click');

@@ -85,4 +85,21 @@ class DealApi implements ApiModule
         /** @var Deal $record */
         $this->deleter->__invoke($record);
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function schema(): array
+    {
+        return [
+            'id' => 'integer',
+            'name' => 'string',
+            'value' => 'number',
+            'expected_close_date' => 'date',
+            'account' => 'object',
+            'owner_id' => 'integer',
+            'created_at' => 'date-time',
+            'updated_at' => 'date-time',
+        ];
+    }
 }

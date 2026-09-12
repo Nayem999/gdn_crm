@@ -87,4 +87,24 @@ class AccountApi implements ApiModule
         /** @var Account $record */
         $this->deleter->__invoke($record);
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function schema(): array
+    {
+        return [
+            'id' => 'integer',
+            'name' => 'string',
+            'industry' => 'string',
+            'website' => 'string',
+            'email' => 'string',
+            'phone' => 'string',
+            'city' => 'string',
+            'country' => 'string',
+            'owner_id' => 'integer',
+            'created_at' => 'date-time',
+            'updated_at' => 'date-time',
+        ];
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Api\ApiModules;
+use App\Domain\Api\Documentation\OpenApiDocument;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,12 @@ Route::prefix('v1')
     ->middleware(['auth:sanctum', 'throttle:api'])
     ->group(function () {
         Route::get('/me', MeController::class);
+
+        // Served live rather than from a built file: a description generated at
+        // deploy time is one more thing that can be stale, and this one is
+        // assembled from the registry in microseconds.
+        Route::get('/openapi.json', fn (OpenApiDocument $document) => response()->json($document->build()))
+            ->name('api.openapi');
 
         Route::get('/{module}', [ResourceController::class, 'index']);
         Route::get('/{module}/{id}', [ResourceController::class, 'show'])->whereNumber('id');

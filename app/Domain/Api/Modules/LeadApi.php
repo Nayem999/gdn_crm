@@ -91,4 +91,25 @@ class LeadApi implements ApiModule
         /** @var Lead $record */
         $this->deleter->__invoke($record);
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function schema(): array
+    {
+        return [
+            'id' => 'integer',
+            'first_name' => 'string',
+            'last_name' => 'string',
+            'company_name' => 'string',
+            'email' => 'string',
+            'phone' => 'string',
+            'status' => 'string',
+            'source' => 'string',
+            'score' => 'integer',
+            'owner_id' => 'integer',
+            'created_at' => 'date-time',
+            'updated_at' => 'date-time',
+        ];
+    }
 }

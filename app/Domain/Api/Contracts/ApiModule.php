@@ -52,6 +52,22 @@ interface ApiModule
     public function rules(bool $creating): array;
 
     /**
+     * The shape of a record in a response: field name => OpenAPI type.
+     *
+     * Declared rather than inferred from a sample record. A sample has nulls
+     * where a type should be and says nothing about a field that happens to be
+     * empty, so documentation generated from one changes depending on which row
+     * it was generated against.
+     *
+     * A guard test renders a real record through toArray() and asserts the keys
+     * match this exactly, so the declaration cannot quietly fall behind the
+     * thing it describes.
+     *
+     * @return array<string, string>
+     */
+    public function schema(): array;
+
+    /**
      * @param  array<string, mixed>  $validated
      */
     public function create(array $validated, User $actor): Model;

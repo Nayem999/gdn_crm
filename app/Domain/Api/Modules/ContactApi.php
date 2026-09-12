@@ -89,4 +89,24 @@ class ContactApi implements ApiModule
         /** @var Contact $record */
         $this->delete->__invoke($record);
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function schema(): array
+    {
+        return [
+            'id' => 'integer',
+            'first_name' => 'string',
+            'last_name' => 'string',
+            'job_title' => 'string',
+            'email' => 'string',
+            'phone' => 'string',
+            'mobile' => 'string',
+            'account' => 'object',
+            'owner_id' => 'integer',
+            'created_at' => 'date-time',
+            'updated_at' => 'date-time',
+        ];
+    }
 }

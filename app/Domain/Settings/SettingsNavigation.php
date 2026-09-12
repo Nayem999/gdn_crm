@@ -73,6 +73,7 @@ final class SettingsNavigation
                     ['label' => 'Email delivery', 'icon' => 'mail-check', 'route' => 'settings.mail-log', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'API keys', 'icon' => 'key-round', 'route' => 'settings.api-tokens', 'params' => [], 'permission' => 'api.tokens'],
                     ['label' => 'Webhooks', 'icon' => 'webhook', 'route' => 'settings.webhooks', 'params' => [], 'permission' => 'api.webhooks'],
+                    ['label' => 'API documentation', 'icon' => 'book-open', 'route' => 'settings.api-docs', 'params' => [], 'permission' => 'api.tokens'],
                     ['label' => 'Audit log', 'icon' => 'scroll-text', 'route' => 'settings.audit', 'params' => [], 'permission' => 'audit.view'],
                 ],
             ],

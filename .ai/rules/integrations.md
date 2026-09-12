@@ -88,6 +88,26 @@ WhatsApp free-form messages are only allowed within 24 hours of the customer's
 last message; outside that window Meta requires an approved template and refuses
 anything else. That refusal is surfaced, not retried.
 
+## API documentation is generated, never written
+`OpenApiDocument` assembles the description from the registry: endpoints from
+`ApiModules`, request fields from the same `rules()` the controller validates
+against, response fields from each module's `schema()`. Hand-written API docs
+are docs that were true once — a field is added, nobody edits the page, and the
+integration that trusted it breaks at the customer's end.
+
+`schema()` is the one hand-declared part, so a guard test renders a real record
+through `toArray()` and asserts the keys match exactly. If that test fails, the
+declaration has fallen behind the response — fix the declaration, do not relax
+the test.
+
+The readable page renders that same document rather than describing the API a
+second time. Two descriptions of one API is one description and one lie waiting
+to happen.
+
+`php artisan api:docs` writes the document to a file and fails loudly if it
+cannot — that is what a build runs. Nothing reads the file at runtime: the
+`/api/v1/openapi.json` route assembles it live, so it cannot be stale.
+
 ## The suite must not touch DNS
 `WebhookTarget::resolveUsing()` exists so tests can install a fixed map;
 `tests/Pest.php` does. Before that, every webhook test did a real lookup and the

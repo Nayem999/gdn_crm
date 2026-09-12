@@ -51,6 +51,7 @@ use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
 use App\Livewire\Sales\QuoteBuilder;
 use App\Livewire\Sales\QuotesIndex;
+use App\Livewire\Settings\ApiDocumentation;
 use App\Livewire\Settings\ApiTokens;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Settings\WebhookEndpoints;
@@ -211,6 +212,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/email-templates', EmailTemplates::class)->name('settings.email-templates');
     Route::get('/settings/api-keys', ApiTokens::class)->name('settings.api-tokens');
     Route::get('/settings/webhooks', WebhookEndpoints::class)->name('settings.webhooks');
+    Route::get('/settings/api-documentation', ApiDocumentation::class)->name('settings.api-docs');
 
     // Deliberately not /settings/notifications: that path belongs to the
     // settings registry group of the same name (quiet hours and limits), and

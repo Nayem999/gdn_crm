@@ -50,7 +50,7 @@
                                     :selected="$this->values[$key] ?? null"
                                     :error="$errors->first('values.' . $key)"
                                     :hint="$field->help"
-                                    wire:model="values.{{ $key }}"
+                                    wire:model{{ $field->live ? '.live' : '' }}="values.{{ $key }}"
                                 />
                             @else
                                 <x-form.input
@@ -83,5 +83,52 @@
                 <p class="text-sm text-muted-foreground">You have read-only access to these settings.</p>
             @endif
         </form>
+
+        @php($tester = $this->tester())
+
+        @if ($tester !== null && $this->canUpdate())
+            {{-- Outside the settings form on purpose: a test is not a save, and
+                 pressing Enter in the address box must not write the group. --}}
+            <div class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">Check it works</h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Tested against what is on this form, including anything you have typed but not saved.
+                </p>
+
+                @if ($testError)
+                    <div class="mt-4">
+                        <x-alert variant="error">{{ $testError }}</x-alert>
+                    </div>
+                @elseif ($testMessage)
+                    <div class="mt-4">
+                        <x-alert variant="success">{{ $testMessage }}</x-alert>
+                    </div>
+                @endif
+
+                <div class="mt-4 flex flex-wrap items-end gap-3">
+                    <x-button type="button" variant="secondary" wire:click="testConnection" wire:loading.attr="disabled" wire:target="testConnection">
+                        <span wire:loading.remove wire:target="testConnection">Test connection</span>
+                        <span wire:loading wire:target="testConnection">Testing&hellip;</span>
+                    </x-button>
+
+                    @if ($tester->sampleLabel() !== null)
+                        <div class="min-w-56">
+                            <x-form.label for="test-destination">{{ $tester->destinationLabel() }}</x-form.label>
+                            <x-form.input
+                                id="test-destination"
+                                wire:model="testDestination"
+                                :invalid="$errors->has('testDestination')"
+                            />
+                            <x-form.error for="testDestination" />
+                        </div>
+
+                        <x-button type="button" variant="secondary" wire:click="sendSample" wire:loading.attr="disabled" wire:target="sendSample">
+                            <span wire:loading.remove wire:target="sendSample">{{ $tester->sampleLabel() }}</span>
+                            <span wire:loading wire:target="sendSample">Sending&hellip;</span>
+                        </x-button>
+                    @endif
+                </div>
+            </div>
+        @endif
     </x-settings-shell>
 </div>

@@ -65,4 +65,13 @@ class SesProvider extends Provider
 
         return $transport;
     }
+
+    public function verify(array $credentials): void
+    {
+        $transport = $this->transport($credentials);
+
+        if ($transport instanceof EsmtpTransport) {
+            $this->verifySmtp($transport);
+        }
+    }
 }

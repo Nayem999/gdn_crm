@@ -3,8 +3,13 @@
 namespace App\Domain\Mail\Providers;
 
 use App\Domain\Mail\Contracts\MailProvider;
+use App\Domain\Mail\ProviderError;
 use App\Domain\Settings\Enums\SettingType;
 use App\Domain\Settings\SettingField;
+use Illuminate\Http\Client\PendingRequest;
+use RuntimeException;
+use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
+use Throwable;
 
 /**
  * The bookkeeping every provider shares: prefixing its field keys with its own
@@ -21,6 +26,39 @@ abstract class Provider implements MailProvider
     public function description(): string
     {
         return '';
+    }
+
+    /**
+     * Open the connection and close it again.
+     *
+     * For an SMTP provider this is the whole test: the handshake includes
+     * authentication, so a wrong password fails here rather than on the first
+     * message.
+     */
+    protected function verifySmtp(SmtpTransport $transport): void
+    {
+        try {
+            $transport->start();
+            $transport->stop();
+        } catch (Throwable $failure) {
+            throw new RuntimeException($failure->getMessage(), previous: $failure);
+        }
+    }
+
+    /**
+     * Ask the provider something harmless and insist on a 2xx.
+     */
+    protected function verifyEndpoint(PendingRequest $request, string $url): void
+    {
+        try {
+            $response = $request->timeout(15)->get($url);
+        } catch (Throwable $failure) {
+            throw new RuntimeException($failure->getMessage(), previous: $failure);
+        }
+
+        if ($response->failed()) {
+            throw new RuntimeException(ProviderError::describe($response, $this->label()));
+        }
     }
 
     /**
@@ -53,17 +91,17 @@ abstract class Provider implements MailProvider
 
     protected function text(string $key, string $label, ?string $help = null): SettingField
     {
-        return new SettingField($this->prefixed($key), $label, SettingType::String, help: $help);
+        return new SettingField($this->prefixed($key), $label, SettingType::String, help: $help, showWhen: $this->onlyWhenActive());
     }
 
     protected function secret(string $key, string $label, ?string $help = null): SettingField
     {
-        return new SettingField($this->prefixed($key), $label, SettingType::String, secret: true, help: $help);
+        return new SettingField($this->prefixed($key), $label, SettingType::String, secret: true, help: $help, showWhen: $this->onlyWhenActive());
     }
 
     protected function integer(string $key, string $label, ?int $default = null, ?string $help = null): SettingField
     {
-        return new SettingField($this->prefixed($key), $label, SettingType::Integer, default: $default, help: $help);
+        return new SettingField($this->prefixed($key), $label, SettingType::Integer, default: $default, help: $help, showWhen: $this->onlyWhenActive());
     }
 
     /**
@@ -71,7 +109,19 @@ abstract class Provider implements MailProvider
      */
     protected function select(string $key, string $label, array $options, string $default, ?string $help = null): SettingField
     {
-        return SettingField::select($this->prefixed($key), $label, $options, $default, $help);
+        return SettingField::select($this->prefixed($key), $label, $options, $default, $help, showWhen: $this->onlyWhenActive());
+    }
+
+    /**
+     * A provider's own credentials only apply when it is the one being used —
+     * as the active provider or as the fallback behind it. Anything else is a
+     * form asking for six providers' credentials at once.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function onlyWhenActive(): array
+    {
+        return ['provider' => [$this->key()], 'fallback' => [$this->key()]];
     }
 
     private function prefixed(string $key): string

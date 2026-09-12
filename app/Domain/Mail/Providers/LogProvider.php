@@ -48,4 +48,10 @@ class LogProvider extends Provider
     {
         return new LogTransport(Log::channel(config('mail.mailers.log.channel') ?? config('logging.default')));
     }
+
+    public function verify(array $credentials): void
+    {
+        // Nothing to reach. Saying so is the honest answer, not a no-op hiding
+        // a missing check.
+    }
 }

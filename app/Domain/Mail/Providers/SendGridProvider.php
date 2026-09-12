@@ -3,6 +3,7 @@
 namespace App\Domain\Mail\Providers;
 
 use App\Domain\Mail\Transports\SendGridTransport;
+use Illuminate\Support\Facades\Http;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
 class SendGridProvider extends Provider
@@ -37,5 +38,13 @@ class SendGridProvider extends Provider
     public function transport(array $credentials): TransportInterface
     {
         return new SendGridTransport((string) $this->credential($credentials, 'key', ''));
+    }
+
+    public function verify(array $credentials): void
+    {
+        $this->verifyEndpoint(
+            Http::withToken((string) $this->credential($credentials, 'key', '')),
+            'https://api.sendgrid.com/v3/scopes',
+        );
     }
 }

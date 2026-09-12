@@ -62,4 +62,19 @@ interface MailProvider
      * @param  array<string, mixed>  $credentials  Keyed by the full field key.
      */
     public function transport(array $credentials): TransportInterface;
+
+    /**
+     * Reach the provider with these credentials and come back quietly, or throw
+     * with the provider's own explanation.
+     *
+     * Separate from sending on purpose: an administrator wants to know the key
+     * is right without a message landing in somebody's inbox, and a provider
+     * that rejects the credentials outright should say so in one call rather
+     * than as a failed delivery hours later.
+     *
+     * @param  array<string, mixed>  $credentials  Keyed by the full field key.
+     *
+     * @throws \RuntimeException when the provider cannot be reached or refuses.
+     */
+    public function verify(array $credentials): void;
 }

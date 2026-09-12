@@ -3,15 +3,18 @@
 namespace App\Livewire\Settings;
 
 use App\Domain\Settings\Actions\SaveSettingsAction;
+use App\Domain\Settings\Contracts\SettingsGroupTester;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\SettingField;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Settings\SettingsRegistry;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Throwable;
 
 /**
  * Edits one registry group.
@@ -38,6 +41,16 @@ class SettingsGroup extends Component
      */
     public array $replacing = [];
 
+    /**
+     * Where a test message should go. Not a setting — it is a one-off, and
+     * storing it would invite somebody to think it was the from address.
+     */
+    public string $testDestination = '';
+
+    public ?string $testMessage = null;
+
+    public ?string $testError = null;
+
     public function mount(string $group): void
     {
         abort_unless(SettingsRegistry::hasGroup($group), 404);
@@ -52,6 +65,11 @@ class SettingsGroup extends Component
             // Secrets start empty and stay empty unless replaced.
             $this->values[$key] = $field->secret ? null : $settings->get($group.'.'.$key);
         }
+
+        // The administrator is the obvious person to send a test to, and
+        // typing your own address into a box is not a test of anything.
+        $actor = auth()->user();
+        $this->testDestination = $actor instanceof User ? (string) $actor->email : '';
     }
 
     /**
@@ -63,18 +81,121 @@ class SettingsGroup extends Component
     }
 
     /**
-     * Secret fields are dropped entirely for someone without the permission, so
-     * they are not rendered, not submitted and not saved.
+     * The fields this form is actually editing.
+     *
+     * Two things are dropped. Secrets, for somebody without the permission, so
+     * they are not rendered, not submitted and not saved. And fields that do
+     * not apply to what the rest of the group is set to — an email provider's
+     * credentials when a different provider is chosen — so that a group
+     * covering six alternatives asks for one alternative's details rather than
+     * all six.
+     *
+     * This is the one list; rules(), submittedValues() and the view all read
+     * it, so "not shown" and "not written" cannot drift apart.
      *
      * @return array<string, SettingField>
      */
     public function visibleFields(): array
     {
+        $fields = array_filter(
+            $this->fields(),
+            fn (SettingField $field) => $field->appliesTo($this->values)
+        );
+
         if ($this->canManageSecrets()) {
-            return $this->fields();
+            return $fields;
         }
 
-        return array_filter($this->fields(), fn (SettingField $field) => ! $field->secret);
+        return array_filter($fields, fn (SettingField $field) => ! $field->secret);
+    }
+
+    /**
+     * The group's tester, when it has one.
+     */
+    public function tester(): ?SettingsGroupTester
+    {
+        $declared = SettingsRegistry::group($this->group);
+
+        return isset($declared['tester']) ? app($declared['tester']) : null;
+    }
+
+    /**
+     * Reach the service with what is on the form.
+     *
+     * A failure is shown, not thrown: "the credentials are wrong" is the answer
+     * the administrator asked for, not an error in the application.
+     */
+    public function testConnection(): void
+    {
+        $this->authorize('updateAny', Setting::class);
+
+        $tester = $this->tester();
+
+        if ($tester === null) {
+            return;
+        }
+
+        $this->testMessage = null;
+        $this->testError = null;
+
+        try {
+            $this->testMessage = $tester->test($this->testValues());
+        } catch (Throwable $failure) {
+            $this->testError = $failure->getMessage();
+        }
+    }
+
+    public function sendSample(): void
+    {
+        $this->authorize('updateAny', Setting::class);
+
+        $tester = $this->tester();
+
+        if ($tester === null || $tester->sampleLabel() === null) {
+            return;
+        }
+
+        $this->validate(
+            ['testDestination' => $tester->destinationRules()],
+            [],
+            ['testDestination' => strtolower($tester->destinationLabel())],
+        );
+
+        $this->testMessage = null;
+        $this->testError = null;
+
+        try {
+            $this->testMessage = $tester->sendSample($this->testValues(), $this->testDestination);
+        } catch (Throwable $failure) {
+            $this->testError = $failure->getMessage();
+        }
+    }
+
+    /**
+     * What is stored, overridden by what has been typed and not yet saved.
+     *
+     * Secrets are the reason this is not simply the form state: the form never
+     * holds a stored secret, so an untouched one has to come from settings,
+     * while one the administrator has just typed has to win. Testing before
+     * saving is the whole point — otherwise you must commit credentials you are
+     * not sure about in order to find out whether they are right.
+     *
+     * @return array<string, mixed>
+     */
+    private function testValues(): array
+    {
+        $settings = app(SettingsManager::class);
+        $values = [];
+
+        foreach ($this->fields() as $key => $field) {
+            $typed = $this->values[$key] ?? null;
+
+            $values[$key] = $typed === null || $typed === ''
+                ? $settings->get($this->group.'.'.$key)
+                : $typed;
+        }
+
+        return $values;
     }
 
     public function canManageSecrets(): bool

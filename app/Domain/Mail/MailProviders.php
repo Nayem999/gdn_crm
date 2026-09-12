@@ -103,9 +103,11 @@ final class MailProviders
     public static function settingFields(): array
     {
         $fields = [
-            SettingField::select('provider', 'Send email through', self::options(), 'log'),
+            // Live, both of them: the credential fields on the form are the
+            // chosen providers' own, so changing either has to redraw the form.
+            SettingField::select('provider', 'Send email through', self::options(), 'log', live: true),
             SettingField::select('fallback', 'If that fails, try', self::fallbackOptions(), self::NO_FALLBACK,
-                'Only used when the first provider refuses the message outright.'),
+                'Only used when the first provider refuses the message outright.', live: true),
             SettingField::text('from_address', 'From address',
                 'The address messages appear to come from. Leave blank to use the one in the environment file.'),
             SettingField::text('from_name', 'From name'),

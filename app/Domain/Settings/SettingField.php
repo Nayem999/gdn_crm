@@ -19,6 +19,14 @@ readonly class SettingField
      *                                             which is an int wherever that
      *                                             value is numeric — PHP will
      *                                             not hold "30" as a string key.
+     * @param  bool  $live  Whether changing it re-renders the form. Only worth
+     *                      setting on a field other fields depend on.
+     * @param  array<string, array<int, string>>  $showWhen  Sibling key => the
+     *                                                       values of that sibling
+     *                                                       that bring this field
+     *                                                       into play. Any one
+     *                                                       match is enough; an
+     *                                                       empty map means always.
      */
     public function __construct(
         public string $key,
@@ -30,7 +38,40 @@ readonly class SettingField
         public array $options = [],
         public bool $required = false,
         public ?string $extraRules = null,
+        public bool $live = false,
+        public array $showWhen = [],
     ) {}
+
+    /**
+     * Whether this field applies, given what the rest of the group is set to.
+     *
+     * A group that configures one of several alternatives — an email provider,
+     * an SMS driver — has fields that are meaningless unless their alternative
+     * is the chosen one. Declaring that here rather than in a view keeps it out
+     * of the validation rules and out of the submitted payload as well as off
+     * the screen: a credential for a provider you are not using is not edited,
+     * not validated, and not written.
+     *
+     * **Any one named sibling matching is enough.** Mailgun's credentials are
+     * wanted when Mailgun is the provider *or* when it is the fallback behind
+     * another one, and requiring both would mean neither ever showed.
+     *
+     * @param  array<string, mixed>  $values  The group's current values.
+     */
+    public function appliesTo(array $values): bool
+    {
+        if ($this->showWhen === []) {
+            return true;
+        }
+
+        foreach ($this->showWhen as $sibling => $allowed) {
+            if (in_array($values[$sibling] ?? null, $allowed, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * The validation rules this field accepts, built from its own type so a
@@ -58,14 +99,20 @@ readonly class SettingField
         return $rules;
     }
 
-    public static function text(string $key, string $label, ?string $help = null): self
+    /**
+     * @param  array<string, array<int, string>>  $showWhen
+     */
+    public static function text(string $key, string $label, ?string $help = null, array $showWhen = []): self
     {
-        return new self($key, $label, SettingType::String, help: $help);
+        return new self($key, $label, SettingType::String, help: $help, showWhen: $showWhen);
     }
 
-    public static function secret(string $key, string $label, ?string $help = null): self
+    /**
+     * @param  array<string, array<int, string>>  $showWhen
+     */
+    public static function secret(string $key, string $label, ?string $help = null, array $showWhen = []): self
     {
-        return new self($key, $label, SettingType::String, secret: true, help: $help);
+        return new self($key, $label, SettingType::String, secret: true, help: $help, showWhen: $showWhen);
     }
 
     public static function boolean(string $key, string $label, bool $default = false, ?string $help = null): self
@@ -75,10 +122,11 @@ readonly class SettingField
 
     /**
      * @param  array<array-key, string>  $options
+     * @param  array<string, array<int, string>>  $showWhen
      */
-    public static function select(string $key, string $label, array $options, mixed $default = null, ?string $help = null): self
+    public static function select(string $key, string $label, array $options, mixed $default = null, ?string $help = null, bool $live = false, array $showWhen = []): self
     {
-        return new self($key, $label, SettingType::String, default: $default, help: $help, options: $options, required: true);
+        return new self($key, $label, SettingType::String, default: $default, help: $help, options: $options, required: true, live: $live, showWhen: $showWhen);
     }
 
     /**

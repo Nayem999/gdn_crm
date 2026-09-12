@@ -2,6 +2,7 @@
 
 namespace App\Domain\Mail\Transports;
 
+use App\Domain\Mail\ProviderError;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -67,50 +68,10 @@ abstract class ApiTransport extends AbstractTransport
 
     /**
      * Turn a failed call into something an administrator can act on.
-     *
-     * The provider's own words are kept: "Domain not found" and "Unauthorized"
-     * need different fixes, and collapsing both into "sending failed" is how
-     * somebody spends an afternoon re-typing a correct API key.
      */
     protected function failed(Response $response): TransportException
     {
-        $message = $this->errorFrom($response);
-
-        return new TransportException(sprintf(
-            '%s refused the message (HTTP %d)%s',
-            $this->providerLabel(),
-            $response->status(),
-            $message === null ? '.' : ': '.$message,
-        ));
-    }
-
-    private function errorFrom(Response $response): ?string
-    {
-        $body = $response->json();
-
-        if (is_array($body)) {
-            foreach (['message', 'Message', 'error', 'detail'] as $key) {
-                if (isset($body[$key]) && is_string($body[$key])) {
-                    return $body[$key];
-                }
-            }
-
-            // SendGrid reports a list of problems rather than one.
-            if (isset($body['errors']) && is_array($body['errors'])) {
-                $messages = array_filter(array_map(
-                    fn ($error) => is_array($error) && isset($error['message']) && is_string($error['message']) ? $error['message'] : null,
-                    $body['errors']
-                ));
-
-                if ($messages !== []) {
-                    return implode('; ', $messages);
-                }
-            }
-        }
-
-        $text = trim($response->body());
-
-        return $text === '' ? null : mb_substr($text, 0, 300);
+        return new TransportException(ProviderError::describe($response, $this->providerLabel()));
     }
 
     /**

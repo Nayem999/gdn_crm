@@ -3,6 +3,8 @@
 namespace App\Domain\Settings;
 
 use App\Domain\Mail\MailProviders;
+use App\Domain\Mail\MailSettingsTester;
+use App\Domain\Settings\Contracts\SettingsGroupTester;
 use App\Domain\Settings\Enums\SettingType;
 
 /**
@@ -21,7 +23,7 @@ use App\Domain\Settings\Enums\SettingType;
 final class SettingsRegistry
 {
     /**
-     * @return array<string, array{label: string, icon: string, description: string, fields: array<int, SettingField>}>
+     * @return array<string, array{label: string, icon: string, description: string, fields: array<int, SettingField>, tester?: class-string<SettingsGroupTester>}>
      */
     public static function groups(): array
     {
@@ -143,6 +145,10 @@ final class SettingsRegistry
                 'icon' => 'mail',
                 'description' => 'How email leaves the application, and who it comes from. Every provider keeps its own credentials, so switching between them — or standing one behind another — costs nothing.',
                 'fields' => MailProviders::settingFields(),
+                // Saving a credential is not the same as it working, and for
+                // email the difference is only discovered by a customer who
+                // never received anything.
+                'tester' => MailSettingsTester::class,
             ],
             'storage' => [
                 'label' => 'Storage',
@@ -177,7 +183,7 @@ final class SettingsRegistry
     }
 
     /**
-     * @return array{label: string, icon: string, description: string, fields: array<int, SettingField>}|null
+     * @return array{label: string, icon: string, description: string, fields: array<int, SettingField>, tester?: class-string<SettingsGroupTester>}|null
      */
     public static function group(string $group): ?array
     {

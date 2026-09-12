@@ -3,6 +3,7 @@
 namespace App\Domain\Mail\Providers;
 
 use App\Domain\Mail\Transports\PostmarkTransport;
+use Illuminate\Support\Facades\Http;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
 class PostmarkProvider extends Provider
@@ -40,6 +41,17 @@ class PostmarkProvider extends Provider
         return new PostmarkTransport(
             (string) $this->credential($credentials, 'token', ''),
             (string) $this->credential($credentials, 'stream', 'outbound'),
+        );
+    }
+
+    public function verify(array $credentials): void
+    {
+        $this->verifyEndpoint(
+            Http::withHeaders([
+                'X-Postmark-Server-Token' => (string) $this->credential($credentials, 'token', ''),
+                'Accept' => 'application/json',
+            ]),
+            'https://api.postmarkapp.com/server',
         );
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Domain\Mail\Providers;
 
 use App\Domain\Mail\Transports\MailgunTransport;
+use Illuminate\Support\Facades\Http;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
 class MailgunProvider extends Provider
@@ -51,9 +52,27 @@ class MailgunProvider extends Provider
         return new MailgunTransport(
             (string) $this->credential($credentials, 'domain', ''),
             (string) $this->credential($credentials, 'secret', ''),
-            $this->credential($credentials, 'region', 'us') === 'eu'
-                ? 'https://api.eu.mailgun.net'
-                : 'https://api.mailgun.net',
+            $this->endpointFor($credentials),
         );
+    }
+
+    public function verify(array $credentials): void
+    {
+        $domain = (string) $this->credential($credentials, 'domain', '');
+
+        $this->verifyEndpoint(
+            Http::withBasicAuth('api', (string) $this->credential($credentials, 'secret', '')),
+            $this->endpointFor($credentials).'/v3/domains/'.$domain,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    private function endpointFor(array $credentials): string
+    {
+        return $this->credential($credentials, 'region', 'us') === 'eu'
+            ? 'https://api.eu.mailgun.net'
+            : 'https://api.mailgun.net';
     }
 }

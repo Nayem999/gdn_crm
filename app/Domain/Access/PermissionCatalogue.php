@@ -175,6 +175,22 @@ final class PermissionCatalogue
                     'orders.purchase' => 'Raise and approve purchase orders',
                 ],
             ],
+            'invoices' => [
+                'label' => 'Invoices',
+                'icon' => 'receipt',
+                'permissions' => [
+                    'invoices.view' => 'View invoices',
+                    'invoices.create' => 'Raise invoices, including from an order',
+                    'invoices.update' => 'Update draft invoices',
+                    'invoices.issue' => 'Issue and cancel invoices',
+                    'invoices.delete' => 'Remove invoices',
+                    'invoices.export' => 'Export invoices',
+                    // Saying money arrived is not the same act as raising the
+                    // demand for it, and in most organisations it is not the
+                    // same person either.
+                    'invoices.payments' => 'Record and remove payments',
+                ],
+            ],
             'workflows' => [
                 'label' => 'Workflows',
                 'icon' => 'zap',

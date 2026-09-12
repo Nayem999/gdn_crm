@@ -23,6 +23,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Leads/Capture/**, app/Domain/Leads/Actions/SubmitLeadCaptureAction.php, app/Http/Controllers/LeadCaptureController.php, resources/views/lead-capture/** | .ai/rules/lead-capture.md |
 | app/Domain/Leads/**, app/Livewire/Leads/**, app/Jobs/RescoreLeads.php, database/seeders/LeadScoringRulesSeeder.php, resources/views/livewire/leads/** | .ai/rules/leads.md |
 | app/Livewire/** | .ai/rules/livewire.md |
+| app/Domain/Mail/**, app/Domain/Notifications/Drivers/MailDriver.php, config/mail.php | .ai/rules/mail.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Domain/*/Models/*.php | .ai/rules/models-name-collisions.md |
 | app/Domain/*/Models/*.php | .ai/rules/models.md |

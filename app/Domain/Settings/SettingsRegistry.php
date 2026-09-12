@@ -2,6 +2,7 @@
 
 namespace App\Domain\Settings;
 
+use App\Domain\Mail\MailProviders;
 use App\Domain\Settings\Enums\SettingType;
 
 /**
@@ -12,8 +13,10 @@ use App\Domain\Settings\Enums\SettingType;
  * change a field's type, or flip a secret into a readable one. It is to Settings
  * what PermissionCatalogue is to roles.
  *
- * Later phases add their own groups here — email providers (7.2), SMS and
- * WhatsApp (7.6), API and webhooks (7.9), data sources (8.1).
+ * Later phases add their own groups here — SMS and WhatsApp (7.6), API and
+ * webhooks (7.9), data sources (8.1). The email provider group is assembled by
+ * MailProviders rather than written out, so a provider's credentials cannot
+ * exist without the provider, or the provider without its credentials.
  */
 final class SettingsRegistry
 {
@@ -134,6 +137,12 @@ final class SettingsRegistry
                         default: 60, help: 'Anything beyond this is skipped and recorded in the log.',
                         extraRules: 'min:1|max:1000'),
                 ],
+            ],
+            'mail' => [
+                'label' => 'Email providers',
+                'icon' => 'mail',
+                'description' => 'How email leaves the application, and who it comes from. Every provider keeps its own credentials, so switching between them — or standing one behind another — costs nothing.',
+                'fields' => MailProviders::settingFields(),
             ],
             'storage' => [
                 'label' => 'Storage',

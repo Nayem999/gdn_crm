@@ -2,6 +2,7 @@
 
 namespace App\Domain\Notifications\Drivers;
 
+use App\Domain\Mail\MailConfiguration;
 use App\Domain\Notifications\Contracts\ChannelDriver;
 use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\NotificationMessage;
@@ -12,12 +13,16 @@ use RuntimeException;
 /**
  * Sends through whatever mailer the application is configured with.
  *
- * Phase 7.1 replaces the transport underneath with the settings-driven
- * multi-provider mailer; this driver keeps the same contract, so nothing that
- * dispatches a notification has to change.
+ * "Configured" is the email provider's own answer, not the presence of a
+ * config key: an SMTP provider with no host is configured as far as Laravel is
+ * concerned and cannot send a thing. Asking the provider means the notification
+ * log says "Mailgun needs a sending domain" rather than failing per message
+ * with a connection error.
  */
 class MailDriver implements ChannelDriver
 {
+    public function __construct(private readonly MailConfiguration $configuration) {}
+
     public function channel(): NotificationChannel
     {
         return NotificationChannel::Email;
@@ -25,12 +30,12 @@ class MailDriver implements ChannelDriver
 
     public function isConfigured(): bool
     {
-        return config('mail.default') !== null;
+        return $this->configuration->isConfigured();
     }
 
     public function unavailableReason(): ?string
     {
-        return $this->isConfigured() ? null : 'No mailer is configured.';
+        return $this->configuration->unavailableReason();
     }
 
     public function send(NotificationMessage $message): void

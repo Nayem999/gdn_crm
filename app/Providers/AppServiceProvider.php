@@ -34,6 +34,8 @@ use App\Domain\Leads\Models\LeadScoringRule;
 use App\Domain\Leads\Policies\LeadCaptureFormPolicy;
 use App\Domain\Leads\Policies\LeadPolicy;
 use App\Domain\Leads\Policies\LeadScoringRulePolicy;
+use App\Domain\Mail\MailConfiguration;
+use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationMatrix;
@@ -64,6 +66,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity as AuditEntry;
 use Spatie\Permission\Models\Role;
@@ -97,6 +100,12 @@ class AppServiceProvider extends ServiceProvider
         // suppressed for nobody.
         $this->app->singleton(WorkflowCache::class);
         $this->app->singleton(WorkflowSuppressor::class);
+
+        // One managed transport for the process: it holds the built provider
+        // transports, keyed by their credentials, so a run of messages reuses
+        // one SMTP connection while a changed credential still rebuilds.
+        $this->app->singleton(MailConfiguration::class);
+        $this->app->singleton(ManagedTransport::class);
     }
 
     /**
@@ -146,6 +155,12 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::subscribe(RecordLoginHistory::class);
+
+        // The "crm" mailer. The transport reads the configured provider on
+        // every send, so this closure runs once and stays correct — including
+        // in a queue worker, where a mailer resolved at boot would otherwise
+        // keep the provider it started with.
+        Mail::extend('crm', fn (): ManagedTransport => $this->app->make(ManagedTransport::class));
 
         // Models live under app/Domain/{Module}/Models, which Laravel's default
         // resolver would map to Database\Factories\Domain\{Module}\Models\...

@@ -12,9 +12,13 @@ return [
     | the message. All additional mailers can be configured within the
     | "mailers" array. Examples of each type of mailer are provided.
     |
+    | "crm" is this application's own mailer: its transport is built from the
+    | settings an administrator saves under Settings > Email providers, and is
+    | re-read on every send so a change takes effect in queue workers too.
+    |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => env('MAIL_MAILER', 'crm'),
 
     /*
     |--------------------------------------------------------------------------
@@ -36,6 +40,11 @@ return [
     */
 
     'mailers' => [
+
+        // Settings-driven. See App\Domain\Mail\Transports\ManagedTransport.
+        'crm' => [
+            'transport' => 'crm',
+        ],
 
         'smtp' => [
             'transport' => 'smtp',

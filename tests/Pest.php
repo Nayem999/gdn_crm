@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,6 +17,21 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // The SSRF guard resolves a hostname to decide whether it points inside
+        // the network. Left alone, that is a real DNS lookup in every test that
+        // touches a webhook — which makes the suite depend on the network being
+        // up and quick, and it does fail that way under load.
+        //
+        // A fixed map instead. Anything not listed resolves to nothing, which
+        // is exactly what the "host does not resolve" cases want.
+        WebhookTarget::resolveUsing(fn (string $host): array => match ($host) {
+            'example.com' => ['93.184.216.34'],
+            'hooks.example.com' => ['93.184.216.34'],
+            'localhost' => ['127.0.0.1'],
+            default => [],
+        });
+    })
     ->in('Feature');
 
 /*

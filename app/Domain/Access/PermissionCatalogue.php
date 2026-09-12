@@ -296,6 +296,13 @@ final class PermissionCatalogue
                     'notifications.update' => 'Change the notification matrix and templates',
                 ],
             ],
+            'api' => [
+                'label' => 'API',
+                'icon' => 'plug',
+                'permissions' => [
+                    'api.tokens' => 'Create and revoke API keys',
+                ],
+            ],
             // Separate from notifications on purpose: a notification template
             // is wording the system sends on its own, while an email template
             // is something a salesperson picks and sends to a customer. The

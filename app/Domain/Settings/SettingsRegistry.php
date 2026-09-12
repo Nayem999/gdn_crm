@@ -154,6 +154,20 @@ final class SettingsRegistry
                 // never received anything.
                 'tester' => MailSettingsTester::class,
             ],
+            'api' => [
+                'label' => 'API',
+                'icon' => 'plug',
+                'description' => 'How hard an integration may hit the REST API. Keys themselves are created under API keys, one per integration.',
+                'fields' => [
+                    SettingField::numberSelect('rate_limit_per_minute', 'Requests per key per minute', [
+                        30 => '30',
+                        60 => '60',
+                        120 => '120',
+                        300 => '300',
+                        600 => '600',
+                    ], 60, 'Counted per key, so one busy integration cannot starve another.'),
+                ],
+            ],
             'sms' => [
                 'label' => 'SMS',
                 'icon' => 'message-square',

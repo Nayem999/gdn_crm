@@ -72,11 +72,14 @@ use App\Domain\Workflows\WorkflowCache;
 use App\Domain\Workflows\WorkflowModules;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Http\Request;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity as AuditEntry;
 use Spatie\Permission\Models\Role;
@@ -174,6 +177,27 @@ class AppServiceProvider extends ServiceProvider
         foreach ([...array_column(WorkflowModules::builtIn(), 'model'), CustomRecord::class] as $watched) {
             $watched::observe(WorkflowObserver::class);
         }
+
+        // The API's rate limit, keyed by the **token** rather than the person.
+        // Two integrations owned by the same administrator should not be able
+        // to starve each other, and revoking one should not carry the other's
+        // history with it.
+        RateLimiter::for('api', function (Request $request) {
+            $perMinute = (int) settings('api.rate_limit_per_minute', 60);
+
+            // Keyed off the bearer token itself rather than $request->user():
+            // the throttle runs before authentication in Laravel's middleware
+            // order, so asking for the user here gets null and every key in the
+            // organisation shares one bucket keyed by IP. Hashed, so the key
+            // never reaches the cache store in plain text.
+            $bearer = $request->bearerToken();
+
+            return Limit::perMinute(max(1, $perMinute))->by(
+                $bearer === null || $bearer === ''
+                    ? 'ip-'.$request->ip()
+                    : 'key-'.hash('sha256', $bearer)
+            );
+        });
 
         Event::subscribe(RecordLoginHistory::class);
 

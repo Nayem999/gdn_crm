@@ -51,6 +51,7 @@ use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
 use App\Livewire\Sales\QuoteBuilder;
 use App\Livewire\Sales\QuotesIndex;
+use App\Livewire\Settings\ApiTokens;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
@@ -207,6 +208,7 @@ Route::middleware('auth')->group(function () {
     // group, and a dedicated route there would shadow it.
     Route::get('/settings/email-delivery', EmailDeliveryLog::class)->name('settings.mail-log');
     Route::get('/settings/email-templates', EmailTemplates::class)->name('settings.email-templates');
+    Route::get('/settings/api-keys', ApiTokens::class)->name('settings.api-tokens');
 
     // Deliberately not /settings/notifications: that path belongs to the
     // settings registry group of the same name (quiet hours and limits), and

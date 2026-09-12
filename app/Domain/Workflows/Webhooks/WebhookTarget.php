@@ -85,6 +85,29 @@ final class WebhookTarget
     }
 
     /**
+     * A stand-in for the system resolver.
+     *
+     * The guard has to resolve a name to decide whether it points inside the
+     * network, and a real lookup makes every test that exercises it depend on
+     * DNS being reachable and quick. That is not a hypothetical: the suite ran
+     * green for weeks and then failed on four webhook tests at once, under
+     * load, because one lookup timed out.
+     *
+     * Production leaves this null and resolves for real.
+     *
+     * @var null|callable(string): array<int, string>
+     */
+    private static $resolver = null;
+
+    /**
+     * @param  null|callable(string): array<int, string>  $resolver
+     */
+    public static function resolveUsing(?callable $resolver): void
+    {
+        self::$resolver = $resolver;
+    }
+
+    /**
      * @return array<int, string>
      */
     private static function resolve(string $host): array
@@ -93,6 +116,10 @@ final class WebhookTarget
         // would happily "resolve" it to itself anyway.
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
             return [$host];
+        }
+
+        if (self::$resolver !== null) {
+            return (self::$resolver)($host);
         }
 
         $records = @dns_get_record($host, DNS_A | DNS_AAAA);

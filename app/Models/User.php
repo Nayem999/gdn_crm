@@ -15,6 +15,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
@@ -22,7 +23,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements HasMedia
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, InteractsWithMedia, Notifiable, RecordsActivity, SoftDeletes, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasRoles, InteractsWithMedia, Notifiable, RecordsActivity, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.

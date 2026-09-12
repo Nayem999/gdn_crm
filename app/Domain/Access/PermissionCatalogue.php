@@ -161,6 +161,20 @@ final class PermissionCatalogue
                     'quotes.export' => 'Export quotes',
                 ],
             ],
+            'orders' => [
+                'label' => 'Orders',
+                'icon' => 'clipboard-check',
+                'permissions' => [
+                    'orders.view' => 'View sales and purchase orders',
+                    'orders.create' => 'Raise orders, including from an accepted quote',
+                    'orders.update' => 'Update draft orders and move them along',
+                    'orders.delete' => 'Remove orders',
+                    'orders.export' => 'Export orders',
+                    // Committing the company's money to a supplier is not the
+                    // same act as taking a customer's order, so it stands apart.
+                    'orders.purchase' => 'Raise and approve purchase orders',
+                ],
+            ],
             'workflows' => [
                 'label' => 'Workflows',
                 'icon' => 'zap',

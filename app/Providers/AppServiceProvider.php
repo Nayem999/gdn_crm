@@ -34,7 +34,10 @@ use App\Domain\Leads\Models\LeadScoringRule;
 use App\Domain\Leads\Policies\LeadCaptureFormPolicy;
 use App\Domain\Leads\Policies\LeadPolicy;
 use App\Domain\Leads\Policies\LeadScoringRulePolicy;
+use App\Domain\Mail\Listeners\RecordSentEmail;
 use App\Domain\Mail\MailConfiguration;
+use App\Domain\Mail\Models\EmailMessage;
+use App\Domain\Mail\Policies\EmailMessagePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
@@ -64,6 +67,7 @@ use App\Domain\Workflows\WorkflowModules;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -141,6 +145,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ApprovalRequest::class, ApprovalRequestPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(NotificationLog::class, NotificationPolicy::class);
+        Gate::policy(EmailMessage::class, EmailMessagePolicy::class);
         // Both ask the subject record's own policy before answering, so a note
         // or an attachment is never a way round a module's access level.
         Gate::policy(Note::class, NotePolicy::class);
@@ -155,6 +160,12 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::subscribe(RecordLoginHistory::class);
+
+        // Every message that goes out through Laravel's mailer gets a row in
+        // the delivery log. Deliberately not in the transport: the transport is
+        // also how Test Connection and a raw send reach a provider, and neither
+        // belongs in the log.
+        Event::listen(MessageSent::class, RecordSentEmail::class);
 
         // The "crm" mailer. The transport reads the configured provider on
         // every send, so this closure runs once and stays correct — including

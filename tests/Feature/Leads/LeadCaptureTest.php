@@ -301,13 +301,15 @@ test('the public route is rate limited', function () {
     expect(Lead::query()->count())->toBe(0);
 });
 
-test('csrf is waived for the public form path and nothing else', function () {
-    // An embedded form has no usable session, so it cannot carry a token. This
-    // is the only exemption in the application, and it should stay that way.
+test('csrf is waived for the public form path and the provider webhooks, and nothing else', function () {
+    // An embedded form has no usable session, so it cannot carry a token, and
+    // neither can a provider posting a bounce. Both stand on an unguessable
+    // path instead. This list is the whole of it; a third entry should have to
+    // argue for itself here.
     $excluded = (new ReflectionMethod(ValidateCsrfToken::class, 'getExcludedPaths'));
     $excluded->setAccessible(true);
 
-    expect($excluded->invoke(app(ValidateCsrfToken::class)))->toBe(['f/*']);
+    expect($excluded->invoke(app(ValidateCsrfToken::class)))->toBe(['f/*', 'webhooks/*']);
 });
 
 // -- The builder ----------------------------------------------------------------

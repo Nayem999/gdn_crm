@@ -39,6 +39,8 @@ class MailgunProvider extends Provider
             $this->text('domain', 'Mailgun sending domain', 'For example mg.example.com.'),
             $this->secret('secret', 'Mailgun private API key'),
             $this->select('region', 'Mailgun region', self::REGIONS, 'us'),
+            $this->secret('webhook_key', 'Mailgun webhook signing key',
+                'From Mailgun\'s webhook settings. Without it the delivery webhook is protected only by the secret in its URL.'),
         ];
     }
 

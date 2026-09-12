@@ -27,6 +27,8 @@ class SendGridProvider extends Provider
     {
         return [
             $this->secret('key', 'SendGrid API key'),
+            $this->secret('webhook_key', 'SendGrid event webhook verification key',
+                'The public key SendGrid shows when the signed event webhook is switched on. Without it the webhook is protected only by the secret in its URL.'),
         ];
     }
 

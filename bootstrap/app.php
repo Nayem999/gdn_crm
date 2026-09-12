@@ -24,9 +24,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // even when one was issued. What stands in for it: the route is a
         // random 32-character token, the only thing it can do is create a lead
         // owned by whoever the form names, and it is rate limited, honeypotted
-        // and timed. Nothing else in the application is exempt.
+        // and timed.
+        //
+        // Providers reporting a bounce are not carrying a session cookie, so
+        // there is no token to check. What stands in for it: the path carries an
+        // unguessable token, the provider's own signature is verified where one
+        // exists, and the only thing a request can do is attach an event to a
+        // message this application already sent.
+        //
+        // Nothing else in the application is exempt.
         $middleware->validateCsrfTokens(except: [
             'f/*',
+            'webhooks/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

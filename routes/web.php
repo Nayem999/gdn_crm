@@ -6,6 +6,7 @@ use App\Domain\Shared\Imports\ImportRegistry;
 use App\Http\Controllers\DownloadDocument;
 use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\LeadCaptureController;
+use App\Http\Controllers\MailWebhookController;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -35,6 +36,7 @@ use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadScoringRules;
 use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
+use App\Livewire\Mail\EmailDeliveryLog;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -198,6 +200,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
 
+    // Deliberately not /settings/mail: that path is the email provider settings
+    // group, and a dedicated route there would shadow it.
+    Route::get('/settings/email-delivery', EmailDeliveryLog::class)->name('settings.mail-log');
+
     // Deliberately not /settings/notifications: that path belongs to the
     // settings registry group of the same name (quiet hours and limits), and
     // a route registered here would shadow it entirely.
@@ -211,3 +217,11 @@ Route::middleware('auth')->group(function () {
         ->whereIn('group', SettingsRegistry::groupKeys())
         ->name('settings.group');
 });
+
+/**
+ * Provider webhooks. Outside every auth group by necessity — the caller is
+ * Mailgun, not a person — and guarded by the token in the path plus the
+ * provider's own signature where there is one. See MailWebhookController.
+ */
+Route::post('/webhooks/mail/{provider}/{token}', MailWebhookController::class)
+    ->name('webhooks.mail');

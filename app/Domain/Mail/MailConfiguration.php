@@ -68,6 +68,20 @@ class MailConfiguration
         return $credentials;
     }
 
+    /**
+     * The same thing by provider key, for a caller that has a key rather than a
+     * provider — a webhook naming the provider that sent the message, which is
+     * not necessarily the one configured now.
+     *
+     * @return array<string, mixed>
+     */
+    public function credentialsForKey(string $provider): array
+    {
+        $found = MailProviders::find($provider);
+
+        return $found === null ? [] : $this->credentialsFor($found);
+    }
+
     public function isConfigured(): bool
     {
         $provider = $this->activeProvider();

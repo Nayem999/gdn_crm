@@ -260,18 +260,25 @@ test('an unconfigured channel is skipped with a reason, not attempted', function
         ->and($log->error)->toContain('Not configured');
 });
 
-test('sms and whatsapp report themselves unconfigured until their providers land', function () {
+test('sms reports what is missing once a real provider is chosen', function () {
+    // Until 7.6 these two were stubs that reported themselves unconfigured
+    // outright. They now have providers, and "not configured" means the chosen
+    // provider is missing a credential — which is a far more useful sentence
+    // than "no SMS provider yet".
+    settings()->set('sms.provider', 'twilio');
+
     $manager = app(ChannelManager::class);
 
     expect($manager->driver(NotificationChannel::Sms)->isConfigured())->toBeFalse()
-        ->and($manager->driver(NotificationChannel::Sms)->unavailableReason())->toContain('SMS provider')
-        ->and($manager->driver(NotificationChannel::WhatsApp)->isConfigured())->toBeFalse()
-        ->and($manager->driver(NotificationChannel::WhatsApp)->unavailableReason())->toContain('WhatsApp');
+        ->and($manager->driver(NotificationChannel::Sms)->unavailableReason())->toContain('Twilio needs');
 });
 
-test('in-app and email are configured out of the box', function () {
+test('every channel is configured out of the box, because the default is one that logs', function () {
+    // Each channel's default provider writes to the application log. That is a
+    // real delivery of a kind — it does what it says — so the engine does not
+    // skip these channels on a fresh install and silently lose messages.
     expect(app(ChannelManager::class)->configuredChannels())
-        ->toEqualCanonicalizing([NotificationChannel::InApp, NotificationChannel::Email]);
+        ->toEqualCanonicalizing(NotificationChannel::cases());
 });
 
 // -- Failure and retry ---------------------------------------------------------

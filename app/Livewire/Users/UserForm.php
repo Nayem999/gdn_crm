@@ -25,6 +25,13 @@ class UserForm extends Component
 
     public string $email = '';
 
+    /**
+     * Where SMS and WhatsApp notifications go. Optional: plenty of people do
+     * not want work messages on their phone, and an empty number is how they
+     * say so.
+     */
+    public string $phone = '';
+
     public string $password = '';
 
     public string $password_confirmation = '';
@@ -48,6 +55,7 @@ class UserForm extends Component
 
             $this->name = $this->user->name;
             $this->email = $this->user->email;
+            $this->phone = (string) ($this->user->phone ?? '');
             // The selects bind to strings, so ids are cast for the round trip.
             $this->roleId = $firstRole !== null ? (string) $firstRole->getKey() : null;
             $this->currentTeamId = $this->user->current_team_id !== null
@@ -67,6 +75,7 @@ class UserForm extends Component
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:32'],
             'email' => [
                 'required',
                 'string',
@@ -90,6 +99,7 @@ class UserForm extends Component
             name: $validated['name'],
             email: $validated['email'],
             password: filled($validated['password']) ? $validated['password'] : null,
+            phone: filled($validated['phone']) ? $validated['phone'] : null,
             roleId: filled($validated['roleId']) ? (int) $validated['roleId'] : null,
             currentTeamId: filled($validated['currentTeamId']) ? (int) $validated['currentTeamId'] : null,
         );

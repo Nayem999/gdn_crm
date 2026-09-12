@@ -2,22 +2,24 @@
 
 namespace App\Domain\Notifications\Drivers;
 
+use App\Domain\Messaging\MessagingConfiguration;
+use App\Domain\Messaging\MessagingProviders;
 use App\Domain\Notifications\Contracts\ChannelDriver;
 use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Settings\SettingsRegistry;
 use RuntimeException;
 
 /**
- * SMS delivery.
+ * SMS delivery, through whichever provider the settings name.
  *
- * Task 7.6 supplies the provider drivers (Twilio, Vonage, a local gateway) and
- * the credentials behind them. Until then this reports itself unconfigured, so
- * the engine skips it and says why in the log rather than pretending to send.
- * Writing a stand-in provider call now would only invent an API 7.6 replaces.
+ * The driver knows nothing about Twilio or Vonage: it asks the configuration
+ * for the active provider and hands over a number and some words. That is what
+ * makes "change the SMS account" a form rather than a deploy.
  */
 class SmsDriver implements ChannelDriver
 {
+    public function __construct(private readonly MessagingConfiguration $configuration) {}
+
     public function channel(): NotificationChannel
     {
         return NotificationChannel::Sms;
@@ -25,18 +27,24 @@ class SmsDriver implements ChannelDriver
 
     public function isConfigured(): bool
     {
-        // The group is not in SettingsRegistry until 7.6, and asking the manager
-        // for an unregistered group would cache an empty entry for it.
-        return SettingsRegistry::find('sms.provider') !== null && settings()->isSet('sms.provider');
+        return $this->configuration->isConfigured(MessagingProviders::SMS);
     }
 
     public function unavailableReason(): ?string
     {
-        return $this->isConfigured() ? null : 'No SMS provider is configured yet.';
+        return $this->configuration->unavailableReason(MessagingProviders::SMS);
     }
 
     public function send(NotificationMessage $message): void
     {
-        throw new RuntimeException('No SMS provider is configured yet.');
+        $number = $message->destination();
+
+        if ($number === null || $number === '') {
+            throw new RuntimeException('No phone number for this recipient.');
+        }
+
+        // The subject is not sent: an SMS has no subject line, and prefixing one
+        // would spend a third of the message on a repeat of the first sentence.
+        $this->configuration->send(MessagingProviders::SMS, $number, $message->body);
     }
 }

@@ -5,6 +5,9 @@ namespace App\Domain\Settings;
 use App\Domain\Mail\Inbound\InboundSettingsTester;
 use App\Domain\Mail\MailProviders;
 use App\Domain\Mail\MailSettingsTester;
+use App\Domain\Messaging\MessagingProviders;
+use App\Domain\Messaging\SmsSettingsTester;
+use App\Domain\Messaging\WhatsAppSettingsTester;
 use App\Domain\Settings\Contracts\SettingsGroupTester;
 use App\Domain\Settings\Enums\SettingType;
 
@@ -150,6 +153,20 @@ final class SettingsRegistry
                 // email the difference is only discovered by a customer who
                 // never received anything.
                 'tester' => MailSettingsTester::class,
+            ],
+            'sms' => [
+                'label' => 'SMS',
+                'icon' => 'message-square',
+                'description' => 'The account text messages are sent through. Credentials live here, not in the environment file, so changing provider is a form rather than a deploy.',
+                'fields' => MessagingProviders::settingFields(MessagingProviders::SMS),
+                'tester' => SmsSettingsTester::class,
+            ],
+            'whatsapp' => [
+                'label' => 'WhatsApp',
+                'icon' => 'message-circle',
+                'description' => 'The WhatsApp Business account messages are sent through. Free-form messages are only allowed within 24 hours of the customer writing to you.',
+                'fields' => MessagingProviders::settingFields(MessagingProviders::WHATSAPP),
+                'tester' => WhatsAppSettingsTester::class,
             ],
             'inbound' => [
                 'label' => 'Inbound email',

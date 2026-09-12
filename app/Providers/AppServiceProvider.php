@@ -44,6 +44,7 @@ use App\Domain\Mail\Models\EmailTemplate;
 use App\Domain\Mail\Policies\EmailMessagePolicy;
 use App\Domain\Mail\Policies\EmailTemplatePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
+use App\Domain\Messaging\MessagingConfiguration;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationMatrix;
@@ -114,6 +115,7 @@ class AppServiceProvider extends ServiceProvider
         // transports, keyed by their credentials, so a run of messages reuses
         // one SMTP connection while a changed credential still rebuilds.
         $this->app->singleton(MailConfiguration::class);
+        $this->app->singleton(MessagingConfiguration::class);
         $this->app->singleton(ManagedTransport::class);
 
         // Bound rather than newed at the call site so a test can hand the sync

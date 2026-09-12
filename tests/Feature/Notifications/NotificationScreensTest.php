@@ -74,10 +74,21 @@ test('the matrix lists every event with its recipient types and channels', funct
 });
 
 test('the matrix says which channels are not connected yet', function () {
+    // Nothing is unconnected on a fresh install any more — every channel
+    // defaults to a provider that writes to the log — so the notice has to be
+    // provoked by choosing a provider and leaving its credentials empty.
+    settings()->set('sms.provider', 'twilio');
+
     $this->actingAs(screenUser(['notifications.view']))
         ->get(route('settings.notifications'))
         ->assertSee('not connected yet')
         ->assertSee('recorded in the log as skipped');
+});
+
+test('the matrix says nothing about connections when every channel is ready', function () {
+    $this->actingAs(screenUser(['notifications.view']))
+        ->get(route('settings.notifications'))
+        ->assertDontSee('not connected yet');
 });
 
 test('toggling a cell needs the update permission', function () {

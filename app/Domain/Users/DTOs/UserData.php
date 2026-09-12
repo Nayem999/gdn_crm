@@ -8,6 +8,7 @@ readonly class UserData
         public string $name,
         public string $email,
         public ?string $password = null,
+        public ?string $phone = null,
         public ?int $roleId = null,
         public ?int $currentTeamId = null,
     ) {}
@@ -23,6 +24,7 @@ readonly class UserData
         return [
             'name' => $this->name,
             'email' => $this->email,
+            'phone' => $this->phone,
             'current_team_id' => $this->currentTeamId,
         ];
     }

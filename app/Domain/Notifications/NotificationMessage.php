@@ -38,7 +38,9 @@ readonly class NotificationMessage
         return match ($this->channel) {
             NotificationChannel::Email => $this->user?->email,
             NotificationChannel::InApp => $this->user === null ? null : (string) $this->user->id,
-            NotificationChannel::Sms, NotificationChannel::WhatsApp => null,
+            // A colleague's own number. A customer's arrives as an explicit
+            // address instead, because a contact is not a user.
+            NotificationChannel::Sms, NotificationChannel::WhatsApp => $this->user?->phone,
         };
     }
 }

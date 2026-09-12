@@ -38,6 +38,15 @@
             <x-form.error for="email" />
         </div>
 
+        <div>
+            <x-form.label for="phone">Mobile number</x-form.label>
+            <x-form.input id="phone" type="tel" wire:model="phone" :invalid="$errors->has('phone')" autocomplete="tel" />
+            <x-form.error for="phone" />
+            <p class="mt-1.5 text-xs text-muted-foreground">
+                Where SMS and WhatsApp notifications go. Leave blank to receive neither.
+            </p>
+        </div>
+
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <x-select
                 name="roleId"

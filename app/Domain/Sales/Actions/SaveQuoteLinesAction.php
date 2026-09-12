@@ -110,7 +110,7 @@ class SaveQuoteLinesAction
         ]);
 
         $discountType = DiscountType::tryFrom((string) ($submitted['discount_type'] ?? ''));
-        $unitPrice = $this->unitPrice($submitted, $product, $document);
+        $unitPrice = $this->unitPrice($submitted, $product, $document, $quantity);
         $taxRate = $this->taxRate($submitted, $product);
 
         $figures = $this->calculator->total(
@@ -185,7 +185,7 @@ class SaveQuoteLinesAction
      *
      * @param  array<string, mixed>  $submitted
      */
-    private function unitPrice(array $submitted, ?Product $product, Model&SellingDocument $document): float
+    private function unitPrice(array $submitted, ?Product $product, Model&SellingDocument $document, float $quantity): float
     {
         $typed = $submitted['unit_price'] ?? null;
 
@@ -197,7 +197,8 @@ class SaveQuoteLinesAction
             return 0.0;
         }
 
-        return $this->prices->priceFor($product, $document->documentPriceBook());
+        // The quantity goes through, so a break at 100 applies to a line of 100.
+        return $this->prices->priceFor($product, $document->documentPriceBook(), null, $quantity);
     }
 
     /**

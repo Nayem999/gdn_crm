@@ -6,6 +6,7 @@ use App\Domain\Products\Models\PriceBook;
 use App\Domain\Sales\Enums\TaxMode;
 use App\Domain\Sales\Models\DocumentLine;
 use App\Domain\Sales\Pricing\DocumentTotals;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -26,6 +27,17 @@ interface SellingDocument
      * @return MorphMany<DocumentLine, covariant \Illuminate\Database\Eloquent\Model>
      */
     public function lines(): MorphMany;
+
+    /**
+     * The lines, read from the loaded relation when there is one.
+     *
+     * Declared beside `lines()` because callers want the rows, not the
+     * relation, and reaching for the magic property on an interface is
+     * something neither a reader nor a static analyser can rely on.
+     *
+     * @return Collection<int, DocumentLine>
+     */
+    public function documentLines(): Collection;
 
     /**
      * Whether the prices on this document already include tax.

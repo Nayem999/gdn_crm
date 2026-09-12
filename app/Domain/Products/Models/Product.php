@@ -4,6 +4,7 @@ namespace App\Domain\Products\Models;
 
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
+use App\Domain\Products\Enums\BundlePricing;
 use App\Domain\Products\Enums\ProductKind;
 use App\Domain\Products\Enums\ProductUnit;
 use App\Domain\Products\ProductFields;
@@ -65,6 +66,8 @@ class Product extends Model
         'category',
         'cost_price',
         'list_price',
+        'bundle_pricing',
+        'bundle_discount_percent',
         'tax_rate',
         'is_active',
         'owner_id',
@@ -79,6 +82,7 @@ class Product extends Model
      */
     protected $attributes = [
         'kind' => ProductKind::Product->value,
+        'bundle_pricing' => BundlePricing::Fixed->value,
         'unit' => ProductUnit::Each->value,
         'list_price' => 0,
         'is_active' => true,
@@ -95,6 +99,7 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'list_price' => 'decimal:2',
             'tax_rate' => 'decimal:2',
+            'bundle_discount_percent' => 'decimal:2',
         ];
     }
 
@@ -112,6 +117,14 @@ class Product extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * @return HasMany<PriceBreak, $this>
+     */
+    public function priceBreaks(): HasMany
+    {
+        return $this->hasMany(PriceBreak::class)->orderBy('min_quantity');
     }
 
     /**
@@ -153,6 +166,11 @@ class Product extends Model
     public function unit(): ProductUnit
     {
         return ProductUnit::tryFrom((string) $this->getAttributeValue('unit')) ?? ProductUnit::Each;
+    }
+
+    public function bundlePricing(): BundlePricing
+    {
+        return BundlePricing::tryFrom((string) $this->getAttributeValue('bundle_pricing')) ?? BundlePricing::Fixed;
     }
 
     public function isBundle(): bool

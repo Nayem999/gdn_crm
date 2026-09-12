@@ -59,6 +59,27 @@ final class SettingsRegistry
                     ], 'dot'),
                 ],
             ],
+            'sales' => [
+                'label' => 'Sales',
+                'icon' => 'file-text',
+                'description' => 'The rules a quote has to satisfy before it can go to a customer.',
+                'fields' => [
+                    // A percentage of the whole document, not of a line: ten
+                    // per cent off one line of twenty is not the concession ten
+                    // per cent off everything is, and a per-line rule lets
+                    // somebody give away half a quote in slices that each pass.
+                    SettingField::numberSelect('max_discount_percent', 'Discount needing approval above', [
+                        0 => 'No limit',
+                        5 => '5%',
+                        10 => '10%',
+                        15 => '15%',
+                        20 => '20%',
+                        25 => '25%',
+                        30 => '30%',
+                        50 => '50%',
+                    ], 0, 'A quote discounted by more than this cannot be sent until somebody approves it.'),
+                ],
+            ],
             'scheduling' => [
                 'label' => 'Scheduling',
                 'icon' => 'calendar-clock',

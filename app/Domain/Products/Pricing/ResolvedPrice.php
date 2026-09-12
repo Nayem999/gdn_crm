@@ -17,6 +17,8 @@ readonly class ResolvedPrice
         public float $amount,
         /** Null when the catalogue's own list price was used. */
         public ?PriceBook $book = null,
+        /** The threshold of the quantity break that produced this, if one did. */
+        public ?float $quantityBreakAt = null,
     ) {}
 
     public function fromCatalogue(): bool
@@ -24,8 +26,17 @@ readonly class ResolvedPrice
         return $this->book === null;
     }
 
+    public function fromQuantityBreak(): bool
+    {
+        return $this->quantityBreakAt !== null;
+    }
+
     public function sourceLabel(): string
     {
-        return $this->book === null ? 'Catalogue price' : $this->book->name;
+        $source = $this->book === null ? 'Catalogue price' : $this->book->name;
+
+        return $this->quantityBreakAt === null
+            ? $source
+            : $source.' — '.rtrim(rtrim(number_format($this->quantityBreakAt, 3, '.', ''), '0'), '.').'+';
     }
 }

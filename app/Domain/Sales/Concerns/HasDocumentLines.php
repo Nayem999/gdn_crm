@@ -6,6 +6,7 @@ use App\Domain\Products\Models\PriceBook;
 use App\Domain\Sales\Enums\TaxMode;
 use App\Domain\Sales\Models\DocumentLine;
 use App\Domain\Sales\Pricing\DocumentTotals;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -29,6 +30,16 @@ trait HasDocumentLines
         return $this->morphMany(DocumentLine::class, 'document')
             ->orderBy('position')
             ->orderBy('id');
+    }
+
+    /**
+     * The lines, without querying again when they are already loaded.
+     *
+     * @return Collection<int, DocumentLine>
+     */
+    public function documentLines(): Collection
+    {
+        return $this->relationLoaded('lines') ? $this->lines : $this->lines()->get();
     }
 
     /**
@@ -63,8 +74,6 @@ trait HasDocumentLines
      */
     public function totals(): DocumentTotals
     {
-        $lines = $this->relationLoaded('lines') ? $this->lines : $this->lines()->get();
-
-        return DocumentTotals::for($lines, $this->taxMode());
+        return DocumentTotals::for($this->documentLines(), $this->taxMode());
     }
 }

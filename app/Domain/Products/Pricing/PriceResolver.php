@@ -4,6 +4,7 @@ namespace App\Domain\Products\Pricing;
 
 use App\Domain\Products\Models\PriceBook;
 use App\Domain\Products\Models\PriceBookEntry;
+use App\Domain\Products\Models\PriceBreak;
 use App\Domain\Products\Models\Product;
 use Illuminate\Support\Carbon;
 
@@ -32,9 +33,18 @@ class PriceResolver
      * @param  PriceBook|null  $book  The book the document is working in.
      * @param  Carbon|null  $on  The day to price for; today when omitted.
      */
-    public function priceFor(Product $product, ?PriceBook $book = null, ?Carbon $on = null): float
+    public function priceFor(Product $product, ?PriceBook $book = null, ?Carbon $on = null, float $quantity = 1): float
     {
         $on ??= Carbon::now();
+
+        // A quantity break beats a flat price, in whichever book applies: the
+        // whole point of "100 or more at 8.50" is that it wins over the 10.00
+        // listed beside it.
+        $break = $this->breakPrice($product, $this->booksToTry($book, $on), $quantity);
+
+        if ($break !== null) {
+            return $break;
+        }
 
         foreach ($this->booksToTry($book, $on) as $candidate) {
             $price = $this->entryPrice($product, $candidate);
@@ -44,7 +54,7 @@ class PriceResolver
             }
         }
 
-        return $product->listPrice();
+        return $this->cataloguePrice($product);
     }
 
     /**
@@ -54,11 +64,22 @@ class PriceResolver
      * without this it would have to re-derive the order and could disagree with
      * the figure it is labelling.
      */
-    public function resolve(Product $product, ?PriceBook $book = null, ?Carbon $on = null): ResolvedPrice
+    public function resolve(Product $product, ?PriceBook $book = null, ?Carbon $on = null, float $quantity = 1): ResolvedPrice
     {
         $on ??= Carbon::now();
+        $books = $this->booksToTry($book, $on);
 
-        foreach ($this->booksToTry($book, $on) as $candidate) {
+        $break = $this->break($product, $books, $quantity);
+
+        if ($break !== null) {
+            return new ResolvedPrice(
+                $break->price(),
+                $break->price_book_id === null ? null : $this->bookById($books, $break->price_book_id),
+                quantityBreakAt: $break->minQuantity(),
+            );
+        }
+
+        foreach ($books as $candidate) {
             $price = $this->entryPrice($product, $candidate);
 
             if ($price !== null) {
@@ -66,7 +87,7 @@ class PriceResolver
             }
         }
 
-        return new ResolvedPrice($product->listPrice(), null);
+        return new ResolvedPrice($this->cataloguePrice($product), null);
     }
 
     /**
@@ -78,7 +99,7 @@ class PriceResolver
      */
     public function lineTotal(Product $product, float $quantity, ?PriceBook $book = null, ?Carbon $on = null): float
     {
-        return round($this->priceFor($product, $book, $on) * $quantity, 2);
+        return round($this->priceFor($product, $book, $on, $quantity) * $quantity, 2);
     }
 
     /**
@@ -142,6 +163,95 @@ class PriceResolver
         }
 
         return $books;
+    }
+
+    /**
+     * The catalogue price, which for a bundle may be derived from its parts.
+     *
+     * A bundle priced on its parts follows them when they change, which is the
+     * point of choosing that mode — so it is computed here rather than copied
+     * into `list_price` where it would go stale the moment a component moved.
+     */
+    private function cataloguePrice(Product $product): float
+    {
+        if (! $product->isBundle()) {
+            return $product->listPrice();
+        }
+
+        $mode = $product->bundlePricing();
+
+        if (! $mode->usesComponents()) {
+            return $product->listPrice();
+        }
+
+        $parts = $product->relationLoaded('components')
+            ? $product->componentTotal()
+            : $product->load('components.product')->componentTotal();
+
+        if (! $mode->needsPercentage()) {
+            return $parts;
+        }
+
+        $off = min(100.0, max(0.0, (float) $product->bundle_discount_percent));
+
+        return round($parts * (1 - $off / 100), 2);
+    }
+
+    /**
+     * The break that applies at this quantity, or null when none does.
+     *
+     * The **highest threshold at or below the quantity**, so a product with
+     * breaks at 10, 100 and 1000 prices an order of 500 at the hundred rate.
+     * Books are tried in the same order as everything else, so a book's own
+     * break beats the catalogue's.
+     *
+     * @param  array<int, PriceBook>  $books
+     */
+    private function break(Product $product, array $books, float $quantity): ?PriceBreak
+    {
+        if ($quantity <= 0) {
+            return null;
+        }
+
+        foreach ([...array_map(fn (PriceBook $b): int => $b->id, $books), null] as $bookId) {
+            $break = PriceBreak::query()
+                ->where('product_id', $product->id)
+                ->when($bookId === null,
+                    fn ($query) => $query->whereNull('price_book_id'),
+                    fn ($query) => $query->where('price_book_id', $bookId),
+                )
+                ->where('min_quantity', '<=', $quantity)
+                ->orderByDesc('min_quantity')
+                ->first();
+
+            if ($break !== null) {
+                return $break;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, PriceBook>  $books
+     */
+    private function breakPrice(Product $product, array $books, float $quantity): ?float
+    {
+        return $this->break($product, $books, $quantity)?->price();
+    }
+
+    /**
+     * @param  array<int, PriceBook>  $books
+     */
+    private function bookById(array $books, int $id): ?PriceBook
+    {
+        foreach ($books as $book) {
+            if ($book->id === $id) {
+                return $book;
+            }
+        }
+
+        return null;
     }
 
     private function entryPrice(Product $product, PriceBook $book): ?float

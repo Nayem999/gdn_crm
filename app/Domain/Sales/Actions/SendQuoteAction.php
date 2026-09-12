@@ -2,6 +2,7 @@
 
 namespace App\Domain\Sales\Actions;
 
+use App\Domain\Products\Cpq\DiscountRules;
 use App\Domain\Sales\Enums\QuoteStatus;
 use App\Domain\Sales\Models\Quote;
 use App\Mail\QuoteMail;
@@ -15,6 +16,9 @@ use RuntimeException;
  * sent that was never sent is the worse of the two failures, because nobody
  * looks for it again. Queueing is what can fail here — the send itself happens
  * later, in the job, and a bounce is the notification log's business.
+ *
+ * A discount over the configured limit blocks the send until somebody approves
+ * it — see DiscountRules and RequestDiscountApprovalAction.
  *
  * Sending locks the quote: a sent quote is not editable, because the copy the
  * customer holds and the copy here would otherwise be different documents with
@@ -37,6 +41,16 @@ class SendQuoteAction
 
         if ($to === '' || filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
             throw new RuntimeException('This quote has no email address to send to.');
+        }
+
+        // The CPQ gate: a discount over the limit needs somebody's agreement
+        // before the offer goes out, and an approval given before the last edit
+        // does not license what was typed after it.
+        if (app(DiscountRules::class)->needsApproval($quote)
+            && ! app(RequestDiscountApprovalAction::class)->isApproved($quote)) {
+            throw new RuntimeException(
+                app(DiscountRules::class)->summaryFor($quote).' It needs approving before it can be sent.'
+            );
         }
 
         if ($quote->lines()->doesntExist()) {

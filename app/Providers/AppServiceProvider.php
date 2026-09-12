@@ -34,6 +34,9 @@ use App\Domain\Leads\Models\LeadScoringRule;
 use App\Domain\Leads\Policies\LeadCaptureFormPolicy;
 use App\Domain\Leads\Policies\LeadPolicy;
 use App\Domain\Leads\Policies\LeadScoringRulePolicy;
+use App\Domain\Mail\Inbound\ImapMailbox;
+use App\Domain\Mail\Inbound\InboundMailbox;
+use App\Domain\Mail\Inbound\InboundMailConfiguration;
 use App\Domain\Mail\Listeners\RecordSentEmail;
 use App\Domain\Mail\MailConfiguration;
 use App\Domain\Mail\Models\EmailMessage;
@@ -110,6 +113,14 @@ class AppServiceProvider extends ServiceProvider
         // one SMTP connection while a changed credential still rebuilds.
         $this->app->singleton(MailConfiguration::class);
         $this->app->singleton(ManagedTransport::class);
+
+        // Bound rather than newed at the call site so a test can hand the sync
+        // a mailbox that needs no mail server. Not a singleton: a mailbox holds
+        // an open connection, and one per resolution is the honest lifetime.
+        $this->app->bind(
+            InboundMailbox::class,
+            fn ($app) => new ImapMailbox($app->make(InboundMailConfiguration::class)->mailboxSettings())
+        );
     }
 
     /**

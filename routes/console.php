@@ -37,3 +37,12 @@ Schedule::command('workflows:run-triggers')
 Schedule::command('quotes:expire')
     ->dailyAt('00:10')
     ->withoutOverlapping();
+
+// A mailbox is polled, because IMAP has nothing to push with. Five minutes is
+// the compromise: a customer's reply appearing on the record within five
+// minutes is fast enough for anybody, and a poll a minute against a mailbox
+// that is usually empty is twelve times the load for no useful difference.
+// withoutOverlapping because a large first sync can outlast the interval.
+Schedule::command('mail:sync-inbound')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();

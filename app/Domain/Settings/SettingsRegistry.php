@@ -2,6 +2,7 @@
 
 namespace App\Domain\Settings;
 
+use App\Domain\Mail\Inbound\InboundSettingsTester;
 use App\Domain\Mail\MailProviders;
 use App\Domain\Mail\MailSettingsTester;
 use App\Domain\Settings\Contracts\SettingsGroupTester;
@@ -149,6 +150,31 @@ final class SettingsRegistry
                 // email the difference is only discovered by a customer who
                 // never received anything.
                 'tester' => MailSettingsTester::class,
+            ],
+            'inbound' => [
+                'label' => 'Inbound email',
+                'icon' => 'inbox',
+                'description' => 'A mailbox the application reads, so customer replies land on the record they are about instead of in one person\'s inbox.',
+                'fields' => [
+                    SettingField::boolean('enabled', 'Read an inbound mailbox', false,
+                        'Nothing is read until this is on and a host is set.'),
+                    SettingField::text('host', 'IMAP host', 'For example imap.example.com.'),
+                    new SettingField('port', 'IMAP port', SettingType::Integer, default: 993),
+                    SettingField::select('encryption', 'IMAP encryption', [
+                        'ssl' => 'SSL/TLS — usually port 993',
+                        'tls' => 'STARTTLS — usually port 143',
+                        'none' => 'None — only for a local server',
+                    ], 'ssl'),
+                    SettingField::text('username', 'Mailbox user name'),
+                    SettingField::secret('password', 'Mailbox password'),
+                    SettingField::text('folder', 'Folder', 'Defaults to INBOX.'),
+                    // Offered because plenty of small businesses run a mail
+                    // server with a self-signed certificate, and the
+                    // alternative is that they cannot use this at all. It is a
+                    // choice somebody has to make, not a default.
+                    SettingField::boolean('validate_certificate', 'Require a valid certificate', true),
+                ],
+                'tester' => InboundSettingsTester::class,
             ],
             'storage' => [
                 'label' => 'Storage',

@@ -4,6 +4,7 @@ use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Shared\Duplicates\DuplicateRegistry;
 use App\Domain\Shared\Imports\ImportRegistry;
 use App\Http\Controllers\DownloadDocument;
+use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\LeadCaptureController;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
@@ -43,6 +44,8 @@ use App\Livewire\Products\ProductsIndex;
 use App\Livewire\Profile\ProfileForm;
 use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
+use App\Livewire\Sales\QuoteBuilder;
+use App\Livewire\Sales\QuotesIndex;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
@@ -118,6 +121,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/deals/create', DealForm::class)->name('deals.create');
     Route::get('/deals/{deal}', DealShow::class)->withTrashed()->name('deals.show');
     Route::get('/deals/{deal}/edit', DealForm::class)->name('deals.edit');
+
+    Route::get('/quotes', QuotesIndex::class)->name('quotes.index');
+    Route::get('/quotes/create', QuoteBuilder::class)->name('quotes.create');
+    Route::get('/quotes/{quote}/edit', QuoteBuilder::class)->name('quotes.edit');
+    // The PDF the customer receives, rendered from the stored line figures.
+    Route::get('/quotes/{quote}/pdf', DownloadQuotePdf::class)->name('quotes.pdf');
 
     Route::get('/products', ProductsIndex::class)->name('products.index');
     Route::get('/products/create', ProductForm::class)->name('products.create');

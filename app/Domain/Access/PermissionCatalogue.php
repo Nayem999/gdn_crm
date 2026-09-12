@@ -147,6 +147,20 @@ final class PermissionCatalogue
                     'products.pricing' => 'Configure price books',
                 ],
             ],
+            'quotes' => [
+                'label' => 'Quotes',
+                'icon' => 'file-text',
+                'permissions' => [
+                    'quotes.view' => 'View quotes',
+                    'quotes.create' => 'Create quotes',
+                    'quotes.update' => 'Update draft quotes and raise new versions',
+                    // Putting a priced offer in front of a customer over the
+                    // company's name is more than an edit.
+                    'quotes.send' => 'Send quotes to customers',
+                    'quotes.delete' => 'Remove quotes',
+                    'quotes.export' => 'Export quotes',
+                ],
+            ],
             'workflows' => [
                 'label' => 'Workflows',
                 'icon' => 'zap',

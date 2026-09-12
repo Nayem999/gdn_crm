@@ -30,3 +30,10 @@ Schedule::command('activities:generate-recurrences')
 Schedule::command('workflows:run-triggers')
     ->everyMinute()
     ->withoutOverlapping();
+
+// Validity is a date, so a quote cannot lapse part-way through a day. Swept
+// just after midnight on the office clock rather than every minute, which would
+// be the same indexed query answering "nothing" fourteen hundred times a day.
+Schedule::command('quotes:expire')
+    ->dailyAt('00:10')
+    ->withoutOverlapping();

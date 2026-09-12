@@ -42,6 +42,8 @@ use App\Domain\Products\Models\PriceBook;
 use App\Domain\Products\Models\Product;
 use App\Domain\Products\Policies\PriceBookPolicy;
 use App\Domain\Products\Policies\ProductPolicy;
+use App\Domain\Sales\Models\Quote;
+use App\Domain\Sales\Policies\QuotePolicy;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
@@ -125,6 +127,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LeadCaptureForm::class, LeadCaptureFormPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(PriceBook::class, PriceBookPolicy::class);
+        Gate::policy(Quote::class, QuotePolicy::class);
         Gate::policy(Workflow::class, WorkflowPolicy::class);
         Gate::policy(ApprovalRequest::class, ApprovalRequestPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);

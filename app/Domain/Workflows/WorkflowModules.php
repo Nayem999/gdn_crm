@@ -19,6 +19,8 @@ use App\Domain\Leads\LeadFields;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Products\Models\Product;
 use App\Domain\Products\ProductFields;
+use App\Domain\Sales\Models\Quote;
+use App\Domain\Sales\QuoteFields;
 use App\Domain\Shared\Enums\FilterFieldType;
 use App\Domain\Shared\Filters\FilterField;
 use Illuminate\Database\Eloquent\Model;
@@ -50,6 +52,7 @@ final class WorkflowModules
             'deals' => ['label' => 'Deals', 'model' => Deal::class],
             'activities' => ['label' => 'Activities', 'model' => Activity::class],
             'products' => ['label' => 'Products', 'model' => Product::class],
+            'quotes' => ['label' => 'Quotes', 'model' => Quote::class],
         ];
     }
 
@@ -163,6 +166,7 @@ final class WorkflowModules
             'deals' => DealFields::filters(),
             'activities' => ActivityFields::filters(),
             'products' => ProductFields::filters(),
+            'quotes' => QuoteFields::filters(),
             default => [],
         };
     }

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Sales\Concerns;
 
+use App\Domain\Products\Models\PriceBook;
 use App\Domain\Sales\Enums\TaxMode;
 use App\Domain\Sales\Models\DocumentLine;
 use App\Domain\Sales\Pricing\DocumentTotals;
@@ -40,6 +41,18 @@ trait HasDocumentLines
     public function taxMode(): TaxMode
     {
         return TaxMode::tryFrom((string) $this->getAttributeValue('tax_mode')) ?? TaxMode::Exclusive;
+    }
+
+    /**
+     * The book this document prices from.
+     *
+     * Null by default — the catalogue. A document with a `price_book` relation
+     * overrides this; one without simply has no book, which is a real answer
+     * rather than a missing method.
+     */
+    public function documentPriceBook(): ?PriceBook
+    {
+        return null;
     }
 
     /**

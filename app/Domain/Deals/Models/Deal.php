@@ -14,6 +14,7 @@ use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Sales\Concerns\HasDocumentLines;
+use App\Domain\Sales\Contracts\SellingDocument;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
@@ -48,7 +49,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property int $owner_id
  */
-class Deal extends Model
+class Deal extends Model implements SellingDocument
 {
     use HasCustomFields;
 

@@ -6,6 +6,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Support\Models\Ticket;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use Illuminate\Database\Eloquent\Model;
 
@@ -29,6 +30,7 @@ final class TimelineRegistry
             'contacts' => Contact::class,
             'accounts' => Account::class,
             'deals' => Deal::class,
+            'tickets' => Ticket::class,
         ];
     }
 

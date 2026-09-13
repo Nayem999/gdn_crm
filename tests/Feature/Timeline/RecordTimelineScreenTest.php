@@ -25,6 +25,7 @@ function timelineOperator(): User
         'contacts.view', 'contacts.update',
         'accounts.view', 'accounts.update',
         'deals.view', 'deals.update',
+        'tickets.view', 'tickets.update',
         'timeline.view', 'timeline.create', 'timeline.update', 'timeline.delete',
     ]);
 }

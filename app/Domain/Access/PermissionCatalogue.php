@@ -251,6 +251,18 @@ final class PermissionCatalogue
                     'custom-fields.manage' => 'Add, change and remove custom fields',
                 ],
             ],
+            'tickets' => [
+                'label' => 'Support',
+                'icon' => 'life-buoy',
+                'permissions' => [
+                    'tickets.view' => 'View tickets',
+                    'tickets.create' => 'Raise tickets',
+                    'tickets.update' => 'Update tickets and move them on',
+                    'tickets.assign' => 'Hand a ticket to another agent',
+                    'tickets.delete' => 'Remove tickets',
+                    'tickets.export' => 'Export tickets',
+                ],
+            ],
             'contacts' => [
                 'label' => 'Contacts',
                 'icon' => 'contact',

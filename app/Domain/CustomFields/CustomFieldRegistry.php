@@ -13,6 +13,7 @@ use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Products\Models\Product;
 use App\Domain\Sales\Models\Quote;
+use App\Domain\Support\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -44,6 +45,7 @@ final class CustomFieldRegistry
             'deals' => Deal::class,
             'activities' => Activity::class,
             'products' => Product::class,
+            'tickets' => Ticket::class,
             'quotes' => Quote::class,
         ];
     }
@@ -69,6 +71,7 @@ final class CustomFieldRegistry
             'contacts' => 'Contacts',
             'accounts' => 'Accounts',
             'deals' => 'Deals',
+            'tickets' => 'Support tickets',
             'activities' => 'Activities',
             'products' => 'Products',
             'quotes' => 'Quotes',
@@ -192,6 +195,9 @@ final class CustomFieldRegistry
             'activities' => Activity::query()->visibleTo($user)->orderBy('due_at'),
             'products' => Product::query()->visibleTo($user)->orderBy('name'),
             'quotes' => Quote::query()->visibleTo($user)->orderBy('number'),
+            // Newest first: a lookup at a ticket is almost always at a recent
+            // one, and a support queue's oldest rows are its least interesting.
+            'tickets' => Ticket::query()->visibleTo($user)->orderByDesc('created_at'),
             // A generated module: the same table for all of them, so the
             // discriminator is what makes this one module's records.
             default => ($custom = self::customModule($module)) === null
@@ -220,6 +226,7 @@ final class CustomFieldRegistry
             $record instanceof Contact, $record instanceof Lead => $record->fullName(),
             $record instanceof Account, $record instanceof Deal, $record instanceof Product => $record->name,
             $record instanceof Quote => $record->reference(),
+            $record instanceof Ticket => $record->displayName(),
             $record instanceof Activity => $record->subject,
             $record instanceof CustomRecord => $record->name,
             default => 'Record #'.$record->getKey(),

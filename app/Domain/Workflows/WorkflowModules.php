@@ -23,6 +23,8 @@ use App\Domain\Sales\Models\Quote;
 use App\Domain\Sales\QuoteFields;
 use App\Domain\Shared\Enums\FilterFieldType;
 use App\Domain\Shared\Filters\FilterField;
+use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\TicketFields;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -53,6 +55,7 @@ final class WorkflowModules
             'activities' => ['label' => 'Activities', 'model' => Activity::class],
             'products' => ['label' => 'Products', 'model' => Product::class],
             'quotes' => ['label' => 'Quotes', 'model' => Quote::class],
+            'tickets' => ['label' => 'Support tickets', 'model' => Ticket::class],
         ];
     }
 
@@ -167,6 +170,7 @@ final class WorkflowModules
             'activities' => ActivityFields::filters(),
             'products' => ProductFields::filters(),
             'quotes' => QuoteFields::filters(),
+            'tickets' => TicketFields::filters(),
             default => [],
         };
     }

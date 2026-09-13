@@ -20,6 +20,7 @@ use App\Domain\Leads\Models\Lead;
 use App\Domain\Products\Models\Product;
 use App\Domain\Sales\Models\Quote;
 use App\Domain\Shared\Enums\DataAccessLevel;
+use App\Domain\Support\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -407,6 +408,7 @@ test('every module that carries custom fields can actually store one', function 
         'products' => Product::factory()->create(),
         'quotes' => Quote::factory()->create(),
         'activities' => Activity::factory()->create(),
+        'tickets' => Ticket::factory()->create(),
     };
 
     $field = app(SaveCustomFieldAction::class)(CustomFieldData::fromArray([

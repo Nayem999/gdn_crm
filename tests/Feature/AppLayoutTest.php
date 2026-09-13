@@ -56,10 +56,10 @@ test('the sidebar lists the modules whose phase has not landed as inert placehol
 
     $response->assertSuccessful();
 
-    // Automation left this list in 5.5, Products in 6.1 and Quotes in 6.3:
-    // each is a real, permissioned link now, so it is absent for a user
-    // without the permission rather than shown inert.
-    foreach (['Support', 'Reports'] as $module) {
+    // Automation left this list in 5.5, Products in 6.1, Quotes in 6.3 and
+    // Support in 9.1: each is a real, permissioned link now, so it is absent
+    // for a user without the permission rather than shown inert.
+    foreach (['Reports'] as $module) {
         $response->assertSee($module);
     }
 

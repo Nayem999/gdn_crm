@@ -29,6 +29,8 @@ use App\Domain\Shared\Exports\DataViewExport;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
 use App\Domain\Shared\Filters\FilterGroup;
+use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\TicketExportSource;
 use App\Livewire\Accounts\AccountsIndex;
 use App\Livewire\Activities\ActivitiesIndex;
 use App\Livewire\Contacts\ContactsIndex;
@@ -37,6 +39,7 @@ use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Products\ProductsIndex;
 use App\Livewire\Sales\QuotesIndex;
+use App\Livewire\Support\TicketsIndex;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -86,6 +89,11 @@ function integrationModules(): array
             'source' => QuoteExportSource::class,
             'model' => Quote::class,
         ],
+        'tickets' => [
+            'index' => TicketsIndex::class,
+            'source' => TicketExportSource::class,
+            'model' => Ticket::class,
+        ],
     ];
 }
 
@@ -103,6 +111,7 @@ function integrationUser(): User
         'activities.view', 'activities.export',
         'products.view', 'products.export',
         'quotes.view', 'quotes.export',
+        'tickets.view', 'tickets.export',
     ]);
 }
 
@@ -135,6 +144,7 @@ function integrationRecord(string $module): Model
         'activities' => Activity::factory()->create(),
         'products' => Product::factory()->create(),
         'quotes' => Quote::factory()->create(),
+        'tickets' => Ticket::factory()->create(),
     };
 }
 

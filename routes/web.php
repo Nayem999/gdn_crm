@@ -58,6 +58,9 @@ use App\Livewire\Settings\IntegrationLog;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Settings\SourceMapping;
 use App\Livewire\Settings\WebhookEndpoints;
+use App\Livewire\Support\TicketForm;
+use App\Livewire\Support\TicketShow;
+use App\Livewire\Support\TicketsIndex;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
 use App\Livewire\Users\AcceptInvitation;
@@ -122,6 +125,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/m/{module}', CustomRecordsIndex::class)->name('custom-modules.index');
     Route::get('/m/{module}/create', CustomRecordForm::class)->name('custom-modules.create');
     Route::get('/m/{module}/{record}/edit', CustomRecordForm::class)->name('custom-modules.edit');
+
+    Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
+    Route::get('/tickets/create', TicketForm::class)->name('tickets.create');
+    // withTrashed so a reference a customer is reading down the telephone
+    // still opens a page, rather than 404ing because somebody removed it.
+    Route::get('/tickets/{ticket}', TicketShow::class)->withTrashed()->name('tickets.show');
+    Route::get('/tickets/{ticket}/edit', TicketForm::class)->name('tickets.edit');
 
     Route::get('/contacts', ContactsIndex::class)->name('contacts.index');
     Route::get('/contacts/create', ContactForm::class)->name('contacts.create');

@@ -11,7 +11,7 @@
         ['label' => 'Calendar', 'icon' => 'calendar-days', 'route' => 'calendar', 'permission' => 'activities.view'],
         ['label' => 'Products', 'icon' => 'package', 'route' => 'products.index', 'permission' => 'products.view'],
         ['label' => 'Quotes', 'icon' => 'file-text', 'route' => 'quotes.index', 'permission' => 'quotes.view'],
-        ['label' => 'Support', 'icon' => 'life-buoy'],
+        ['label' => 'Support', 'icon' => 'life-buoy', 'route' => 'tickets.index', 'permission' => 'tickets.view'],
         ['label' => 'Reports', 'icon' => 'bar-chart-3'],
         ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
     ];

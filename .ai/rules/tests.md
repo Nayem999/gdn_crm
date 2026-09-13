@@ -66,3 +66,23 @@ running the suite — not just the one that looks risky. Phase 8 hit this twice:
       n=$(grep -rl "function $f(" tests/ | wc -l)
       [ "$n" -gt 1 ] && echo "COLLIDES: $f"
     done
+
+## `artisan test` is a parent; the run is the pest child
+`php artisan test` spawns `vendor/pestphp/pest/bin/pest` and the parent exits
+**first**. Waiting on the `artisan test` pid therefore reports "finished" while
+the suite is still running, and starting the next run at that point collides
+with it on the shared `testing` database — 513 failures in phase 9 from exactly
+this, with the same `Table 'cache' already exists` /
+`Table 'testing.migrations' doesn't exist` signature described above.
+
+Check for the **pest** process, not the artisan one:
+
+    Get-CimInstance Win32_Process -Filter "Name='php.exe'" |
+      Where CommandLine -like '*pest*' | Select ProcessId
+
+## Do not pipe a suite run into `tail` or `sed`
+Both buffer when stdout is not a terminal, so nothing appears for the whole run
+and a backgrounded pipeline can end up writing an empty output file. Redirect to
+a file and read the file afterwards:
+
+    php artisan test --compact > <scratchpad>/gate.txt 2>&1

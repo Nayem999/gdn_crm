@@ -335,12 +335,64 @@ rule that silently does nothing.
 Custom fields are written inside the same transaction as the record. A lead that
 exists with half its custom fields is worse than one that does not exist.
 
+## Transforms answer the differences that actually come up
+The gap between two systems is rarely structural — the other side has the name,
+the date and the status, it just writes them differently. So: one name where we
+keep two, a date in the format that country writes dates in, a status vocabulary
+that is theirs rather than ours, and a phone number with brackets in it.
+
+Two rules govern all of them:
+
+- **An unknown transform passes the value through.** A mapping left by an older
+  version should not turn a configuration mistake into an outage for every event
+  a source sends.
+- **A transform that cannot do its job returns null, never a guess.** A date it
+  cannot parse is not a date; writing today's instead puts a confident wrong
+  answer in a column, which is worse than an empty one and far harder to notice.
+
+The date format is **stated, not detected**. `03/04/2026` is April in most of
+the world and March in the United States and there is nothing in the string that
+says which — a parser left to guess is quietly wrong for eleven days of every
+month. With no format given it falls back to Carbon, which covers ISO-8601 and
+what most APIs actually send.
+
+A name splits on the **last** whitespace group: everything before it is the
+first name. That is right for "Maria del Carmen Okafor", where taking the second
+word is not. A single word is a first name with no surname — somebody called
+Cher is called Cher.
+
+A value map matches case-insensitively, because a system sending "Open" today
+sends "OPEN" the day somebody refactors it. An unmapped value falls to the
+configured fallback and, with none, is **left alone rather than blanked**: a
+status we have not seen is information, and validation is where it gets refused.
+A map pointing at something the module does not accept therefore **fails the
+delivery** rather than writing it — there is a test for that, because a wrong
+translation table should be visible.
+
+Order matters in the pipeline: transform first, **then** the default fills the
+gap it left. A default applied first would never be reached.
+
+## The rule builder edits what the pipeline reads, and nothing else
+`transform_options` is filtered on save by what the transform declares it needs,
+so switching a row from a value map to a date does not leave the old translation
+table in the column waiting to confuse somebody.
+
+A value map is a textarea of `theirs = ours` lines rather than a repeater of
+paired inputs: a translation table is usually pasted in from somewhere, and
+twelve rows of two inputs is a screen nobody fills in. A line with no `=` is
+ignored rather than half stored.
+
+Matching is per source, not per mapping: the sender's own id where they publish
+one, otherwise a set of fields that must **all** match. Both are checked against
+the module's declared fields on save, so a rule cannot name a column that does
+not exist. Clearing the fields means always create, which is the right
+arrangement for a source whose deliveries are genuinely events.
+
 ## What 8.1 deliberately does not build
 - **No public ingest route.** Built in 8.3 — see above.
 - **No secret columns.** Done in 8.2, in its own migration — see above.
 - **No pull-mode endpoint, cursor or schedule.** 8.8 owns those.
-- **No rule builder.** 8.6 owns transforms and dedupe rules; 8.4 built the
-  columns and `ValueTransformer`, and 8.5 built the mapping screen over them.
+- **No reference implementation, pull mode or log viewer.** 8.7, 8.8 and 8.9.
 
 ## The log viewer is 8.9, and this screen is not it
 `Settings\DataSources` is the short inline-form shape the webhooks screen uses,

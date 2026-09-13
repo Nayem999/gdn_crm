@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Domain\Ingestion\Actions\DryRunMappingAction;
+use App\Domain\Ingestion\Enums\DedupeAction;
 use App\Domain\Ingestion\IngestionWriters;
 use App\Domain\Ingestion\MappingSuggester;
 use App\Domain\Ingestion\Models\DataSource;
@@ -12,6 +13,7 @@ use App\Domain\Ingestion\ValueTransformer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -44,6 +46,17 @@ class SourceMapping extends Component
      */
     public array $rows = [];
 
+    // -- Matching (8.6) -------------------------------------------------------
+
+    public ?string $externalIdPath = null;
+
+    /**
+     * @var array<int, string>
+     */
+    public array $dedupeFields = [];
+
+    public string $dedupeAction = 'update';
+
     public ?string $testPayload = null;
 
     /**
@@ -61,6 +74,9 @@ class SourceMapping extends Component
         $this->authorize('update', $source);
 
         $this->sourceId = $source->id;
+        $this->externalIdPath = $source->external_id_path;
+        $this->dedupeFields = $source->dedupe_fields ?? [];
+        $this->dedupeAction = $source->dedupeAction()->value;
         $this->loadRows();
     }
 
@@ -77,6 +93,12 @@ class SourceMapping extends Component
             'target_field' => $mapping->target_field,
             'is_custom_field' => $mapping->is_custom_field,
             'transform' => $mapping->transform,
+            // Flattened for the form: a value map is edited as `from = to`
+            // lines because that is how somebody writes a short translation
+            // table, and rebuilt into an array on save.
+            'transform_map' => $this->mapToText($mapping->transform_options['map'] ?? null),
+            'transform_fallback' => $mapping->transform_options['fallback'] ?? null,
+            'transform_from' => $mapping->transform_options['from'] ?? null,
             'default_value' => $mapping->default_value,
             'is_required' => $mapping->is_required,
         ])->values()->all();
@@ -173,6 +195,9 @@ class SourceMapping extends Component
             'target_field' => '',
             'is_custom_field' => false,
             'transform' => null,
+            'transform_map' => null,
+            'transform_fallback' => null,
+            'transform_from' => null,
             'default_value' => null,
             'is_required' => false,
         ];
@@ -221,6 +246,9 @@ class SourceMapping extends Component
                 'target_field' => $field,
                 'is_custom_field' => false,
                 'transform' => null,
+                'transform_map' => null,
+                'transform_fallback' => null,
+                'transform_from' => null,
                 'default_value' => null,
                 'is_required' => false,
             ];
@@ -279,6 +307,7 @@ class SourceMapping extends Component
                 'target_field' => $field,
                 'is_custom_field' => array_key_exists($field, $custom),
                 'transform' => $row['transform'] === '' ? null : $row['transform'],
+                'transform_options' => $this->transformOptionsFor($row),
                 'default_value' => $row['default_value'] === '' ? null : $row['default_value'],
                 'is_required' => (bool) ($row['is_required'] ?? false),
                 'position' => $position,
@@ -287,6 +316,144 @@ class SourceMapping extends Component
 
         $this->loadRows();
         $this->dispatch('notify', type: 'success', message: 'Mapping saved.');
+    }
+
+    /**
+     * The options a row's transform actually uses, and none it does not.
+     *
+     * Filtered by what the transform declares it needs, so switching a row from
+     * a value map to a date does not leave the old translation table sitting in
+     * the column waiting to confuse somebody.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>|null
+     */
+    private function transformOptionsFor(array $row): ?array
+    {
+        $transform = (string) ($row['transform'] ?? '');
+
+        if ($transform === '') {
+            return null;
+        }
+
+        $needed = app(ValueTransformer::class)->configurableOptions($transform);
+        $options = [];
+
+        if (in_array('map', $needed, true)) {
+            $map = $this->textToMap((string) ($row['transform_map'] ?? ''));
+
+            if ($map !== []) {
+                $options['map'] = $map;
+            }
+        }
+
+        if (in_array('fallback', $needed, true) && filled($row['transform_fallback'] ?? null)) {
+            $options['fallback'] = (string) $row['transform_fallback'];
+        }
+
+        if (in_array('from', $needed, true) && filled($row['transform_from'] ?? null)) {
+            $options['from'] = (string) $row['transform_from'];
+        }
+
+        return $options === [] ? null : $options;
+    }
+
+    /**
+     * `their value = ours`, one per line.
+     *
+     * A textarea rather than a repeater of paired inputs: a translation table
+     * is usually pasted in from somewhere, and twelve rows of two inputs each
+     * is a screen nobody wants to fill in.
+     *
+     * @return array<string, string>
+     */
+    private function textToMap(string $text): array
+    {
+        $map = [];
+
+        foreach (preg_split('/\r?\n/', $text) ?: [] as $line) {
+            if (! str_contains($line, '=')) {
+                continue;
+            }
+
+            [$from, $to] = explode('=', $line, 2);
+            $from = trim($from);
+
+            if ($from !== '') {
+                $map[$from] = trim($to);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $map
+     */
+    private function mapToText(?array $map): ?string
+    {
+        if (! is_array($map) || $map === []) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($map as $from => $to) {
+            $lines[] = $from.' = '.(is_scalar($to) ? $to : '');
+        }
+
+        return implode("\n", $lines);
+    }
+
+    // -- Matching ---------------------------------------------------------------
+
+    /**
+     * @return array<string, string>
+     */
+    public function dedupeFieldOptions(): array
+    {
+        $writer = IngestionWriters::for($this->source()->target_module);
+        $options = [];
+
+        foreach ($writer?->fields() ?? [] as $key => $field) {
+            $options[$key] = $field->label;
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function dedupeActionOptions(): array
+    {
+        return DedupeAction::options();
+    }
+
+    public function saveMatching(): void
+    {
+        $source = $this->source();
+
+        $this->authorize('update', $source);
+
+        $this->validate([
+            'externalIdPath' => ['nullable', 'string', 'max:255'],
+            'dedupeFields' => ['array'],
+            'dedupeFields.*' => ['string', Rule::in(array_keys($this->dedupeFieldOptions()))],
+            'dedupeAction' => ['required', Rule::in(array_keys(DedupeAction::options()))],
+        ], [], [
+            'externalIdPath' => 'their id',
+            'dedupeFields' => 'matching fields',
+            'dedupeAction' => 'what to do',
+        ]);
+
+        $source->forceFill([
+            'external_id_path' => filled($this->externalIdPath) ? trim((string) $this->externalIdPath) : null,
+            'dedupe_fields' => $this->dedupeFields === [] ? null : array_values($this->dedupeFields),
+            'dedupe_action' => $this->dedupeAction,
+        ])->save();
+
+        $this->dispatch('notify', type: 'success', message: 'Matching rules saved.');
     }
 
     // -- Dry run ---------------------------------------------------------------

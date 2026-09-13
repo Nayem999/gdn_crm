@@ -152,7 +152,7 @@
                                             :selected="$row['transform']"
                                             placeholder="None"
                                             clearable
-                                            wire:model="rows.{{ $index }}.transform"
+                                            wire:model.live="rows.{{ $index }}.transform"
                                         />
                                     </div>
                                 </div>
@@ -164,6 +164,38 @@
                                         class="pb-2 text-sm text-destructive underline underline-offset-4"
                                     >Remove</button>
                                 </div>
+
+                                @if ($row['transform'] === 'value_map')
+                                    <div class="lg:col-span-8">
+                                        <x-form.label :for="'map-' . $index">Their values, and ours</x-form.label>
+                                        <textarea
+                                            :id="'map-' . $index"
+                                            wire:model="rows.{{ $index }}.transform_map"
+                                            rows="3"
+                                            class="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                                            placeholder="new = open&#10;in progress = working&#10;done = won"
+                                        ></textarea>
+                                        <p class="mt-1 text-xs text-muted-foreground">
+                                            One per line, <code>theirs = ours</code>. Matched whatever the capitalisation.
+                                        </p>
+                                    </div>
+
+                                    <div class="lg:col-span-4">
+                                        <x-form.label :for="'fallback-' . $index">Anything else becomes</x-form.label>
+                                        <x-form.input :id="'fallback-' . $index" wire:model="rows.{{ $index }}.transform_fallback" placeholder="(leave it alone)" />
+                                    </div>
+                                @endif
+
+                                @if ($row['transform'] === 'date')
+                                    <div class="lg:col-span-4">
+                                        <x-form.label :for="'from-' . $index">The format they send</x-form.label>
+                                        <x-form.input :id="'from-' . $index" wire:model="rows.{{ $index }}.transform_from" class="font-mono text-xs" placeholder="d/m/Y" />
+                                        <p class="mt-1 text-xs text-muted-foreground">
+                                            Say which it is. <code>03/04/2026</code> is April in most of the world and March in the United States,
+                                            and nothing in the value says which. Leave empty for ISO-8601.
+                                        </p>
+                                    </div>
+                                @endif
 
                                 <div class="lg:col-span-4">
                                     <x-form.label :for="'default-' . $index">If it is missing, use</x-form.label>
@@ -192,6 +224,58 @@
                 <x-button type="submit" wire:loading.attr="disabled" wire:target="save">Save mapping</x-button>
             </div>
         </form>
+
+        {{-- Matching. How a delivery about a record we already have is told
+             apart from one about a record we do not. --}}
+        <section class="mt-8 rounded-xl border border-border bg-card p-5">
+            <h2 class="text-sm font-semibold text-foreground">Matching</h2>
+            <p class="mt-1 text-xs text-muted-foreground">
+                How a delivery about something already here is recognised. Without this, every delivery makes another record.
+            </p>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div>
+                    <x-form.label for="external-id">Where their id is in the payload</x-form.label>
+                    <x-form.input id="external-id" wire:model="externalIdPath" class="font-mono text-xs" placeholder="id" />
+                    <x-form.error for="externalIdPath" />
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        The strongest match there is &mdash; the sending system telling us which of <em>their</em> records this is.
+                    </p>
+                </div>
+
+                <div wire:key="dedupe-fields-{{ count($dedupeFields) }}">
+                    <x-select
+                        name="dedupeFields"
+                        label="Otherwise, match on"
+                        :options="$this->dedupeFieldOptions()"
+                        :selected="$dedupeFields"
+                        placeholder="Nothing — always create"
+                        multiple
+                        :error="$errors->first('dedupeFields')"
+                        hint="All of them have to match. A field with no value in the delivery matches nothing."
+                        wire:model="dedupeFields"
+                    />
+                </div>
+
+                <div class="lg:col-span-2">
+                    <x-select
+                        name="dedupeAction"
+                        label="When it matches something"
+                        :options="$this->dedupeActionOptions()"
+                        :selected="$dedupeAction"
+                        required
+                        :error="$errors->first('dedupeAction')"
+                        wire:model="dedupeAction"
+                    />
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <x-button type="button" wire:click="saveMatching" wire:loading.attr="disabled" wire:target="saveMatching">
+                    Save matching rules
+                </x-button>
+            </div>
+        </section>
 
         {{-- The dry run. Runs the real mapper and the real rules, and stops
              before the write. --}}

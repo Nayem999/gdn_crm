@@ -54,6 +54,22 @@
                         <x-form.error for="name" />
                     </div>
 
+                    @if ($editingId === null)
+                        <div class="sm:col-span-2">
+                            <x-select
+                                name="blueprint"
+                                label="Start from a template"
+                                :options="$this->blueprintOptions()"
+                                :selected="$blueprint"
+                                placeholder="Set it up from scratch"
+                                clearable
+                                :error="$errors->first('blueprint')"
+                                hint="Fills in the filter, the mapping and the matching rules for a common integration. Everything stays editable afterwards."
+                                wire:model.live="blueprint"
+                            />
+                        </div>
+                    @endif
+
                     <x-select
                         name="target_module"
                         label="Brings data into"

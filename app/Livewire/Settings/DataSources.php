@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Domain\Ingestion\Actions\ApplyBlueprintAction;
 use App\Domain\Ingestion\Actions\CreateDataSourceAction;
 use App\Domain\Ingestion\Actions\DeleteDataSourceAction;
 use App\Domain\Ingestion\Actions\IssueSourceSecretAction;
@@ -9,6 +10,7 @@ use App\Domain\Ingestion\Actions\RevokeSourceSecretAction;
 use App\Domain\Ingestion\Actions\UpdateDataSourceAction;
 use App\Domain\Ingestion\DTOs\DataSourceData;
 use App\Domain\Ingestion\Enums\DataSourceType;
+use App\Domain\Ingestion\IngestionBlueprints;
 use App\Domain\Ingestion\IngestionTargets;
 use App\Domain\Ingestion\IpRange;
 use App\Domain\Ingestion\Models\DataSource;
@@ -65,6 +67,15 @@ class DataSources extends Component
      * list on the way out, because that is how somebody pastes a set of them.
      */
     public string $ip_allowlist = '';
+
+    /**
+     * A ready-made configuration to start from, on a new source only.
+     *
+     * Offered when creating and not when editing: a template applied to a
+     * source somebody has already tuned would replace their rules with the
+     * example's, which is the opposite of helpful.
+     */
+    public ?string $blueprint = null;
 
     /**
      * A freshly minted pair, in plain text, for as long as this page is open.
@@ -130,7 +141,7 @@ class DataSources extends Component
     {
         $this->authorize('create', DataSource::class);
 
-        $this->reset(['editingId', 'name', 'description', 'target_module', 'ip_allowlist']);
+        $this->reset(['editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint']);
         $this->type = DataSourceType::Push->value;
         $this->is_active = true;
         $this->is_sandbox = false;
@@ -164,7 +175,7 @@ class DataSources extends Component
 
     public function cancel(): void
     {
-        $this->reset(['editing', 'editingId', 'name', 'description', 'target_module', 'ip_allowlist']);
+        $this->reset(['editing', 'editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint']);
         $this->resetValidation();
     }
 
@@ -185,6 +196,9 @@ class DataSources extends Component
             'requires_key' => ['boolean'],
             'requires_signature' => ['boolean'],
             'ip_allowlist' => ['nullable', 'string', 'max:2000'],
+            // Matched against the registry, so nothing from a form can name a
+            // configuration that does not exist.
+            'blueprint' => ['nullable', 'string', Rule::in(IngestionBlueprints::keys())],
         ];
     }
 
@@ -201,6 +215,27 @@ class DataSources extends Component
             'requires_signature' => 'signature required',
             'ip_allowlist' => 'allowed addresses',
         ];
+    }
+
+    /**
+     * A template decides which module it writes into, so choosing one moves
+     * that control rather than leaving the two disagreeing on screen.
+     */
+    public function updatedBlueprint(): void
+    {
+        $blueprint = $this->blueprint === null ? null : IngestionBlueprints::find($this->blueprint);
+
+        if ($blueprint !== null) {
+            $this->target_module = $blueprint['target_module'];
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function blueprintOptions(): array
+    {
+        return IngestionBlueprints::options();
     }
 
     public function save(): void
@@ -247,9 +282,15 @@ class DataSources extends Component
         ]);
 
         try {
-            $source === null
+            $saved = $source === null
                 ? app(CreateDataSourceAction::class)($data, $this->currentUser())
                 : app(UpdateDataSourceAction::class)($source, $data);
+
+            // Only on a new source. Applying a template over one somebody has
+            // already tuned would replace their rules with the example's.
+            if ($source === null && $this->blueprint !== null) {
+                app(ApplyBlueprintAction::class)($saved, $this->blueprint);
+            }
         } catch (RuntimeException $exception) {
             $this->addError('target_module', $exception->getMessage());
 

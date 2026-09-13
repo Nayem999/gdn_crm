@@ -4,6 +4,8 @@ namespace App\Domain\Support\Actions;
 
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\TicketNotifications;
+use App\Models\User;
 
 /**
  * Moves a ticket, and owns the two stamps that go with it.
@@ -16,13 +18,17 @@ use App\Domain\Support\Models\Ticket;
  */
 class ChangeTicketStatusAction
 {
+    public function __construct(private readonly TicketNotifications $notifications) {}
+
     /**
      * @return bool whether anything moved — false when it is already there, so
      *              a board drop into the column it came from reports no move
      */
-    public function __invoke(Ticket $ticket, TicketStatus $status): bool
+    public function __invoke(Ticket $ticket, TicketStatus $status, ?User $actor = null): bool
     {
-        if ($ticket->status() === $status) {
+        $from = $ticket->status();
+
+        if ($from === $status) {
             return false;
         }
 
@@ -42,6 +48,10 @@ class ChangeTicketStatusAction
             // the conversation even if they think the fix stands.
             'closed_at' => $status === TicketStatus::Closed ? ($ticket->closed_at ?? now()) : null,
         ])->save();
+
+        // Told as whichever of the three move events this actually is —
+        // resolving and closing are not the generic status change.
+        $this->notifications->moved($ticket, $from, $status, $actor);
 
         return true;
     }

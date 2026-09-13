@@ -7,11 +7,14 @@ use App\Domain\Contacts\Models\Contact;
 use App\Domain\Support\DTOs\TicketData;
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\TicketNotifications;
 use App\Models\User;
 use RuntimeException;
 
 class CreateTicketAction
 {
+    public function __construct(private readonly TicketNotifications $notifications) {}
+
     /**
      * @throws RuntimeException when a chosen relation is not a real record
      */
@@ -34,7 +37,13 @@ class CreateTicketAction
         $ticket = new Ticket;
         $ticket->forceFill($attributes)->save();
 
-        return $ticket->refresh();
+        $ticket->refresh();
+
+        // After the save, so the reference the message quotes is the one the
+        // created hook has just written.
+        $this->notifications->created($ticket, $actor);
+
+        return $ticket;
     }
 
     private function guardRelations(TicketData $data): void

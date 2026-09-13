@@ -5,6 +5,7 @@ namespace App\Domain\Notifications;
 use App\Domain\Activities\ActivityMergeData;
 use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\Enums\RecipientType;
+use App\Domain\Support\TicketMergeData;
 
 /**
  * The canonical list of events the application notifies about.
@@ -176,6 +177,110 @@ final class NotificationEventRegistry
                 defaultSubject: 'Reminder: {{activity.subject}}',
                 defaultTemplates: [
                     '*' => '{{activity.type}}: {{activity.subject}} is due {{activity.due}} ({{activity.related}}).',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.created',
+                label: 'Ticket raised',
+                group: 'Support',
+                description: 'A customer reported a problem and a ticket was opened for it.',
+                recipientTypes: [RecipientType::Customer, RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                // SMS is available on every ticket event and off on all of
+                // them: it costs money per message and a support desk can
+                // generate a great many. An administrator turns it on for the
+                // events and audiences that are worth it.
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::mergeFields(),
+                defaultSubject: '{{ticket.reference}}: {{ticket.subject}}',
+                defaultTemplates: [
+                    '*' => 'Ticket {{ticket.reference}} has been opened: {{ticket.subject}}. It is with {{ticket.agent}}.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.status_changed',
+                label: 'Ticket status changed',
+                group: 'Support',
+                description: 'A ticket moved from one status to another, short of being resolved or closed.',
+                recipientTypes: [RecipientType::Customer, RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::moveFields(),
+                defaultSubject: '{{ticket.reference}} is now {{ticket.new_status}}',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) moved from {{ticket.old_status}} to {{ticket.new_status}}.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.priority_changed',
+                label: 'Ticket priority changed',
+                group: 'Support',
+                description: 'A ticket was retriaged up or down.',
+                // No Customer: how urgently we are treating something is our
+                // judgement, and "we have downgraded you to low" is not a
+                // message anybody means to send. Leaving the type off means the
+                // matrix has no cell to switch on by accident.
+                recipientTypes: [RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp],
+                mergeFields: TicketMergeData::priorityFields(),
+                defaultSubject: '{{ticket.reference}} is now {{ticket.new_priority}} priority',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) went from {{ticket.old_priority}} to {{ticket.new_priority}} priority.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.assigned',
+                label: 'Ticket assigned',
+                group: 'Support',
+                description: 'A ticket was handed to an agent.',
+                // Also no Customer: which of us is holding it is not their
+                // business, and somebody who hears every reassignment reads it
+                // as being passed around.
+                recipientTypes: [RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::mergeFields(),
+                defaultSubject: '{{ticket.reference}} is yours',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) is now with {{ticket.agent}}. It is {{ticket.priority}} priority and {{ticket.status}}.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.comment_added',
+                label: 'Ticket reply added',
+                group: 'Support',
+                description: 'Somebody replied on a ticket. An internal note never reaches the customer, whatever this row says.',
+                recipientTypes: [RecipientType::Customer, RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::commentFields(),
+                defaultSubject: 'Re: {{ticket.reference}} {{ticket.subject}}',
+                defaultTemplates: [
+                    '*' => '{{comment.author}} replied on {{ticket.reference}}: {{comment.excerpt}}',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.resolved',
+                label: 'Ticket resolved',
+                group: 'Support',
+                description: 'A ticket was marked resolved. Its own event, so a desk can tell the customer about this and nothing else.',
+                recipientTypes: [RecipientType::Customer, RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::moveFields(),
+                defaultSubject: '{{ticket.reference}} has been resolved',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) has been marked resolved by {{ticket.agent}}. Reply on the ticket if it is not fixed.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.closed',
+                label: 'Ticket closed',
+                group: 'Support',
+                description: 'A ticket was closed for good.',
+                recipientTypes: [RecipientType::Customer, RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                // Quieter than resolving on purpose: resolving is the message
+                // that matters to a customer, and closing usually follows it.
+                defaultChannels: [NotificationChannel::InApp],
+                mergeFields: TicketMergeData::moveFields(),
+                defaultSubject: '{{ticket.reference}} has been closed',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) has been closed.',
                 ],
             ),
             new NotificationEvent(

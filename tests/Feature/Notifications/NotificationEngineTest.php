@@ -99,8 +99,14 @@ test('each channel the matrix has on gets its own delivery', function () {
         $matrix->set('user.joined', RecipientType::Admin, $channel, true);
     }
 
+    // A number as well as an address: the point of this test is that every
+    // enabled channel delivers, and a recipient with no telephone number is
+    // now skipped on the two channels that need one (see canReceive()).
+    $user = notifyUser();
+    $user->forceFill(['phone' => '+8801700000000'])->save();
+
     app(Notifier::class)->send('user.joined', [
-        Recipient::user(notifyUser(), RecipientType::Admin),
+        Recipient::user($user->fresh(), RecipientType::Admin),
     ], ['user' => ['name' => 'Dana', 'email' => 'dana@example.test']]);
 
     expect($inApp->count())->toBe(1)

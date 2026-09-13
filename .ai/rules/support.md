@@ -48,3 +48,50 @@ The contact picker is **not** narrowed when no account is chosen. Plenty of tick
 
 ## "Unlinked" means no customer, not no agent
 `owner_id` is NOT NULL — every ticket has an agent, so "unassigned" is not a state this module can be in. What actually goes missing is a ticket nobody attached to a contact or an account, which cannot be found by searching for the person who raised it. That is what the `unlinked` chip filters, and the wording on screen says so.
+
+## The conversation is its own table, and `is_internal` is the whole point
+`ticket_comments` is not a note on the timeline. A note is internal by nature; a
+ticket comment may be **sent to the customer**, and the two must not be one row
+type somebody can confuse. `is_internal` defaults to false because the dangerous
+mistake is a private note the customer was not meant to see — but the ticket page
+labels every internal row in as many words, because the other dangerous mistake
+is believing a reply went out when it did not.
+
+A comment can come from either side, so `author_id` is nullable and
+`author_name` exists: a customer is a contact, not a user, and a reply arriving
+by email later has no account behind it at all. `from_customer` is a separate
+question from "author_id is null" — a departed colleague's reply also has no
+author, and that one was ours. `AddTicketCommentAction` refuses to mark a
+customer's own words internal, because hiding their message from them is
+meaningless.
+
+## Watchers are users, never addresses
+`ticket_watchers` fills `RecipientType::Watcher`, which the matrix has always had
+a row for and nothing to put in. Users only: a customer already hears as the
+customer, and letting an arbitrary address watch a ticket would be a way to have
+every reply forwarded somewhere nobody audits. The unique index is load-bearing —
+without it a double-click doubles every later notification.
+
+## Seven events, and the two quiet ones are quiet on purpose
+`TicketNotifications` is the only place a ticket event is fired from, so the
+seven cannot drift on who they reach.
+
+- **Resolved and closed are their own events**, not also the generic status
+  change. One move must never send a customer two messages, and plenty of desks
+  tell a customer about the resolution and nothing else.
+- **Priority changed does not list `RecipientType::Customer`** — left off the
+  event, so the matrix has no cell an administrator can switch on by accident.
+  How urgently we are treating something is our triage; "we have downgraded you
+  to low" is not a message anybody means to send.
+- **Assignment is internal too.** Which of us is holding it is not the
+  customer's business, and somebody who hears every reassignment reads it as
+  being passed around.
+- An **internal comment** is sent to `TicketRecipients::internal()`, which is
+  built without the customer rather than filtered afterwards. There is no
+  ordering of conditions in which a private note goes out.
+- Only **retriage** is announced from an edit. A desk that sent a message for
+  every corrected subject would train everybody to ignore all of them.
+
+`AssignTicketAction` calls `setRelation('owner', $agent)` before notifying:
+`ticket.agent` names the new agent, and a stale relation would put the previous
+one in the message telling somebody they now have it.

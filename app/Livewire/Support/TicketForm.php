@@ -177,7 +177,7 @@ class TicketForm extends Component
         try {
             $saved = $ticket === null
                 ? app(CreateTicketAction::class)($data, $this->currentUser())
-                : app(UpdateTicketAction::class)($ticket, $data);
+                : app(UpdateTicketAction::class)($ticket, $data, $this->currentUser());
         } catch (RuntimeException $exception) {
             $this->addError('subject', $exception->getMessage());
 

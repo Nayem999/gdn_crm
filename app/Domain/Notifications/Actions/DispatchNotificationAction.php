@@ -3,6 +3,7 @@
 namespace App\Domain\Notifications\Actions;
 
 use App\Domain\Notifications\ChannelManager;
+use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\Enums\NotificationStatus;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationEventRegistry;
@@ -71,10 +72,21 @@ class DispatchNotificationAction
                     continue;
                 }
 
+                // Before the driver is even asked: an in-app notification has
+                // nowhere to live without an account, and a customer contact
+                // does not have one. Skipped and logged, the way an
+                // unconfigured channel is — not attempted and left to throw.
+                if (! $recipient->canReceive($channel)) {
+                    $this->logSkipped($eventKey, $recipient, $channel,
+                        'No '.$channel->label().' address for this recipient.');
+
+                    continue;
+                }
+
                 $driver = $this->channels->driver($channel);
 
                 if (! $driver->isConfigured()) {
-                    $this->logSkipped($eventKey, $recipient, $channel->value,
+                    $this->logSkipped($eventKey, $recipient, $channel,
                         $driver->unavailableReason() ?? 'Channel not configured.');
 
                     continue;
@@ -85,7 +97,9 @@ class DispatchNotificationAction
                     'channel' => $channel->value,
                     'recipient_type' => $recipient->type->value,
                     'user_id' => $recipient->user?->id,
-                    'recipient' => $recipient->address,
+                    // Per channel, not one address for all of them: a customer
+                    // contact's email is not their mobile number.
+                    'recipient' => $recipient->addressFor($channel),
                     'status' => NotificationStatus::Queued->value,
                 ]);
 
@@ -99,14 +113,14 @@ class DispatchNotificationAction
         return $queued;
     }
 
-    private function logSkipped(string $eventKey, Recipient $recipient, string $channel, string $reason): void
+    private function logSkipped(string $eventKey, Recipient $recipient, NotificationChannel $channel, string $reason): void
     {
         NotificationLog::query()->create([
             'event' => $eventKey,
-            'channel' => $channel,
+            'channel' => $channel->value,
             'recipient_type' => $recipient->type->value,
             'user_id' => $recipient->user?->id,
-            'recipient' => $recipient->address,
+            'recipient' => $recipient->addressFor($channel),
             'status' => NotificationStatus::Skipped->value,
             'error' => $reason,
         ]);

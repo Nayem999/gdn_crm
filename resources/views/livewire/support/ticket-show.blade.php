@@ -54,6 +54,20 @@
 
         @unless ($ticket->trashed())
             <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    wire:click="toggleWatch"
+                    @class([
+                        'inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors',
+                        'border-accent bg-accent/10 text-accent' => $this->isWatching(),
+                        'border-border bg-card text-foreground hover:bg-muted' => ! $this->isWatching(),
+                    ])
+                    aria-pressed="{{ $this->isWatching() ? 'true' : 'false' }}"
+                >
+                    <x-icon name="{{ $this->isWatching() ? 'lucide-eye' : 'lucide-eye-off' }}" class="h-4 w-4" />
+                    {{ $this->isWatching() ? 'Following' : 'Follow' }}
+                </button>
+
                 @if ($this->canUpdate())
                     <a href="{{ route('tickets.edit', $ticket) }}" wire:navigate
                        class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
@@ -88,8 +102,104 @@
                 @endif
             </section>
 
+            <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-base font-semibold text-foreground">Conversation</h2>
+
+                @if ($this->comments->isEmpty())
+                    <p class="mt-3 text-sm text-muted-foreground">Nothing has been said yet.</p>
+                @else
+                    <ol class="mt-4 space-y-4">
+                        @foreach ($this->comments as $comment)
+                            <li @class([
+                                'rounded-lg border p-4',
+                                'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10' => $comment->is_internal,
+                                'border-border bg-muted/40' => ! $comment->is_internal,
+                            ])>
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p class="text-sm font-semibold text-foreground">
+                                        {{ $comment->authorLabel() }}
+                                        @if ($comment->from_customer)
+                                            <span class="ml-1 text-xs font-normal text-muted-foreground">(the customer)</span>
+                                        @endif
+                                    </p>
+                                    <div class="flex items-center gap-2">
+                                        @if ($comment->is_internal)
+                                            {{-- Said plainly on every internal row: the one mistake
+                                                 that matters here is thinking a private note went out,
+                                                 or that a reply to the customer did not. --}}
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                                                <x-icon name="lucide-lock" class="h-3 w-3" />
+                                                Internal &mdash; not sent to the customer
+                                            </span>
+                                        @endif
+                                        <span class="text-xs text-muted-foreground">
+                                            {{ \App\Domain\Settings\DisplayTime::display($comment->created_at)->diffForHumans() }}
+                                        </span>
+                                        @can('delete', $comment)
+                                            <button
+                                                type="button"
+                                                wire:click="deleteComment({{ $comment->id }})"
+                                                wire:confirm="Remove this reply? It is kept on the record."
+                                                class="text-muted-foreground transition-colors hover:text-destructive"
+                                                aria-label="Remove this reply"
+                                            >
+                                                <x-icon name="lucide-trash-2" class="h-3.5 w-3.5" />
+                                            </button>
+                                        @endcan
+                                    </div>
+                                </div>
+                                <p class="mt-2 whitespace-pre-line text-sm text-foreground">{{ $comment->body }}</p>
+                            </li>
+                        @endforeach
+                    </ol>
+                @endif
+
+                @unless ($ticket->trashed())
+                    @can('create', [App\Domain\Support\Models\TicketComment::class, $ticket])
+                        <form wire:submit="comment" class="mt-5 space-y-3">
+                            <div>
+                                <label for="reply" class="sr-only">Your reply</label>
+                                <textarea
+                                    id="reply"
+                                    wire:model="reply"
+                                    rows="4"
+                                    placeholder="{{ $replyIsInternal ? 'A note for us, not for the customer…' : 'Reply to the customer…' }}"
+                                    @class([
+                                        'block w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent',
+                                        'border-amber-400 dark:border-amber-500/50' => $replyIsInternal,
+                                        'border-border' => ! $replyIsInternal,
+                                    ])
+                                ></textarea>
+                                @error('reply')
+                                    <p class="mt-1 text-sm text-destructive">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        wire:model.live="replyIsInternal"
+                                        class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                                    >
+                                    Keep this internal
+                                </label>
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                                >
+                                    <x-icon name="{{ $replyIsInternal ? 'lucide-lock' : 'lucide-send' }}" class="h-4 w-4" />
+                                    {{ $replyIsInternal ? 'Add internal note' : 'Send reply' }}
+                                </button>
+                            </div>
+                        </form>
+                    @endcan
+                @endunless
+            </section>
+
             {{-- Notes, documents and history, the same three strands every
-                 module gets. 9.2 adds the customer-facing conversation. --}}
+                 module gets. The conversation above is the ticket's own. --}}
             <livewire:timeline.record-timeline module="tickets" :record="$ticket->id" :key="'timeline-' . $ticket->id" />
         </div>
 
@@ -159,6 +269,16 @@
                                 </a>
                             @else
                                 &mdash;
+                            @endif
+                        </dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-muted-foreground">Following</dt>
+                        <dd class="text-right text-foreground">
+                            @if ($ticket->watchers->isEmpty())
+                                &mdash;
+                            @else
+                                {{ $ticket->watchers->pluck('name')->join(', ') }}
                             @endif
                         </dd>
                     </div>

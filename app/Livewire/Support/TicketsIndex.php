@@ -16,6 +16,7 @@ use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
 use App\Domain\Support\TicketExportSource;
 use App\Domain\Support\TicketFields;
+use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
@@ -261,7 +262,7 @@ class TicketsIndex extends Component
             return false;
         }
 
-        if (! app(ChangeTicketStatusAction::class)($ticket, $status)) {
+        if (! app(ChangeTicketStatusAction::class)($ticket, $status, $this->currentUser())) {
             // Dropped back into the column it was already in.
             return false;
         }
@@ -386,5 +387,16 @@ class TicketsIndex extends Component
     private function blank(): HtmlString
     {
         return new HtmlString('<span class="text-muted-foreground">&mdash;</span>');
+    }
+
+    /**
+     * Who is doing this, for the notifications the actions raise — nobody is
+     * told about something they did themselves.
+     */
+    private function currentUser(): ?User
+    {
+        $user = auth()->user();
+
+        return $user instanceof User ? $user : null;
     }
 }

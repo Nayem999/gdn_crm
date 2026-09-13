@@ -76,3 +76,21 @@ one.
 and makes it unreachable, which is exactly what happened here and was caught only
 in the browser. Two tests in tests/Feature/Settings/SettingsScreenTest.php now
 guard it: every registry group must resolve to `settings.group`.
+
+## A recipient's address is per channel, and reachability is checked before queueing
+`Recipient` carries an `address` **and** a `phone`, and `addressFor($channel)`
+picks between them. This is not tidiness: a customer contact is not a user, and
+before 9.2 the single `address` was posted to whichever driver was enabled — so
+an SMS to a customer was sent to their email address, and the log recorded it as
+such.
+
+`Recipient::canReceive($channel)` is asked before anything is queued:
+
+- **in-app** needs a user, because the notification hangs off an account and a
+  contact does not have one
+- **email** needs an address, **SMS and WhatsApp** need a number
+
+An unreachable combination is **skipped and logged with a reason**, the way an
+unconfigured channel is — never queued and left to throw inside the job. An
+empty string is not an address: `??` alone treats `''` as usable, which is how
+an empty column reaches a driver.

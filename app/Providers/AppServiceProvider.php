@@ -62,6 +62,8 @@ use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\Models\TicketComment;
+use App\Domain\Support\Policies\TicketCommentPolicy;
 use App\Domain\Support\Policies\TicketPolicy;
 use App\Domain\Teams\Policies\TeamPolicy;
 use App\Domain\Timeline\Models\Document;
@@ -156,6 +158,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
+        Gate::policy(TicketComment::class, TicketCommentPolicy::class);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(Contact::class, ContactPolicy::class);
         Gate::policy(Lead::class, LeadPolicy::class);

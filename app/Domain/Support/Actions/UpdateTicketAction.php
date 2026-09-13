@@ -6,20 +6,34 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Support\DTOs\TicketData;
 use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\TicketNotifications;
+use App\Models\User;
 use RuntimeException;
 
 class UpdateTicketAction
 {
+    public function __construct(private readonly TicketNotifications $notifications) {}
+
     /**
      * @throws RuntimeException when a chosen relation is not a real record
      */
-    public function __invoke(Ticket $ticket, TicketData $data): Ticket
+    public function __invoke(Ticket $ticket, TicketData $data, ?User $actor = null): Ticket
     {
         $this->guardRelations($data);
 
-        $ticket->update($data->toAttributes());
+        $priority = $ticket->priority();
 
-        return $ticket->refresh();
+        $ticket->update($data->toAttributes());
+        $ticket->refresh();
+
+        // Only retriage is announced. An edit to the subject or the customer is
+        // a correction, and a desk that sent a message for each of those would
+        // train everybody to ignore all of them.
+        if ($priority !== $data->priority) {
+            $this->notifications->priorityChanged($ticket, $priority, $data->priority, $actor);
+        }
+
+        return $ticket;
     }
 
     private function guardRelations(TicketData $data): void

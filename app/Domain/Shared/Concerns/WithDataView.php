@@ -457,8 +457,13 @@ trait WithDataView
         // One query for every row's answers rather than one per cell. Loaded
         // whenever the model can carry them, because the column manager can
         // turn a custom column on at any time.
-        if (in_array(HasCustomFields::class, class_uses_recursive($query->getModel()), true)) {
-            $query->with('customFieldValues');
+        $model = $query->getModel();
+
+        // Asked of the model rather than named here. The trait that owns the
+        // relation says what to load, so a model without custom fields is never
+        // asked for one — see HasCustomFields::dataViewCustomFieldEagerLoads().
+        if (method_exists($model, 'dataViewCustomFieldEagerLoads')) {
+            $query->with($model->dataViewCustomFieldEagerLoads());
         }
 
         if ($this->search !== '') {

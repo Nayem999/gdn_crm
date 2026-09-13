@@ -131,6 +131,23 @@ final class NotificationEventRegistry
                 defaultTemplates: ['*' => 'Your {{export.module}} export could not be generated. Please try again.'],
             ),
             new NotificationEvent(
+                key: 'integration.failing',
+                label: 'An integration is failing',
+                group: 'Inbound data',
+                description: 'A data source has failed several deliveries in a row and is probably broken.',
+                recipientTypes: [RecipientType::Admin],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: [
+                    'source.name' => 'Which source',
+                    'source.failures' => 'How many in a row',
+                    'source.error' => 'What the last one said',
+                ],
+                defaultSubject: 'An inbound source is failing',
+                defaultTemplates: [
+                    '*' => '{{source.name}} has failed {{source.failures}} deliveries in a row. The last one said: {{source.error}}',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'activity.assigned',
                 label: 'Activity assigned',
                 group: 'Activities',

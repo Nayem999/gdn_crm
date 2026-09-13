@@ -459,12 +459,76 @@ spread into `fromArray()` that the DTO has no parameter for is **silently
 dropped**, so nothing was persisted at all; and `Http::fake()` called twice in
 one test **appends** its stub, leaving the first one still matching.
 
+## The log searches the payload, and the board is read-only
+Somebody opens the delivery log with "did that come through", and what they have
+is a name or an email address — not an event id. The body is the only place
+either appears, so `searchColumns()` includes `payload`. It is a LIKE over a
+longText column and it is slow; a log nobody can search is a log nobody uses.
+
+The board groups by **status**, because "what is failing" is the question and
+"which source" is a filter. `moveCard()` returns false for everything: a card
+dragged into Processed has not been processed, and saying otherwise would make
+the log lie about what happened.
+
+The inspector shows what arrived beside what the mapping made of it, which is
+the pair somebody needs to work out why a delivery did not do what they
+expected. The payload is re-encoded **for display only** — the stored bytes are
+what the signature covered and what a replay sends.
+
+**The export never carries the payload.** A spreadsheet of raw bodies is
+customer data leaving by the easiest possible route, and somebody who needs one
+body can read it on the screen.
+
+## A replay resets the row, and belongs to the record it already made
+Replay is worth having because the **body was kept**: after a mapping is fixed,
+the deliveries that failed because of it go through the corrected rules rather
+than being asked for again from a system that may no longer have them.
+
+The event is reset, never copied — a second row for one delivery would make the
+log double-count what arrived, and "how many did they send us" is a question it
+has to answer. `attempts` is deliberately **not** reset: it counts trips through
+the pipeline, and a replay is one.
+
+`findExisting()` checks the event's **own** `record_id` before anything else.
+The external-id lookup excludes the event being processed, so that a first run
+cannot match itself — which means a replay would otherwise look straight past
+the record it had made and create a second copy of it. There is a test for that,
+and it caught the bug.
+
+## Health is a run of failures, not a total
+A source that has delivered ten thousand records and failed forty times is fine;
+one that has failed its last four is not. `consecutiveFailures()` counts back
+from the most recent and stops at the first delivery that did not fail, so a
+healthy source costs one row.
+
+`shouldAlert()` is true **only at the threshold**, never past it. A thoroughly
+broken source therefore sends one alert rather than one per delivery, and the
+first success resets the run so the next outage alerts again. The threshold is
+five rather than one because every integration fails occasionally — a malformed
+payload, a record deleted at their end — and alerting on each trains people to
+ignore the alerts.
+
+The alert fires from the pipeline rather than a nightly sweep, because the
+moment worth noticing is the moment it happens. It is wrapped in a catch and
+swallowed: an integration that is already failing must not also fail because
+nobody could be told about it.
+
+## The kit asks the model what to eager load
+`WithDataView` used to name `customFieldValues` as a literal. The delivery log is
+the first list screen over a model that deliberately has no custom fields, and a
+literal relation name is checked statically against whatever model the kit is
+used with. `HasCustomFields::dataViewCustomFieldEagerLoads()` now declares it, so
+the trait that owns the relation is the thing that names it and a model without
+custom fields is never asked for one.
+
 ## What 8.1 deliberately does not build
 - **No public ingest route.** Built in 8.3 — see above.
 - **No secret columns.** Done in 8.2, in its own migration — see above.
 - **No pull-mode endpoint, cursor or schedule.** 8.8 owns those.
-- **No log viewer.** 8.9 owns the filterable event log, replay and the health
-  dashboard, over `integration_events`.
+Phase 8 is complete. What it deliberately leaves for later: OAuth and signed-
+request auth for pull sources (8.8 covers bearer, basic and a named header —
+anything with a token lifecycle is a task of its own), and deals as an ingest
+target, which needs a `DealImportSource` first.
 
 ## The log viewer is 8.9, and this screen is not it
 `Settings\DataSources` is the short inline-form shape the webhooks screen uses,

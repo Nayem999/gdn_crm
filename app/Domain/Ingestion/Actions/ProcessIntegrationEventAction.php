@@ -5,11 +5,13 @@ namespace App\Domain\Ingestion\Actions;
 use App\Domain\Ingestion\Enums\DedupeAction;
 use App\Domain\Ingestion\Enums\IntegrationEventStatus;
 use App\Domain\Ingestion\IngestionWriters;
+use App\Domain\Ingestion\IntegrationHealth;
 use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Ingestion\PayloadMapper;
 use App\Domain\Ingestion\PayloadReader;
 use App\Domain\Ingestion\Writers\ImportBackedWriter;
+use App\Domain\Notifications\Notifier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -197,6 +199,19 @@ class ProcessIntegrationEventAction
         array $row,
         ?string $external,
     ): ?Model {
+        // A delivery that has already produced a record — which is what a
+        // replay is — belongs to that record. Without this it would look past
+        // itself (the query below excludes the event being processed, so a
+        // first run cannot match itself) and create a second copy of exactly
+        // the thing the original made.
+        if ($event->record_id !== null && $event->record_type === $writer->modelClass()) {
+            $own = $writer->matchQuery()->whereKey($event->record_id)->first();
+
+            if ($own !== null) {
+                return $own;
+            }
+        }
+
         if ($external !== null) {
             $previous = IntegrationEvent::query()
                 ->where('data_source_id', $source->getKey())
@@ -285,6 +300,42 @@ class ProcessIntegrationEventAction
             'error' => mb_substr($error, 0, 1000),
         ])->save();
 
+        $this->alertIfFailing($event, $error);
+
         return $event->refresh();
+    }
+
+    /**
+     * Tell the administrators when a source starts failing in a run.
+     *
+     * Fired from here rather than from a sweep, because the moment worth
+     * noticing is the moment it happens — a nightly check would tell somebody
+     * about an outage the morning after it started.
+     *
+     * `shouldAlert` is true only at the threshold, never past it, so a
+     * thoroughly broken source sends one alert rather than one per delivery.
+     * Never fatal: an integration that is already failing must not also fail
+     * because nobody could be told about it.
+     */
+    private function alertIfFailing(IntegrationEvent $event, string $error): void
+    {
+        $source = $event->dataSource;
+
+        if ($source === null || ! IntegrationHealth::shouldAlert($source)) {
+            return;
+        }
+
+        try {
+            app(Notifier::class)->sendToAdmins('integration.failing', 'integrations.view', [
+                'source' => [
+                    'name' => $source->name,
+                    'failures' => IntegrationHealth::ALERT_AFTER,
+                    // Truncated again here: this one is read in an email.
+                    'error' => mb_substr($error, 0, 200),
+                ],
+            ], null, route('settings.integration-log', ['source' => $source->id]));
+        } catch (Throwable) {
+            // Deliberately swallowed. See above.
+        }
     }
 }

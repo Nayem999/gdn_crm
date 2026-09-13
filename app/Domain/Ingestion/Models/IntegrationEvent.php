@@ -3,6 +3,7 @@
 namespace App\Domain\Ingestion\Models;
 
 use App\Domain\Ingestion\Enums\IntegrationEventStatus;
+use App\Domain\Ingestion\IntegrationEventFields;
 use Database\Factories\IntegrationEventFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -177,6 +178,34 @@ class IntegrationEvent extends Model
     public function scopeFailed(Builder $query): Builder
     {
         return $query->withStatus(IntegrationEventStatus::Failed);
+    }
+
+    /**
+     * The same columns the log screen searches.
+     *
+     * Including the **payload**, because somebody asking "did that come
+     * through" has a name or an email address rather than an event id, and the
+     * body is the only place either appears. It is a LIKE over a longText
+     * column and it is slow — but a log nobody can search is a log nobody uses.
+     *
+     * Read from the same declaration the screen reads, so a queued export
+     * cannot match rows the list never showed — the drift .ai/rules/accounts.md
+     * exists to prevent.
+     *
+     * @param  Builder<IntegrationEvent>  $query
+     * @return Builder<IntegrationEvent>
+     */
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        if ($term === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($term) {
+            foreach (IntegrationEventFields::searchColumns() as $column) {
+                $inner->orWhere($inner->qualifyColumn($column), 'like', '%'.$term.'%');
+            }
+        });
     }
 
     /**

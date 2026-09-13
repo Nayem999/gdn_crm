@@ -35,6 +35,23 @@ trait HasCustomFields
     }
 
     /**
+     * What the data-view kit should eager load to answer this model's custom
+     * field cells.
+     *
+     * Declared by the trait that owns the relation rather than named in the
+     * kit: a list screen over a model **without** custom fields — Phase 8's
+     * delivery log is the first — must not be asked for a relation it has not
+     * got, and a literal name in the kit is one that gets checked against every
+     * model the kit is ever used with.
+     *
+     * @return array<int, string>
+     */
+    public function dataViewCustomFieldEagerLoads(): array
+    {
+        return ['customFieldValues'];
+    }
+
+    /**
      * This model's module key, as the registry names it.
      */
     public function customFieldModule(): string

@@ -95,3 +95,104 @@ seven cannot drift on who they reach.
 `AssignTicketAction` calls `setRelation('owner', $agent)` before notifying:
 `ticket.agent` names the new agent, and a stale relation would put the previous
 one in the message telling somebody they now have it.
+
+## The SLA clock is two stored due times, not a calculation
+`tickets.first_response_due_at` and `resolution_due_at` are written when the
+clock is set and never recomputed from the policy afterwards. Two reasons, both
+load-bearing:
+
+- **The sweep.** "Which tickets are about to breach" runs every minute against
+  every open ticket. Deriving a deadline from a policy, a priority and a pause
+  history in SQL would make that a join nobody can index; as stored columns it
+  is a range scan.
+- **The promise.** Editing a policy must not silently move a deadline a ticket
+  was already given. `SlaClock::targetMinutes()` reads the policy only to place
+  the *warning* inside a window whose end is already fixed.
+
+The clock starts from `created_at`, not from when the policy was applied —
+otherwise a desk buys itself time by applying it late, or by retriaging.
+`ApplySlaPolicyAction` runs again on a priority change for exactly that reason,
+and re-cuts from the original arrival.
+
+## On hold pauses; pending does not
+`SyncSlaClockAction` pauses only on `TicketStatus::OnHold`. **Pending is the
+customer's delay and does not pause** — a desk that paused on pending could stop
+every clock in the building by asking a question. This is the distinction the two
+statuses exist for.
+
+Resuming **shifts both due times forward** by the length of the hold rather than
+subtracting pauses at read time. A due time that moves while a ticket is held is
+the honest one to show: we promised four hours of *our* time. The alternative
+displays a deadline that has already passed on a ticket that has not breached.
+`sla_paused_seconds` still accumulates, so a report can say how long a ticket
+spent held.
+
+## Three things are not a first response
+`RecordFirstResponseAction` ignores an internal note (the customer never saw it),
+the customer's own reply (that is them chasing us) and any reply after the first.
+Getting any of them wrong flatters the one number a customer signed a contract
+about.
+
+## The sweep stamps, and the stamp is what stops the repeat
+`SweepSlaAction` writes `response_warned_at`, `resolution_warned_at` and the two
+breach columns once each. Running every minute, nothing else would stop the same
+warning going out fourteen hundred times. A breach **subsumes** the warning it
+never got: a ticket that sailed past both while the scheduler was down does not
+need telling it was nearly late.
+
+Escalation raises the priority one step and stamps `escalated_at`, once per
+ticket. It deliberately does **not** reassign — moving a ticket off the agent who
+is already late loses the only person with any context — and does **not** re-run
+the clock, which would turn a missed deadline into a reset button.
+
+## Neither SLA event reaches the customer
+`ticket.sla_warning` and `ticket.sla_breached` list only agent, admin and
+watcher. Telling a customer "we are about to be late" announces a failure in
+advance and gives them nothing to act on; telling them we missed it is a
+conversation, not a notification.
+
+## An empty target is no promise, not nought minutes
+A `sla_targets` row with both columns null is deleted rather than stored, and the
+policy form says as much beside the boxes. A blank that quietly meant
+"immediately" would breach every ticket the moment it was saved.
+
+## Analytics: two measurement decisions, and both are load-bearing
+`SupportMetrics` is the only place support figures are computed.
+
+**Resolution time subtracts holds. First-response time does not.** A ticket held
+waiting for a supplier was not ours to resolve during the hold, which is exactly
+what the SLA clock says — an analytics screen that disagreed with the clock
+would have somebody arguing about which number was real. But a hold *before we
+have answered at all* is itself a failure to answer, and `sla_paused_seconds` is
+a lifetime total that would over-credit a desk for holds taken after the reply.
+
+**Every average is reported with a median and a count.** One ticket that sat
+over a bank holiday drags a mean by days. The screen leads with the median. The
+same instinct puts "still waiting for a first reply" *beside* the average rather
+than in it: ten answered in a minute and forty ignored is a wonderful average.
+
+Nothing returns nought where it means "no data" — `average`, `median` and
+`within_sla` are null, and `AgentPerformance::breachRate()` is null for an agent
+who resolved nothing. Nought per cent of nothing is not a good record.
+
+SLA attainment counts only tickets that were **given** a promise
+(`resolution_due_at is not null`); a desk running without a policy has not met
+100% of nothing.
+
+## `sla_paused_seconds` must be CAST to SIGNED before it is subtracted
+The column is UNSIGNED, so MySQL promotes the whole expression to BIGINT
+UNSIGNED and a ticket whose recorded hold exceeds its wall-clock life **fails the
+entire query** with error 1690 rather than clamping. `GREATEST(..., 0)` does not
+save it — the subtraction happens first. `SupportMetrics::PAUSE_SECONDS` carries
+the cast; use it rather than writing the column into new SQL.
+
+## The viewer is required, never nullable
+Every metric takes a `User` rather than a `?User`. A scheduled report in a later
+phase runs with no session, and a null that quietly meant "everything" is exactly
+how such a report leaks records the recipient could not open one by one.
+
+## Aggregates come back through the base query builder
+A `selectRaw('... as avg_seconds')` on an Eloquent builder returns Ticket models
+carrying a property the model does not declare. `applyScopes()->getQuery()->get()`
+gives plain rows instead — and `applyScopes()` first, or the soft-delete scope is
+dropped and removed tickets come back into the figures.

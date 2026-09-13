@@ -14,6 +14,7 @@ use App\Domain\Support\Actions\DeleteTicketAction;
 use App\Domain\Support\Enums\TicketPriority;
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
+use App\Domain\Support\SlaClock;
 use App\Domain\Support\TicketExportSource;
 use App\Domain\Support\TicketFields;
 use App\Models\User;
@@ -84,7 +85,7 @@ class TicketsIndex extends Component
     {
         $query = Ticket::query()
             ->visibleTo(auth()->user())
-            ->with(['owner:id,name', 'contact:id,first_name,last_name', 'account:id,name']);
+            ->with(['owner:id,name', 'contact:id,first_name,last_name', 'account:id,name', 'slaPolicy.targets']);
 
         // Most urgent first, then oldest, when nobody has chosen a sort. That
         // is the order an agent works a queue in, and it is applied to the base
@@ -170,6 +171,7 @@ class TicketsIndex extends Component
             'account' => $this->accountCell($record),
             'owner' => $record->owner === null ? $this->blank() : $record->owner->name,
             'age' => $this->ageCell($record),
+            'sla' => $this->slaCell($record),
             // DisplayTime takes a moment, not a maybe: the office clock is
             // the only place a stored UTC value is converted, and a null has
             // nothing to convert.
@@ -186,6 +188,34 @@ class TicketsIndex extends Component
     private function moment(?CarbonInterface $moment): string|HtmlString
     {
         return $moment === null ? $this->blank() : DisplayTime::display($moment)->format('j M Y, H:i');
+    }
+
+    /**
+     * How the promise stands: how long is left, or how long ago it went.
+     *
+     * A breach is red and a warning amber, because a queue sorted by priority
+     * hides the ticket that is about to cost somebody a contract.
+     */
+    private function slaCell(Ticket $record): HtmlString
+    {
+        $clock = app(SlaClock::class);
+
+        // Resolution is the promise a customer quotes back at you; the
+        // first-response one is shown on the ticket page, where there is room
+        // for both.
+        $label = $clock->label($record, SlaClock::RESOLUTION);
+
+        if ($label === null) {
+            return $this->blank();
+        }
+
+        $class = match (true) {
+            $clock->hasBreached($record, SlaClock::RESOLUTION) => 'text-destructive font-medium',
+            $clock->isWarning($record, SlaClock::RESOLUTION) => 'text-amber-600 dark:text-amber-400',
+            default => 'text-muted-foreground',
+        };
+
+        return new HtmlString('<span class="'.$class.'">'.e($label).'</span>');
     }
 
     private function contactCell(Ticket $record): HtmlString

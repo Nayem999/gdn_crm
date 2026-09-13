@@ -34,6 +34,9 @@ final class TicketFields
             new Column('owner', 'Agent', sortable: false),
             Column::make('created_at', 'Raised'),
             new Column('age', 'Age', sortable: false, numeric: true),
+            // Not sortable for the reason age is not: it is measured
+            // against a clock that may be paused, which SQL does not know.
+            new Column('sla', 'SLA', sortable: false),
             Column::optional('source', 'Came in by'),
             Column::optional('resolved_at', 'Resolved'),
             Column::optional('closed_at', 'Closed'),
@@ -55,6 +58,8 @@ final class TicketFields
             FilterField::date('created_at', 'Raised'),
             FilterField::date('resolved_at', 'Resolved'),
             FilterField::date('closed_at', 'Closed'),
+            FilterField::date('resolution_due_at', 'Resolution due'),
+            FilterField::date('resolution_breached_at', 'Resolution breached'),
         ];
 
         $keyed = [];

@@ -53,3 +53,12 @@ Schedule::command('mail:sync-inbound')
 Schedule::command('ingest:sync')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+// The SLA clock, swept every minute. A minute is the finest resolution a
+// promise is ever stated to, and the sweep is one indexed range scan when
+// nothing is close. withoutOverlapping so a slow run cannot be joined by the
+// next one — though the stamps on each ticket would refuse the duplicate
+// anyway.
+Schedule::command('support:sweep-sla')
+    ->everyMinute()
+    ->withoutOverlapping();

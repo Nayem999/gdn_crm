@@ -64,6 +64,7 @@ final class SettingsNavigation
                     ['label' => 'Custom fields', 'icon' => 'sliders-horizontal', 'route' => 'settings.custom-fields', 'params' => [], 'permission' => 'custom-fields.view'],
                     ['label' => 'Custom modules', 'icon' => 'box', 'route' => 'settings.custom-modules', 'params' => [], 'permission' => 'custom-modules.configure'],
                     ['label' => 'Email templates', 'icon' => 'mail-plus', 'route' => 'settings.email-templates', 'params' => [], 'permission' => 'email-templates.view'],
+                    ['label' => 'SLA policies', 'icon' => 'timer', 'route' => 'settings.sla-policies', 'params' => [], 'permission' => 'tickets.sla'],
                 ],
             ],
             [

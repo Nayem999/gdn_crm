@@ -29,7 +29,7 @@ class TicketExportSource implements DataViewExportSource
 
         $query = Ticket::query()
             ->visibleTo($user)
-            ->with(['owner:id,name', 'contact:id,first_name,last_name', 'account:id,name']);
+            ->with(['owner:id,name', 'contact:id,first_name,last_name', 'account:id,name', 'slaPolicy.targets']);
 
         if ($request->onlySelected) {
             $query->whereKey($request->selectedIds);
@@ -70,6 +70,9 @@ class TicketExportSource implements DataViewExportSource
             // A number, not a formatted string: a column of "3.5 hours" cannot
             // be averaged.
             'age' => $record->ageInHours(),
+            // Minutes, and a number rather than a phrase: a column of
+            // "3.5 h overdue" cannot be averaged. Negative means late.
+            'sla' => app(SlaClock::class)->minutesRemaining($record, SlaClock::RESOLUTION),
             'created_at' => $record->created_at?->format('Y-m-d H:i'),
             'resolved_at' => $record->resolved_at?->format('Y-m-d H:i'),
             'closed_at' => $record->closed_at?->format('Y-m-d H:i'),

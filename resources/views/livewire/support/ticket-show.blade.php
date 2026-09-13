@@ -237,6 +237,38 @@
                 @endif
             @endunless
 
+            @if ($this->slaRows() !== [])
+                <section class="rounded-xl border border-border bg-card p-5">
+                    <h2 class="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <x-icon name="lucide-timer" class="h-4 w-4" />
+                        What we promised
+                    </h2>
+                    <dl class="mt-3 space-y-2 text-sm">
+                        @foreach ($this->slaRows() as $row)
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-muted-foreground">{{ $row['label'] }}</dt>
+                                <dd @class([
+                                    'text-right',
+                                    'text-destructive font-medium' => $row['state'] === 'breached',
+                                    'text-amber-600 dark:text-amber-400' => $row['state'] === 'warning',
+                                    'text-muted-foreground' => $row['state'] === 'paused',
+                                    'text-foreground' => $row['state'] === 'running',
+                                ])>{{ $row['value'] }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    @if ($ticket->escalated_at)
+                        <p class="mt-3 text-xs text-destructive">
+                            Escalated {{ \App\Domain\Settings\DisplayTime::display($ticket->escalated_at)->diffForHumans() }}
+                            after missing a deadline.
+                        </p>
+                    @endif
+                    @if ($ticket->slaPolicy)
+                        <p class="mt-2 text-xs text-muted-foreground">Under {{ $ticket->slaPolicy->name }}.</p>
+                    @endif
+                </section>
+            @endif
+
             <section class="rounded-xl border border-border bg-card p-5">
                 <h2 class="text-sm font-semibold text-foreground">Details</h2>
                 <dl class="mt-3 space-y-2 text-sm">

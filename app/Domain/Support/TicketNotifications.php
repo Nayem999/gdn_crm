@@ -124,6 +124,43 @@ class TicketNotifications
         );
     }
 
+    /**
+     * The promise is running out.
+     *
+     * Our side only: a customer told "we are about to be late" has learned
+     * nothing they can act on, and a desk that sent it would be announcing its
+     * own failures in advance.
+     */
+    public function slaWarning(Ticket $ticket, string $kind): int
+    {
+        return $this->notifier->send(
+            'ticket.sla_warning',
+            $this->recipients->internal($ticket),
+            TicketMergeData::forSla($ticket, $kind),
+            // No actor: a clock running out is nobody's action, so there is
+            // nobody to leave out of the list.
+            null,
+            $this->url($ticket),
+        );
+    }
+
+    /**
+     * The promise has been missed.
+     *
+     * Goes to the agent and the administrators — the brief's two audiences —
+     * and to the watchers, who asked to hear about this ticket.
+     */
+    public function slaBreached(Ticket $ticket, string $kind): int
+    {
+        return $this->notifier->send(
+            'ticket.sla_breached',
+            $this->recipients->internal($ticket),
+            TicketMergeData::forSla($ticket, $kind),
+            null,
+            $this->url($ticket),
+        );
+    }
+
     private function url(Ticket $ticket): string
     {
         return route('tickets.show', $ticket->id);

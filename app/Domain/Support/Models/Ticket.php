@@ -38,6 +38,17 @@ use Illuminate\Support\Carbon;
  * @property int $owner_id
  * @property Carbon|null $resolved_at
  * @property Carbon|null $closed_at
+ * @property int|null $sla_policy_id
+ * @property Carbon|null $first_response_due_at
+ * @property Carbon|null $resolution_due_at
+ * @property Carbon|null $first_responded_at
+ * @property Carbon|null $sla_paused_at
+ * @property int $sla_paused_seconds
+ * @property Carbon|null $response_warned_at
+ * @property Carbon|null $response_breached_at
+ * @property Carbon|null $resolution_warned_at
+ * @property Carbon|null $resolution_breached_at
+ * @property Carbon|null $escalated_at
  */
 class Ticket extends Model
 {
@@ -87,6 +98,7 @@ class Ticket extends Model
         'status' => 'new',
         'priority' => 2,
         'source' => 'manual',
+        'sla_paused_seconds' => 0,
     ];
 
     /**
@@ -98,6 +110,16 @@ class Ticket extends Model
             'priority' => 'integer',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
+            'sla_paused_seconds' => 'integer',
+            'first_response_due_at' => 'datetime',
+            'resolution_due_at' => 'datetime',
+            'first_responded_at' => 'datetime',
+            'sla_paused_at' => 'datetime',
+            'response_warned_at' => 'datetime',
+            'response_breached_at' => 'datetime',
+            'resolution_warned_at' => 'datetime',
+            'resolution_breached_at' => 'datetime',
+            'escalated_at' => 'datetime',
         ];
     }
 
@@ -129,6 +151,10 @@ class Ticket extends Model
         return [
             'subject', 'status', 'priority', 'source',
             'contact_id', 'account_id', 'owner_id', 'resolved_at', 'closed_at',
+            // The SLA columns an administrator would be asked about: which
+            // promise, whether it was missed, and whether it was escalated.
+            'sla_policy_id', 'first_responded_at', 'escalated_at',
+            'response_breached_at', 'resolution_breached_at',
         ];
     }
 
@@ -158,6 +184,16 @@ class Ticket extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * The promise this ticket was given.
+     *
+     * @return BelongsTo<SlaPolicy, $this>
+     */
+    public function slaPolicy(): BelongsTo
+    {
+        return $this->belongsTo(SlaPolicy::class, 'sla_policy_id');
     }
 
     /**

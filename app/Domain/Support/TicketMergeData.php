@@ -104,6 +104,37 @@ final class TicketMergeData
     }
 
     /**
+     * A promise, and where it stands.
+     *
+     * @return array<string, mixed>
+     */
+    public static function forSla(Ticket $ticket, string $kind): array
+    {
+        $clock = app(SlaClock::class);
+        $data = self::for($ticket);
+
+        $data['sla'] = [
+            'promise' => $kind === SlaClock::RESPONSE ? 'first response' : 'resolution',
+            'policy' => self::policyName($ticket),
+            'due' => $clock->dueAt($ticket, $kind)?->format('j M Y, H:i') ?? 'not set',
+            'remaining' => $clock->label($ticket, $kind) ?? 'not set',
+        ];
+
+        return $data;
+    }
+
+    /**
+     * The policy's name, or a stand-in. Written out because `?->name` on the
+     * left of a `??` is not the question — a policy that exists always has one.
+     */
+    private static function policyName(Ticket $ticket): string
+    {
+        $policy = $ticket->slaPolicy;
+
+        return $policy === null ? 'no policy' : $policy->name;
+    }
+
+    /**
      * The fields common to every ticket event.
      *
      * @return array<string, string>
@@ -141,6 +172,20 @@ final class TicketMergeData
             ...self::mergeFields(),
             'ticket.old_priority' => 'What it was',
             'ticket.new_priority' => 'What it is now',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function slaFields(): array
+    {
+        return [
+            ...self::mergeFields(),
+            'sla.promise' => 'Which promise — first response or resolution',
+            'sla.policy' => 'The policy it was given',
+            'sla.due' => 'When it was due',
+            'sla.remaining' => 'How long is left, or how long ago it went',
         ];
     }
 

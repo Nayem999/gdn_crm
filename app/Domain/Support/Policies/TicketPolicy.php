@@ -57,6 +57,16 @@ class TicketPolicy
         return $user->can('tickets.export');
     }
 
+    /**
+     * Its own permission: the analytics screen reports across the whole desk,
+     * and "how is each agent doing" is a manager's question rather than part of
+     * working a queue.
+     */
+    public function analytics(User $user): bool
+    {
+        return $user->can('tickets.analytics');
+    }
+
     private function isVisibleTo(User $user, Ticket $ticket): bool
     {
         return Ticket::query()

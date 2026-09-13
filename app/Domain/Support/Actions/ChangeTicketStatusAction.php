@@ -18,7 +18,10 @@ use App\Models\User;
  */
 class ChangeTicketStatusAction
 {
-    public function __construct(private readonly TicketNotifications $notifications) {}
+    public function __construct(
+        private readonly TicketNotifications $notifications,
+        private readonly SyncSlaClockAction $syncClock,
+    ) {}
 
     /**
      * @return bool whether anything moved — false when it is already there, so
@@ -48,6 +51,10 @@ class ChangeTicketStatusAction
             // the conversation even if they think the fix stands.
             'closed_at' => $status === TicketStatus::Closed ? ($ticket->closed_at ?? now()) : null,
         ])->save();
+
+        // On hold stops the clock; anything else starts it again and pushes the
+        // deadlines out by however long the hold lasted.
+        $this->syncClock->__invoke($ticket, $status);
 
         // Told as whichever of the three move events this actually is —
         // resolving and closing are not the generic status change.

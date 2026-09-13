@@ -11,6 +11,7 @@ use App\Domain\Support\Actions\ToggleTicketWatchAction;
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
 use App\Domain\Support\Models\TicketComment;
+use App\Domain\Support\SlaClock;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -64,7 +65,7 @@ class TicketShow extends Component
     {
         return Ticket::query()
             ->withTrashed()
-            ->with(['owner:id,name', 'contact', 'account', 'watchers:id,name'])
+            ->with(['owner:id,name', 'contact', 'account', 'watchers:id,name', 'slaPolicy.targets'])
             ->findOrFail($this->ticketId);
     }
 
@@ -242,6 +243,39 @@ class TicketShow extends Component
         $user = auth()->user();
 
         return $user instanceof User ? $user : null;
+    }
+
+    /**
+     * Both halves of the promise, for the panel on the ticket page.
+     *
+     * @return array<int, array{label: string, value: string, state: string}>
+     */
+    public function slaRows(): array
+    {
+        $ticket = $this->ticket();
+        $clock = app(SlaClock::class);
+        $rows = [];
+
+        foreach ([SlaClock::RESPONSE => 'First reply', SlaClock::RESOLUTION => 'Resolution'] as $kind => $label) {
+            $value = $clock->label($ticket, $kind);
+
+            if ($value === null) {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => $label,
+                'value' => $value,
+                'state' => match (true) {
+                    $clock->hasBreached($ticket, $kind) => 'breached',
+                    $clock->isWarning($ticket, $kind) => 'warning',
+                    $clock->isPaused($ticket) => 'paused',
+                    default => 'running',
+                },
+            ];
+        }
+
+        return $rows;
     }
 
     public function canUpdate(): bool

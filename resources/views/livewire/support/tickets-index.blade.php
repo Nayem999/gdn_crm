@@ -10,6 +10,18 @@
             </div>
         </div>
 
+        <div class="flex flex-wrap items-center gap-2">
+        @can('analytics', App\Domain\Support\Models\Ticket::class)
+            <a
+                href="{{ route('tickets.analytics') }}"
+                wire:navigate
+                class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+                <x-icon name="lucide-chart-column" class="h-4 w-4" />
+                Analytics
+            </a>
+        @endcan
+
         @can('create', App\Domain\Support\Models\Ticket::class)
             <a
                 href="{{ route('tickets.create') }}"
@@ -20,6 +32,7 @@
                 New ticket
             </a>
         @endcan
+        </div>
     </div>
 
     <div

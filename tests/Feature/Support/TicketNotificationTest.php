@@ -87,7 +87,9 @@ beforeEach(function () {
 
 // -- The registry --------------------------------------------------------------
 
-test('the seven ticket events are registered', function () {
+test('the ticket events are registered', function () {
+    // A deliberate inventory: a new support event is added here on purpose, so
+    // nothing can appear in the matrix without somebody deciding it should.
     expect(ticketEventKeys())->toEqualCanonicalizing([
         'ticket.created',
         'ticket.status_changed',
@@ -96,6 +98,8 @@ test('the seven ticket events are registered', function () {
         'ticket.comment_added',
         'ticket.resolved',
         'ticket.closed',
+        'ticket.sla_warning',
+        'ticket.sla_breached',
     ]);
 });
 
@@ -107,6 +111,7 @@ test('every ticket event only names merge fields its data supplies', function (s
         ...TicketMergeData::moveFields(),
         ...TicketMergeData::priorityFields(),
         ...TicketMergeData::commentFields(),
+        ...TicketMergeData::slaFields(),
     ];
 
     // A template naming a field the event does not declare is refused at save

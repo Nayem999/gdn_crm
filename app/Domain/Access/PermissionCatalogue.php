@@ -261,6 +261,21 @@ final class PermissionCatalogue
                     'tickets.assign' => 'Hand a ticket to another agent',
                     'tickets.delete' => 'Remove tickets',
                     'tickets.export' => 'Export tickets',
+                    'tickets.sla' => 'Configure SLA policies',
+                    'tickets.analytics' => 'See support analytics',
+                ],
+            ],
+            'knowledge' => [
+                'label' => 'Knowledge base',
+                'icon' => 'book-open',
+                'permissions' => [
+                    'knowledge.view' => 'Read the knowledge base',
+                    'knowledge.create' => 'Write articles',
+                    'knowledge.update' => 'Edit articles and arrange sections',
+                    // Its own permission: writing a draft and putting it in
+                    // front of customers are different acts.
+                    'knowledge.publish' => 'Publish and unpublish articles',
+                    'knowledge.delete' => 'Remove articles and sections',
                 ],
             ],
             'contacts' => [

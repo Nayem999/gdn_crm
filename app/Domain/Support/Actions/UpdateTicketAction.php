@@ -12,7 +12,10 @@ use RuntimeException;
 
 class UpdateTicketAction
 {
-    public function __construct(private readonly TicketNotifications $notifications) {}
+    public function __construct(
+        private readonly TicketNotifications $notifications,
+        private readonly ApplySlaPolicyAction $applySla,
+    ) {}
 
     /**
      * @throws RuntimeException when a chosen relation is not a real record
@@ -30,6 +33,12 @@ class UpdateTicketAction
         // a correction, and a desk that sent a message for each of those would
         // train everybody to ignore all of them.
         if ($priority !== $data->priority) {
+            // Retriage re-cuts the promise, measured from when the ticket came
+            // in — a desk cannot buy itself another four hours by changing a
+            // dropdown.
+            $this->applySla->__invoke($ticket, $ticket->slaPolicy);
+            $ticket->refresh();
+
             $this->notifications->priorityChanged($ticket, $priority, $data->priority, $actor);
         }
 

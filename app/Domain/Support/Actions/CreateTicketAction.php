@@ -13,7 +13,10 @@ use RuntimeException;
 
 class CreateTicketAction
 {
-    public function __construct(private readonly TicketNotifications $notifications) {}
+    public function __construct(
+        private readonly TicketNotifications $notifications,
+        private readonly ApplySlaPolicyAction $applySla,
+    ) {}
 
     /**
      * @throws RuntimeException when a chosen relation is not a real record
@@ -37,6 +40,10 @@ class CreateTicketAction
         $ticket = new Ticket;
         $ticket->forceFill($attributes)->save();
 
+        $ticket->refresh();
+
+        // The clock starts from created_at, so this has to follow the insert.
+        $this->applySla->__invoke($ticket);
         $ticket->refresh();
 
         // After the save, so the reference the message quotes is the one the

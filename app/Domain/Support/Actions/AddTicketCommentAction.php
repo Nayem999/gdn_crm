@@ -18,7 +18,10 @@ use RuntimeException;
  */
 class AddTicketCommentAction
 {
-    public function __construct(private readonly TicketNotifications $notifications) {}
+    public function __construct(
+        private readonly TicketNotifications $notifications,
+        private readonly RecordFirstResponseAction $recordFirstResponse,
+    ) {}
 
     /**
      * @throws RuntimeException when the comment is empty
@@ -49,6 +52,10 @@ class AddTicketCommentAction
             'is_internal' => $fromCustomer ? false : $internal,
             'from_customer' => $fromCustomer,
         ])->save();
+
+        // Before the notification, so a message quoting the clock quotes it
+        // after this reply rather than before.
+        $this->recordFirstResponse->__invoke($ticket, $comment);
 
         $this->notifications->commentAdded($ticket, $comment, $author);
 

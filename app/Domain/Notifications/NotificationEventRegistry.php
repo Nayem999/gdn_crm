@@ -284,6 +284,37 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'ticket.sla_warning',
+                label: 'SLA running out',
+                group: 'Support',
+                description: 'A ticket is approaching the time we promised and has not been answered or resolved yet.',
+                // No Customer: telling somebody "we are about to be late" is
+                // announcing a failure in advance and gives them nothing to act
+                // on.
+                recipientTypes: [RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                defaultChannels: [NotificationChannel::InApp],
+                mergeFields: TicketMergeData::slaFields(),
+                defaultSubject: '{{ticket.reference}}: {{sla.remaining}} on the {{sla.promise}}',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) is due a {{sla.promise}} by {{sla.due}} — {{sla.remaining}}.',
+                ],
+            ),
+            new NotificationEvent(
+                key: 'ticket.sla_breached',
+                label: 'SLA breached',
+                group: 'Support',
+                description: 'A ticket went past the time we promised. It is escalated a priority when this fires.',
+                recipientTypes: [RecipientType::AssignedAgent, RecipientType::Admin, RecipientType::Watcher],
+                // Email as well as in-app: a breach that nobody sees until they
+                // next open the CRM is a breach nobody acted on.
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: TicketMergeData::slaFields(),
+                defaultSubject: '{{ticket.reference}} has missed its {{sla.promise}}',
+                defaultTemplates: [
+                    '*' => '{{ticket.reference}} ({{ticket.subject}}) missed its {{sla.promise}}, due {{sla.due}} under {{sla.policy}}. It is {{sla.remaining}} and is now {{ticket.priority}} priority, with {{ticket.agent}}.',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'approval.requested',
                 label: 'Approval waiting',
                 group: 'Workflows',

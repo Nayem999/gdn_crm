@@ -32,6 +32,10 @@ use App\Livewire\Deals\PipelineForm;
 use App\Livewire\Deals\PipelinesIndex;
 use App\Livewire\Duplicates\MergeRecords;
 use App\Livewire\Imports\ImportRecords;
+use App\Livewire\Knowledge\ArticleForm;
+use App\Livewire\Knowledge\ArticleShow;
+use App\Livewire\Knowledge\KnowledgeIndex;
+use App\Livewire\Knowledge\KnowledgeSections;
 use App\Livewire\Leads\LeadCaptureForms;
 use App\Livewire\Leads\LeadConvert;
 use App\Livewire\Leads\LeadForm;
@@ -58,6 +62,8 @@ use App\Livewire\Settings\IntegrationLog;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Settings\SourceMapping;
 use App\Livewire\Settings\WebhookEndpoints;
+use App\Livewire\Support\SlaPolicies;
+use App\Livewire\Support\SupportAnalytics;
 use App\Livewire\Support\TicketForm;
 use App\Livewire\Support\TicketShow;
 use App\Livewire\Support\TicketsIndex;
@@ -126,7 +132,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/m/{module}/create', CustomRecordForm::class)->name('custom-modules.create');
     Route::get('/m/{module}/{record}/edit', CustomRecordForm::class)->name('custom-modules.edit');
 
+    Route::get('/knowledge', KnowledgeIndex::class)->name('knowledge.index');
+    Route::get('/knowledge/sections', KnowledgeSections::class)->name('knowledge.sections');
+    Route::get('/knowledge/new', ArticleForm::class)->name('knowledge.create');
+    // Bound by slug, not id: a knowledge-base URL is pasted into replies
+    // to customers and should say what it points at. 'sections' and 'new'
+    // are registered above so a slug can never shadow them.
+    Route::get('/knowledge/{article:slug}', ArticleShow::class)->name('knowledge.show');
+    Route::get('/knowledge/{article:slug}/edit', ArticleForm::class)->name('knowledge.edit');
+
     Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
+    // Before /tickets/{ticket}, or a ticket bound by id would never be
+    // reached through this path.
+    Route::get('/tickets/analytics', SupportAnalytics::class)->name('tickets.analytics');
     Route::get('/tickets/create', TicketForm::class)->name('tickets.create');
     // withTrashed so a reference a customer is reading down the telephone
     // still opens a page, rather than 404ing because somebody removed it.
@@ -216,6 +234,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/pipelines', PipelinesIndex::class)->name('settings.pipelines');
     Route::get('/settings/pipelines/create', PipelineForm::class)->name('settings.pipelines.create');
     Route::get('/settings/pipelines/{pipeline}/edit', PipelineForm::class)->name('settings.pipelines.edit');
+
+    Route::get('/settings/sla-policies', SlaPolicies::class)->name('settings.sla-policies');
 
     Route::get('/settings/audit-log', ActivityLogIndex::class)->name('settings.audit');
 

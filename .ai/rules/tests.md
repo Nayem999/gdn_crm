@@ -21,3 +21,48 @@ Consequences to keep in mind:
 The whole suite runs in one process, so peak memory is the sum of everything it touches. PHP's 128M default stopped being enough during phase 4 and failed as a *fatal mid-run* — not as a test failure — which looks like a broken test rather than a broken limit.
 
 `phpunit.xml` now pins `<ini name="memory_limit" value="512M"/>`. If `php artisan test` ever dies with "Allowed memory size exhausted" again, raise that rather than reaching for `-d memory_limit` at the call site, which does not reach the pest subprocess anyway.
+
+## One test process at a time — the `testing` database is shared
+`phpunit.xml` names a single database, so **every** suite on this machine
+truncates and re-migrates the same one. Two runs at once destroy each other's
+schema mid-flight, and the failures do not look like a collision: you get
+`Base table 'password_reset_tokens' already exists` on one test and
+`Table 'testing.migrations' doesn't exist` on the next, as the two processes
+take turns dropping what the other just created.
+
+A git worktree does **not** isolate this. A task spawned into
+`.claude/worktrees/...` has its own checkout and its own `phpunit.xml`, both
+pointing at `testing`. Check for a running suite before starting one:
+
+    Get-CimInstance Win32_Process -Filter "Name='php.exe'" | Select ProcessId, CommandLine
+
+To run anyway, give the second process its own database — `<env>` in
+`phpunit.xml` has no `force="true"`, so a real environment variable wins:
+
+    DB_DATABASE=testing_p8 php artisan test tests/Feature/Ingestion
+
+Create it first, and run the *gate* against `testing` once the other process is
+done: a green run on a database nothing else has touched is not the same
+assurance.
+
+## Pest helper functions are global — name them for the module
+A `function helper()` declared in any test file is declared for the **whole
+suite**, so two files defining the same name is a fatal redeclare, not a
+shadowed local. `tests/Feature/Ingestion` defined `integrationUser()` and
+collided with `tests/Feature/CustomFields`, which had had one since Phase 6.
+
+The trap is that a file-scoped run cannot see it: `php artisan test
+tests/Feature/Ingestion` passed 61 tests, because the other file was never
+loaded. Only the full run fails, and it fails as a PHP fatal rather than a test
+failure.
+
+So: prefix helpers with the module they belong to (`ingestionAdmin`,
+`dealAdmin`, `activityAdmin`), and check **every** helper in a new file before
+running the suite — not just the one that looks risky. Phase 8 hit this twice:
+`integrationUser` against CustomFields, then `leadSource` against Duplicates and
+`deliver` against Webhooks, in a file whose other helpers were already prefixed.
+
+    for f in helperOne helperTwo helperThree; do
+      n=$(grep -rl "function $f(" tests/ | wc -l)
+      [ "$n" -gt 1 ] && echo "COLLIDES: $f"
+    done

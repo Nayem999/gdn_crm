@@ -304,6 +304,23 @@ final class PermissionCatalogue
                     'api.webhooks' => 'Configure outbound webhooks',
                 ],
             ],
+            // Inbound, where the API group is outbound. Kept apart because the
+            // risk is not the same: an API key lets somebody read what they
+            // could already see, while a data source lets an outside system put
+            // records into the database.
+            'integrations' => [
+                'label' => 'Inbound data',
+                'icon' => 'antenna',
+                'permissions' => [
+                    'integrations.view' => 'View data sources and what they have delivered',
+                    'integrations.manage' => 'Add data sources, point them at a module and switch them on',
+                    // Separate from manage for the reason settings.secrets is
+                    // separate from settings.update: somebody can be trusted to
+                    // switch a misbehaving source off without being handed the
+                    // ability to mint a credential that writes to the database.
+                    'integrations.secrets' => 'Generate, rotate and revoke the keys a source authenticates with',
+                ],
+            ],
             // Separate from notifications on purpose: a notification template
             // is wording the system sends on its own, while an email template
             // is something a salesperson picks and sends to a customer. The

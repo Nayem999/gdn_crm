@@ -53,7 +53,9 @@ use App\Livewire\Sales\QuoteBuilder;
 use App\Livewire\Sales\QuotesIndex;
 use App\Livewire\Settings\ApiDocumentation;
 use App\Livewire\Settings\ApiTokens;
+use App\Livewire\Settings\DataSources;
 use App\Livewire\Settings\SettingsGroup;
+use App\Livewire\Settings\SourceMapping;
 use App\Livewire\Settings\WebhookEndpoints;
 use App\Livewire\Teams\TeamForm;
 use App\Livewire\Teams\TeamsIndex;
@@ -210,6 +212,8 @@ Route::middleware('auth')->group(function () {
     // group, and a dedicated route there would shadow it.
     Route::get('/settings/email-delivery', EmailDeliveryLog::class)->name('settings.mail-log');
     Route::get('/settings/email-templates', EmailTemplates::class)->name('settings.email-templates');
+    Route::get('/settings/data-sources', DataSources::class)->name('settings.data-sources');
+    Route::get('/settings/data-sources/{source}/mapping', SourceMapping::class)->name('settings.data-sources.mapping');
     Route::get('/settings/api-keys', ApiTokens::class)->name('settings.api-tokens');
     Route::get('/settings/webhooks', WebhookEndpoints::class)->name('settings.webhooks');
     Route::get('/settings/api-documentation', ApiDocumentation::class)->name('settings.api-docs');

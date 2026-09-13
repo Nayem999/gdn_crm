@@ -168,6 +168,38 @@ final class SettingsRegistry
                     ], 60, 'Counted per key, so one busy integration cannot starve another.'),
                 ],
             ],
+            'integrations' => [
+                'label' => 'Inbound data',
+                'icon' => 'antenna',
+                'description' => 'How records are allowed in from other systems. Sources and their keys are set up under Data sources; this is what applies to all of them.',
+                'fields' => [
+                    // numberSelect, not select: PHP turns a numeric array key
+                    // into an int however it was quoted, and a String field's
+                    // own `string` rule would then reject the very options it
+                    // offers. See .ai/rules/settings.md.
+                    SettingField::numberSelect('rotation_grace_hours', 'Rotated key keeps working for', [
+                        0 => 'No grace — the old key stops at once',
+                        1 => '1 hour',
+                        6 => '6 hours',
+                        24 => '24 hours',
+                        72 => '3 days',
+                        168 => '7 days',
+                    ], 24, 'The integration at the other end has to redeploy before the old key stops. Choose no grace when you are rotating because a key leaked.'),
+                    SettingField::numberSelect('ingest_rate_limit_per_minute', 'Deliveries per source per minute', [
+                        60 => '60',
+                        120 => '120',
+                        300 => '300',
+                        600 => '600',
+                        1200 => '1200',
+                    ], 120, 'Counted per source, so one busy integration cannot starve another.'),
+                    SettingField::numberSelect('max_payload_kb', 'Largest delivery accepted', [
+                        64 => '64 KB',
+                        256 => '256 KB',
+                        1024 => '1 MB',
+                        4096 => '4 MB',
+                    ], 256, 'Deliveries are records, not files. Anything near this is a bug at the sending end.'),
+                ],
+            ],
             'sms' => [
                 'label' => 'SMS',
                 'icon' => 'message-square',

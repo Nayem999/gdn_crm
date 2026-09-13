@@ -29,6 +29,8 @@ use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Deals\PipelineStatusCache;
 use App\Domain\Deals\Policies\DealPolicy;
 use App\Domain\Deals\Policies\PipelinePolicy;
+use App\Domain\Ingestion\Models\DataSource;
+use App\Domain\Ingestion\Policies\DataSourcePolicy;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadCaptureForm;
 use App\Domain\Leads\Models\LeadScoringRule;
@@ -150,6 +152,7 @@ class AppServiceProvider extends ServiceProvider
         // record. Aliased at the import so the pairing here is unambiguous.
         Gate::policy(AuditEntry::class, AuditEntryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(Contact::class, ContactPolicy::class);
         Gate::policy(Lead::class, LeadPolicy::class);
@@ -212,6 +215,20 @@ class AppServiceProvider extends ServiceProvider
                 $bearer === null || $bearer === ''
                     ? 'ip-'.$request->ip()
                     : 'key-'.hash('sha256', $bearer)
+            );
+        });
+
+        // The ingest endpoint's limit, keyed by **source** rather than by
+        // address. One integration behind a busy proxy must not be able to
+        // starve another, and a source is the thing an administrator can switch
+        // off when one misbehaves. Unknown sources share an address bucket, so
+        // somebody spraying invented uuids is throttled as one caller.
+        RateLimiter::for('ingest', function (Request $request) {
+            $perMinute = (int) settings('integrations.ingest_rate_limit_per_minute', 120);
+            $source = (string) $request->route('source');
+
+            return Limit::perMinute(max(1, $perMinute))->by(
+                $source === '' ? 'ingest-ip-'.$request->ip() : 'ingest-'.$source
             );
         });
 

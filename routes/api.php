@@ -2,6 +2,7 @@
 
 use App\Domain\Api\ApiModules;
 use App\Domain\Api\Documentation\OpenApiDocument;
+use App\Http\Controllers\Api\IngestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use Illuminate\Support\Facades\Route;
@@ -47,3 +48,20 @@ Route::prefix('v1')
         });
     })
     ->whereIn('module', ApiModules::keys());
+
+/*
+|--------------------------------------------------------------------------
+| Inbound data gateway
+|--------------------------------------------------------------------------
+|
+| Outside the versioned API and outside Sanctum on purpose: this is not
+| somebody reading their own records with a token, it is somebody else's system
+| posting into ours, authenticated per source by a key and a signature.
+|
+| The uuid is matched in the controller rather than by model binding, so an
+| unknown source, a deleted one and a switched-off one give the same answer.
+|
+*/
+Route::post('/ingest/{source}', IngestController::class)
+    ->middleware('throttle:ingest')
+    ->name('api.ingest');

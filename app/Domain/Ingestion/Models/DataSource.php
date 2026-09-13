@@ -5,6 +5,8 @@ namespace App\Domain\Ingestion\Models;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Ingestion\Enums\DataSourceType;
 use App\Domain\Ingestion\Enums\DedupeAction;
+use App\Domain\Ingestion\Enums\PullAuth;
+use App\Domain\Ingestion\Enums\PullSchedule;
 use App\Domain\Ingestion\IngestionTargets;
 use App\Domain\Ingestion\PayloadReader;
 use App\Domain\Ingestion\SourceSecret;
@@ -44,6 +46,20 @@ use Illuminate\Support\Str;
  * @property string|null $sample_payload
  * @property Carbon|null $sample_captured_at
  * @property Carbon|null $listening_until
+ * @property string|null $pull_url
+ * @property string $pull_auth_type
+ * @property string|null $pull_auth_name
+ * @property string|null $pull_auth_secret
+ * @property string|null $pull_records_path
+ * @property string|null $pull_page_param
+ * @property string|null $pull_page_size_param
+ * @property int $pull_page_size
+ * @property string|null $pull_cursor_param
+ * @property string|null $pull_cursor_path
+ * @property string|null $pull_cursor
+ * @property string $pull_schedule
+ * @property Carbon|null $last_synced_at
+ * @property array<string, mixed>|null $last_sync_summary
  * @property int|null $created_by_id
  * @property string|null $secret_hash
  * @property string|null $secret_hint
@@ -83,6 +99,17 @@ class DataSource extends Model
         'dedupe_fields',
         'dedupe_action',
         'default_owner_id',
+        'pull_url',
+        'pull_auth_type',
+        'pull_auth_name',
+        'pull_auth_secret',
+        'pull_records_path',
+        'pull_page_param',
+        'pull_page_size_param',
+        'pull_page_size',
+        'pull_cursor_param',
+        'pull_cursor_path',
+        'pull_schedule',
         'created_by_id',
     ];
 
@@ -112,6 +139,8 @@ class DataSource extends Model
         'requires_key' => true,
         'requires_signature' => true,
         'dedupe_action' => 'update',
+        'pull_auth_type' => 'none',
+        'pull_schedule' => 'manual',
     ];
 
     /**
@@ -125,6 +154,7 @@ class DataSource extends Model
         'signing_secret',
         'previous_secret_hash',
         'previous_signing_secret',
+        'pull_auth_secret',
     ];
 
     /**
@@ -148,6 +178,12 @@ class DataSource extends Model
             // which needs the value. See App\Domain\Ingestion\SourceSecret.
             'signing_secret' => 'encrypted',
             'previous_signing_secret' => 'encrypted',
+            // Encrypted for the same reason: it has to be sent, so it cannot be
+            // hashed, but a backup must not carry it away.
+            'pull_auth_secret' => 'encrypted',
+            'pull_page_size' => 'integer',
+            'last_synced_at' => 'datetime',
+            'last_sync_summary' => 'array',
         ];
     }
 
@@ -183,6 +219,9 @@ class DataSource extends Model
             'name', 'description', 'type', 'target_module', 'is_active', 'is_sandbox',
             'ip_allowlist', 'requires_key', 'requires_signature',
             'external_id_path', 'dedupe_fields', 'dedupe_action', 'default_owner_id',
+            // The URL and the schedule are worth an audit entry; the credential
+            // is deliberately not among them.
+            'pull_url', 'pull_auth_type', 'pull_schedule',
         ];
     }
 
@@ -286,6 +325,32 @@ class DataSource extends Model
         $payload = $this->samplePayload();
 
         return $payload === null ? [] : PayloadReader::paths($payload);
+    }
+
+    public function pullAuth(): PullAuth
+    {
+        return PullAuth::tryFrom((string) $this->getAttributeValue('pull_auth_type')) ?? PullAuth::None;
+    }
+
+    public function pullSchedule(): PullSchedule
+    {
+        return PullSchedule::tryFrom((string) $this->getAttributeValue('pull_schedule')) ?? PullSchedule::Manual;
+    }
+
+    /**
+     * Whether a scheduled run should pick this source up now.
+     *
+     * Everything has to be true at once: it is a pull source, it is switched
+     * on, it has somewhere to fetch from, and enough time has passed. A source
+     * missing any of those is skipped silently — a half-configured integration
+     * is somebody mid-setup, not an error worth waking anybody for.
+     */
+    public function isDueForSync(): bool
+    {
+        return $this->type() === DataSourceType::Pull
+            && $this->acceptsDeliveries()
+            && filled($this->pull_url)
+            && $this->pullSchedule()->isDue($this->last_synced_at);
     }
 
     public function dedupeAction(): DedupeAction

@@ -7,9 +7,12 @@ use App\Domain\Ingestion\Actions\CreateDataSourceAction;
 use App\Domain\Ingestion\Actions\DeleteDataSourceAction;
 use App\Domain\Ingestion\Actions\IssueSourceSecretAction;
 use App\Domain\Ingestion\Actions\RevokeSourceSecretAction;
+use App\Domain\Ingestion\Actions\SyncDataSourceAction;
 use App\Domain\Ingestion\Actions\UpdateDataSourceAction;
 use App\Domain\Ingestion\DTOs\DataSourceData;
 use App\Domain\Ingestion\Enums\DataSourceType;
+use App\Domain\Ingestion\Enums\PullAuth;
+use App\Domain\Ingestion\Enums\PullSchedule;
 use App\Domain\Ingestion\IngestionBlueprints;
 use App\Domain\Ingestion\IngestionTargets;
 use App\Domain\Ingestion\IpRange;
@@ -77,6 +80,34 @@ class DataSources extends Component
      */
     public ?string $blueprint = null;
 
+    // -- Pull mode (8.8) ------------------------------------------------------
+
+    public ?string $pull_url = null;
+
+    public string $pull_auth_type = 'none';
+
+    public ?string $pull_auth_name = null;
+
+    /**
+     * Write-only, like every other credential here. A blank on submit means
+     * "keep what is stored"; clearing one is a deliberate act.
+     */
+    public ?string $pull_auth_secret = null;
+
+    public ?string $pull_records_path = null;
+
+    public ?string $pull_page_param = null;
+
+    public ?string $pull_page_size_param = null;
+
+    public string $pull_page_size = '100';
+
+    public ?string $pull_cursor_param = null;
+
+    public ?string $pull_cursor_path = null;
+
+    public string $pull_schedule = 'manual';
+
     /**
      * A freshly minted pair, in plain text, for as long as this page is open.
      *
@@ -141,7 +172,10 @@ class DataSources extends Component
     {
         $this->authorize('create', DataSource::class);
 
-        $this->reset(['editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint']);
+        $this->reset(['editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint', 'pull_url', 'pull_auth_name', 'pull_auth_secret', 'pull_records_path', 'pull_page_param', 'pull_page_size_param', 'pull_cursor_param', 'pull_cursor_path']);
+        $this->pull_auth_type = 'none';
+        $this->pull_schedule = 'manual';
+        $this->pull_page_size = '100';
         $this->type = DataSourceType::Push->value;
         $this->is_active = true;
         $this->is_sandbox = false;
@@ -169,13 +203,26 @@ class DataSources extends Component
         $this->requires_signature = $source->requires_signature;
         $this->ip_allowlist = implode('
 ', $source->ip_allowlist ?? []);
+        $this->pull_url = $source->pull_url;
+        $this->pull_auth_type = $source->pullAuth()->value;
+        $this->pull_auth_name = $source->pull_auth_name;
+        // Never loaded. A screen that read a stored credential back is a screen
+        // that decrypts one on demand.
+        $this->pull_auth_secret = null;
+        $this->pull_records_path = $source->pull_records_path;
+        $this->pull_page_param = $source->pull_page_param;
+        $this->pull_page_size_param = $source->pull_page_size_param;
+        $this->pull_page_size = (string) $source->pull_page_size;
+        $this->pull_cursor_param = $source->pull_cursor_param;
+        $this->pull_cursor_path = $source->pull_cursor_path;
+        $this->pull_schedule = $source->pullSchedule()->value;
         $this->editing = true;
         $this->resetValidation();
     }
 
     public function cancel(): void
     {
-        $this->reset(['editing', 'editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint']);
+        $this->reset(['editing', 'editingId', 'name', 'description', 'target_module', 'ip_allowlist', 'blueprint', 'pull_url', 'pull_auth_name', 'pull_auth_secret', 'pull_records_path', 'pull_page_param', 'pull_page_size_param', 'pull_cursor_param', 'pull_cursor_path']);
         $this->resetValidation();
     }
 
@@ -199,6 +246,19 @@ class DataSources extends Component
             // Matched against the registry, so nothing from a form can name a
             // configuration that does not exist.
             'blueprint' => ['nullable', 'string', Rule::in(IngestionBlueprints::keys())],
+            // Required for a pull source and meaningless for a push one, so the
+            // rule follows the type rather than being always-on or always-off.
+            'pull_url' => ['exclude_unless:type,pull', 'required', 'url', 'max:2048'],
+            'pull_auth_type' => ['nullable', Rule::in(array_keys(PullAuth::options()))],
+            'pull_auth_name' => ['nullable', 'string', 'max:120'],
+            'pull_auth_secret' => ['nullable', 'string', 'max:500'],
+            'pull_records_path' => ['nullable', 'string', 'max:255'],
+            'pull_page_param' => ['nullable', 'string', 'max:64'],
+            'pull_page_size_param' => ['nullable', 'string', 'max:64'],
+            'pull_page_size' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'pull_cursor_param' => ['nullable', 'string', 'max:64'],
+            'pull_cursor_path' => ['nullable', 'string', 'max:255'],
+            'pull_schedule' => ['nullable', Rule::in(array_keys(PullSchedule::options()))],
         ];
     }
 
@@ -285,6 +345,12 @@ class DataSources extends Component
             $saved = $source === null
                 ? app(CreateDataSourceAction::class)($data, $this->currentUser())
                 : app(UpdateDataSourceAction::class)($source, $data);
+
+            // Written straight onto the source rather than through DataSourceData,
+            // which deliberately carries only the fields common to both kinds.
+            // Adding a dozen pull-only parameters to it would make every caller
+            // of the DTO know about a mode most of them never use.
+            $saved->forceFill($this->pullAttributes())->save();
 
             // Only on a new source. Applying a template over one somebody has
             // already tuned would replace their rules with the example's.
@@ -441,6 +507,89 @@ class DataSources extends Component
 ,]+/', $this->ip_allowlist) ?: [];
 
         return array_values(array_filter(array_map('trim', $entries), fn (string $entry) => $entry !== ''));
+    }
+
+    /**
+     * The pull configuration, or nothing at all for a push source.
+     *
+     * Cleared rather than left behind when a source is switched to push: a URL
+     * and a credential sitting on a source that no longer fetches is a
+     * credential nobody remembers is there.
+     *
+     * @return array<string, mixed>
+     */
+    private function pullAttributes(): array
+    {
+        if ($this->type !== DataSourceType::Pull->value) {
+            return [
+                'pull_url' => null,
+                'pull_auth_type' => PullAuth::None->value,
+                'pull_auth_name' => null,
+                'pull_auth_secret' => null,
+                'pull_schedule' => PullSchedule::Manual->value,
+            ];
+        }
+
+        $attributes = [
+            'pull_url' => $this->pull_url,
+            'pull_auth_type' => $this->pull_auth_type,
+            'pull_auth_name' => $this->pull_auth_name,
+            'pull_records_path' => $this->pull_records_path,
+            'pull_page_param' => $this->pull_page_param,
+            'pull_page_size_param' => $this->pull_page_size_param,
+            'pull_page_size' => (int) ($this->pull_page_size ?: 100),
+            'pull_cursor_param' => $this->pull_cursor_param,
+            'pull_cursor_path' => $this->pull_cursor_path,
+            'pull_schedule' => $this->pull_schedule,
+        ];
+
+        // A blank secret means "keep what is stored", so it is only included
+        // when somebody actually typed one.
+        if (filled($this->pull_auth_secret)) {
+            $attributes['pull_auth_secret'] = $this->pull_auth_secret;
+        }
+
+        return $attributes;
+    }
+
+    // -- Sync now ---------------------------------------------------------------
+
+    public function syncNow(int $id): void
+    {
+        $source = DataSource::query()->findOrFail($id);
+
+        $this->authorize('update', $source);
+
+        $summary = app(SyncDataSourceAction::class)($source);
+
+        $this->dispatch(
+            'notify',
+            type: ($summary['ok'] ?? false) ? 'success' : 'error',
+            message: ($summary['ok'] ?? false)
+                ? $source->name.': '.($summary['records'] ?? 0).' records fetched over '.($summary['pages'] ?? 0).' pages.'
+                : $source->name.' could not be synced — '.($summary['error'] ?? 'no reason given'),
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function pullAuthOptions(): array
+    {
+        return PullAuth::options();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function pullScheduleOptions(): array
+    {
+        return PullSchedule::options();
+    }
+
+    public function chosenPullAuth(): PullAuth
+    {
+        return PullAuth::tryFrom($this->pull_auth_type) ?? PullAuth::None;
     }
 
     private function source(): ?DataSource

@@ -46,3 +46,10 @@ Schedule::command('quotes:expire')
 Schedule::command('mail:sync-inbound')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+// Every fifteen minutes, which is the finest schedule a pull source can be set
+// to. Each source decides whether it is actually due, so this costs one query
+// when nothing is.
+Schedule::command('ingest:sync')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

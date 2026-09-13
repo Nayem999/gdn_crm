@@ -28,6 +28,11 @@ pest()->extend(TestCase::class)
         WebhookTarget::resolveUsing(fn (string $host): array => match ($host) {
             'example.com' => ['93.184.216.34'],
             'hooks.example.com' => ['93.184.216.34'],
+            // The systems Phase 8's pull sources fetch from. A pull URL goes
+            // through the same guard an outbound webhook does, so a host it
+            // cannot resolve is refused before a request is made.
+            'their-system.test' => ['93.184.216.34'],
+            'broken.test' => ['93.184.216.34'],
             'localhost' => ['127.0.0.1'],
             default => [],
         });

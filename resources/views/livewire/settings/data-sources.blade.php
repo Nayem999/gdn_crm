@@ -116,6 +116,99 @@
                     </p>
                 </div>
 
+                @if ($this->chosenType() === \App\Domain\Ingestion\Enums\DataSourceType::Pull)
+                    <div class="space-y-4 border-t border-border pt-4">
+                        <p class="text-sm font-medium text-foreground">Where we fetch from</p>
+
+                        <div>
+                            <x-form.label for="pull-url" required>URL</x-form.label>
+                            <x-form.input id="pull-url" wire:model="pull_url" class="font-mono text-xs" placeholder="https://their-system.example/api/tasks" />
+                            <x-form.error for="pull_url" />
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <x-select
+                                name="pull_auth_type"
+                                label="How we sign in"
+                                :options="$this->pullAuthOptions()"
+                                :selected="$pull_auth_type"
+                                :error="$errors->first('pull_auth_type')"
+                                wire:model.live="pull_auth_type"
+                            />
+
+                            @if ($this->chosenPullAuth()->needsName())
+                                <div>
+                                    <x-form.label for="pull-auth-name" required>
+                                        {{ $this->chosenPullAuth() === \App\Domain\Ingestion\Enums\PullAuth::Basic ? 'Username' : 'Header name' }}
+                                    </x-form.label>
+                                    <x-form.input id="pull-auth-name" wire:model="pull_auth_name" />
+                                    <x-form.error for="pull_auth_name" />
+                                </div>
+                            @endif
+
+                            @if ($this->chosenPullAuth()->needsSecret())
+                                <div>
+                                    <x-form.label for="pull-auth-secret">
+                                        {{ $this->chosenPullAuth() === \App\Domain\Ingestion\Enums\PullAuth::Basic ? 'Password' : 'Token' }}
+                                    </x-form.label>
+                                    <x-form.input id="pull-auth-secret" type="password" wire:model="pull_auth_secret" placeholder="••••••••" autocomplete="new-password" />
+                                    <x-form.error for="pull_auth_secret" />
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        Stored encrypted and never shown again. Leave empty to keep the one already saved.
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <x-form.label for="pull-records-path">Where the records are in their answer</x-form.label>
+                                <x-form.input id="pull-records-path" wire:model="pull_records_path" class="font-mono text-xs" placeholder="data" />
+                                <p class="mt-1 text-xs text-muted-foreground">Leave empty if they answer with a bare list.</p>
+                            </div>
+
+                            <x-select
+                                name="pull_schedule"
+                                label="How often"
+                                :options="$this->pullScheduleOptions()"
+                                :selected="$pull_schedule"
+                                :error="$errors->first('pull_schedule')"
+                                wire:model="pull_schedule"
+                            />
+
+                            <div>
+                                <x-form.label for="pull-page-param">Their page parameter</x-form.label>
+                                <x-form.input id="pull-page-param" wire:model="pull_page_param" class="font-mono text-xs" placeholder="page" />
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <x-form.label for="pull-page-size-param">Page size parameter</x-form.label>
+                                    <x-form.input id="pull-page-size-param" wire:model="pull_page_size_param" class="font-mono text-xs" placeholder="per_page" />
+                                </div>
+                                <div>
+                                    <x-form.label for="pull-page-size">How many</x-form.label>
+                                    <x-form.input id="pull-page-size" type="number" min="1" max="1000" wire:model="pull_page_size" />
+                                    <x-form.error for="pull_page_size" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <x-form.label for="pull-cursor-param">Their "changed since" parameter</x-form.label>
+                                <x-form.input id="pull-cursor-param" wire:model="pull_cursor_param" class="font-mono text-xs" placeholder="updated_since" />
+                            </div>
+
+                            <div>
+                                <x-form.label for="pull-cursor-path">Where that value is in each record</x-form.label>
+                                <x-form.input id="pull-cursor-path" wire:model="pull_cursor_path" class="font-mono text-xs" placeholder="updated_at" />
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    Together these make each run fetch only what has changed. Leave both empty to fetch everything every time.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="space-y-2 border-t border-border pt-4">
                     <p class="text-sm font-medium text-foreground">How a sender proves who they are</p>
 
@@ -131,8 +224,12 @@
                     <x-form.error for="requires_key" />
 
                     <p class="text-xs text-muted-foreground">
-                        A signature also carries a timestamp, so a captured request stops working within five minutes.
-                        Leave both on unless the sending system cannot manage one of them.
+                        @if ($this->chosenType() === \App\Domain\Ingestion\Enums\DataSourceType::Pull)
+                            Nothing posts to a pull source, so these only matter if you switch it to push later.
+                        @else
+                            A signature also carries a timestamp, so a captured request stops working within five minutes.
+                            Leave both on unless the sending system cannot manage one of them.
+                        @endif
                     </p>
                 </div>
 
@@ -206,6 +303,24 @@
                                     <p class="mt-2 break-all font-mono text-xs text-muted-foreground">
                                         <span class="font-sans">Posts to</span> {{ $source->ingestUrl() }}
                                     </p>
+                                @else
+                                    <p class="mt-2 break-all font-mono text-xs text-muted-foreground">
+                                        <span class="font-sans">Fetches from</span> {{ $source->pull_url ?: 'nowhere yet' }}
+                                    </p>
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        {{ $source->pullSchedule()->label() }}
+                                        @if ($source->last_synced_at)
+                                            &middot; last run {{ $source->last_synced_at->diffForHumans() }}
+                                            @php($summary = $source->last_sync_summary ?? [])
+                                            @if (($summary['ok'] ?? false) === true)
+                                                ({{ $summary['records'] ?? 0 }} records)
+                                            @elseif ($summary !== [])
+                                                <span class="text-destructive">&mdash; {{ $summary['error'] ?? 'failed' }}</span>
+                                            @endif
+                                        @else
+                                            &middot; never run
+                                        @endif
+                                    </p>
                                 @endif
 
                                 <p class="mt-2 text-xs text-muted-foreground">
@@ -256,6 +371,16 @@
                                     <a href="{{ route('settings.data-sources.mapping', $source->id) }}" wire:navigate class="text-muted-foreground underline underline-offset-4 hover:text-foreground">
                                         Mapping
                                     </a>
+
+                                    @if ($source->type() === \App\Domain\Ingestion\Enums\DataSourceType::Pull && filled($source->pull_url))
+                                        <button
+                                            type="button"
+                                            wire:click="syncNow({{ $source->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="syncNow({{ $source->id }})"
+                                            class="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                                        >Sync now</button>
+                                    @endif
                                     <button type="button" wire:click="toggleActive({{ $source->id }})" class="text-muted-foreground underline underline-offset-4 hover:text-foreground">
                                         {{ $source->is_active ? 'Switch off' : 'Switch on' }}
                                     </button>

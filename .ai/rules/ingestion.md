@@ -388,11 +388,83 @@ the module's declared fields on save, so a rule cannot name a column that does
 not exist. Clearing the fields means always create, which is the right
 arrangement for a source whose deliveries are genuinely events.
 
+## Pull mode joins the same pipeline, it does not shortcut it
+`SyncDataSourceAction` fetches and then writes **one `integration_events` row
+per record**, exactly as a pushed delivery does, and dispatches the same job. A
+pulled lead and a pushed one are mapped, deduplicated, validated and assigned by
+the same code, and the event log answers "where did this come from" the same way
+for both. A second path that wrote records directly would be a second set of
+rules to keep in step, and the one that drifts is always the one nobody looks
+at.
+
+`signature_verified` is **false** on a pulled event. Nothing signed it — we
+fetched it — and saying otherwise would make the log assert a guarantee that was
+never made.
+
+The pull URL goes through `WebhookTarget`, the same SSRF guard the outbound
+webhook uses: an administrator typing a URL is still somebody typing a URL, and
+this one is fetched with the server's own network access. Tests add hosts to the
+fixed resolver map in `tests/Pest.php` rather than reaching for a real name —
+see [[integrations]].
+
+## The cursor is theirs, and it is written once
+`pull_cursor` is **text**, not a timestamp: it is their value — an id, a
+sequence number or a date — and we do not get to decide which. It is compared
+with `strcmp`, which is right for an ISO date and for a zero-padded id, and for
+anything else the value is only ever handed straight back to them.
+
+It is saved **once, at the end of a run**. Advancing per record would leave the
+mark past records a failed run never delivered, and those records would never be
+fetched again. There is a test that fails page two and asserts the cursor did
+not move.
+
+A first run carries no cursor, because "import the backlog" is what a first run
+means.
+
+Pagination stops on a **short page** rather than on an empty one: asking for one
+more page and getting nothing costs a request on every single run. `MAX_PAGES`
+bounds it anyway, because their pagination is their code and a response that
+always claims another page would otherwise fetch for ever — and a sync that
+never finishes blocks every later one.
+
+## A schedule is a fixed set, measured from the last run
+Not a cron expression. A cron field on a settings screen is a field people get
+wrong in ways that stay invisible until the sync has not run for a week, and
+"every fifteen minutes" covers what anybody wants from a CRM integration.
+
+Due-ness is measured from when the last run **happened**, not against a clock
+slot: a sync that overran should not be immediately followed by another, and a
+source added at twenty past should not wait forty minutes for its first run.
+
+A half-configured source — no URL, switched off, still push — is skipped
+silently. Somebody mid-setup is not an error worth waking anybody for.
+
+One source failing does not stop the rest, and the failure is recorded on that
+source rather than thrown: their outage is not our outage. Their **error body
+never reaches the summary**, because their error page can contain anything,
+including our own token echoed back.
+
+## The pull credential follows the settings rule, not the DTO
+It is encrypted (it has to be sent, so it cannot be hashed), it is in
+`$hidden`, it is never loaded into the form, and a blank on submit means "keep
+what is stored". Switching a source to push **clears** the URL and the
+credential: a credential on a source that no longer fetches is a credential
+nobody remembers is there.
+
+The pull columns are written straight onto the source rather than through
+`DataSourceData`, which deliberately carries only what both kinds of source
+share. Adding a dozen pull-only parameters to the DTO would make every caller
+know about a mode most of them never use. Two traps this hid at first: a value
+spread into `fromArray()` that the DTO has no parameter for is **silently
+dropped**, so nothing was persisted at all; and `Http::fake()` called twice in
+one test **appends** its stub, leaving the first one still matching.
+
 ## What 8.1 deliberately does not build
 - **No public ingest route.** Built in 8.3 — see above.
 - **No secret columns.** Done in 8.2, in its own migration — see above.
 - **No pull-mode endpoint, cursor or schedule.** 8.8 owns those.
-- **No reference implementation, pull mode or log viewer.** 8.7, 8.8 and 8.9.
+- **No log viewer.** 8.9 owns the filterable event log, replay and the health
+  dashboard, over `integration_events`.
 
 ## The log viewer is 8.9, and this screen is not it
 `Settings\DataSources` is the short inline-form shape the webhooks screen uses,

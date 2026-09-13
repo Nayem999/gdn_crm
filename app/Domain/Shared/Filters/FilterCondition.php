@@ -88,6 +88,26 @@ readonly class FilterCondition
         );
     }
 
+    /**
+     * The same array shape fromArray() reads.
+     *
+     * `second_value`, not `value2` — this has to round-trip through
+     * fromArray(), and the two spellings would quietly lose the second half of
+     * every "is between" condition.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'field' => $this->field,
+            'operator' => $this->operator->value,
+            'value' => $this->value,
+            'second_value' => $this->secondValue,
+            'selected' => $this->selected,
+        ];
+    }
+
     private function display(mixed $value): string
     {
         return is_scalar($value) ? (string) $value : '';

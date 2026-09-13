@@ -122,4 +122,28 @@ readonly class FilterGroup
             groups: $groups,
         );
     }
+
+    /**
+     * The same array shape fromArray() reads, so a filter tree can be stored in
+     * a column and come back as itself.
+     *
+     * Added for saved reports (10.1): the data view keeps its filters as the
+     * array already and never needed the inverse.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'match' => $this->match,
+            'conditions' => array_map(
+                fn (FilterCondition $condition) => $condition->toArray(),
+                $this->conditions,
+            ),
+            'groups' => array_map(
+                fn (FilterGroup $group) => $group->toArray(),
+                $this->groups,
+            ),
+        ];
+    }
 }

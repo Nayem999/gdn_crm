@@ -62,3 +62,10 @@ Schedule::command('ingest:sync')
 Schedule::command('support:sweep-sla')
     ->everyMinute()
     ->withoutOverlapping();
+
+// Scheduled reports. Hourly rather than every minute, because a schedule is set
+// to an hour: nobody needs a report at 09:17, and an hourly sweep is one
+// indexed range scan against next_run_at when nothing is due.
+Schedule::command('reports:send-scheduled')
+    ->hourly()
+    ->withoutOverlapping();

@@ -265,6 +265,21 @@ final class PermissionCatalogue
                     'tickets.analytics' => 'See support analytics',
                 ],
             ],
+            'reports' => [
+                'label' => 'Reports',
+                'icon' => 'bar-chart-3',
+                'permissions' => [
+                    'reports.view' => 'Run and read reports',
+                    'reports.create' => 'Build reports',
+                    'reports.update' => 'Edit reports',
+                    'reports.delete' => 'Remove reports',
+                    // Sharing is its own permission: a report somebody built
+                    // for themselves becoming visible to the whole company is
+                    // a different decision from building it.
+                    'reports.share' => 'Share reports with everybody',
+                    'reports.schedule' => 'Schedule reports by email',
+                ],
+            ],
             'knowledge' => [
                 'label' => 'Knowledge base',
                 'icon' => 'book-open',

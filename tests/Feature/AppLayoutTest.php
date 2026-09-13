@@ -51,19 +51,25 @@ test('the chosen theme is re-applied after a wire:navigate page swap', function 
     $response->assertSee("classList.toggle('dark', stored === 'dark'", escape: false);
 });
 
-test('the sidebar lists the modules whose phase has not landed as inert placeholders', function () {
-    $response = $this->get('/');
+test('every module in the sidebar is a real link, hidden by permission rather than shown inert', function () {
+    // This test used to assert the opposite: that modules whose phase had not
+    // landed appeared as inert placeholders. Automation left that list in 5.5,
+    // Products in 6.1, Quotes in 6.3, Support in 9.1 and Reports in 10.2 —
+    // which was the last of them. What is worth guarding now is the rule that
+    // replaced it: an entry somebody cannot use is absent, never a dead link.
+    $stranger = User::factory()->create();
+
+    $response = $this->actingAs($stranger)->get('/');
 
     $response->assertSuccessful();
 
-    // Automation left this list in 5.5, Products in 6.1, Quotes in 6.3 and
-    // Support in 9.1: each is a real, permissioned link now, so it is absent
-    // for a user without the permission rather than shown inert.
-    foreach (['Reports'] as $module) {
-        $response->assertSee($module);
-    }
+    // No permissions at all, so no module rows — and no inert ones either.
+    $response->assertDontSee('aria-disabled="true"', false)
+        ->assertDontSee('Coming in a later phase');
 
-    $response->assertSee('aria-disabled="true"', false);
+    foreach (['Leads', 'Deals', 'Reports', 'Support'] as $module) {
+        $response->assertDontSee('>'.$module.'</a>', false);
+    }
 });
 
 /**

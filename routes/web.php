@@ -51,6 +51,12 @@ use App\Livewire\Products\PriceBooks;
 use App\Livewire\Products\ProductForm;
 use App\Livewire\Products\ProductsIndex;
 use App\Livewire\Profile\ProfileForm;
+use App\Livewire\Reports\KpiDashboard;
+use App\Livewire\Reports\ReportBuilder;
+use App\Livewire\Reports\ReportSchedules;
+use App\Livewire\Reports\ReportShow;
+use App\Livewire\Reports\ReportsIndex;
+use App\Livewire\Reports\SalesForecast;
 use App\Livewire\Roles\RoleForm;
 use App\Livewire\Roles\RolesIndex;
 use App\Livewire\Sales\QuoteBuilder;
@@ -131,6 +137,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/m/{module}', CustomRecordsIndex::class)->name('custom-modules.index');
     Route::get('/m/{module}/create', CustomRecordForm::class)->name('custom-modules.create');
     Route::get('/m/{module}/{record}/edit', CustomRecordForm::class)->name('custom-modules.edit');
+
+    Route::get('/reports', ReportsIndex::class)->name('reports.index');
+    // Before /reports/{report}: a dashboard is not a report id.
+    Route::get('/reports/dashboard', KpiDashboard::class)->name('reports.dashboard');
+    Route::get('/reports/forecast', SalesForecast::class)->name('reports.forecast');
+    Route::get('/reports/scheduled', ReportSchedules::class)->name('reports.schedules');
+    // Before /reports/{report}, or a report bound by id would swallow it.
+    Route::get('/reports/new', ReportBuilder::class)->name('reports.create');
+    Route::get('/reports/{report}', ReportShow::class)->name('reports.show');
+    Route::get('/reports/{report}/edit', ReportBuilder::class)->name('reports.edit');
 
     Route::get('/knowledge', KnowledgeIndex::class)->name('knowledge.index');
     Route::get('/knowledge/sections', KnowledgeSections::class)->name('knowledge.sections');

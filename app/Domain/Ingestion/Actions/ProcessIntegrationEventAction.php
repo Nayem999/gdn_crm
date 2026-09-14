@@ -11,6 +11,8 @@ use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Ingestion\PayloadMapper;
 use App\Domain\Ingestion\PayloadReader;
 use App\Domain\Ingestion\Writers\ImportBackedWriter;
+use App\Domain\Meta\Webhooks\MetaEventProcessor;
+use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Notifications\Notifier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -71,6 +73,19 @@ class ProcessIntegrationEventAction
 
     private function run(IntegrationEvent $event, DataSource $source): IntegrationEvent
     {
+        // A provider owns its own processing. Meta's deliveries cannot go
+        // through the mapper below: a lead-ads webhook carries an id and
+        // nothing else, so there is nothing to map until the lead has been
+        // fetched from Graph. What they do share is this table, and with it the
+        // delivery log, the replay and the health panel.
+        $channel = MetaSources::channelFor($source);
+
+        if ($channel !== null) {
+            $result = app(MetaEventProcessor::class)($event, $channel);
+
+            return $this->settle($event, $result['status'], $result['outcome'], $result['record'] ?? null);
+        }
+
         $payload = PayloadReader::decode((string) $event->payload);
 
         if ($payload === null) {

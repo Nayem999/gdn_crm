@@ -3,6 +3,7 @@
 use App\Domain\Api\ApiModules;
 use App\Domain\Api\Documentation\OpenApiDocument;
 use App\Http\Controllers\Api\IngestController;
+use App\Http\Controllers\Api\MetaWebhookController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use Illuminate\Support\Facades\Route;
@@ -65,3 +66,24 @@ Route::prefix('v1')
 Route::post('/ingest/{source}', IngestController::class)
     ->middleware('throttle:ingest')
     ->name('api.ingest');
+
+/*
+|--------------------------------------------------------------------------
+| Meta webhooks
+|--------------------------------------------------------------------------
+|
+| GET is Meta's subscription handshake, POST is a delivery. Outside every auth
+| group by necessity — the caller is Meta, not a person — and authenticated by
+| the signature over the app secret, checked before anything is written down.
+|
+| Throttled, because an endpoint that anybody can post to is an endpoint anybody
+| can flood. Meta's own volume sits far below this; a burst above it is not Meta.
+|
+*/
+Route::get('/webhooks/meta/{channel}', [MetaWebhookController::class, 'verify'])
+    ->middleware('throttle:60,1')
+    ->name('api.webhooks.meta.verify');
+
+Route::post('/webhooks/meta/{channel}', [MetaWebhookController::class, 'receive'])
+    ->middleware('throttle:600,1')
+    ->name('api.webhooks.meta');

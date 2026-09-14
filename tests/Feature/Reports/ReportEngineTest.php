@@ -28,7 +28,7 @@ function reportAdmin(?array $permissions = null): User
 {
     $permissions ??= [
         'deals.view', 'leads.view', 'accounts.view', 'contacts.view',
-        'activities.view', 'tickets.view', 'quotes.view',
+        'activities.view', 'tickets.view', 'quotes.view', 'campaigns.view',
         'reports.view', 'reports.create', 'reports.update', 'reports.delete',
         'reports.share', 'reports.schedule',
     ];

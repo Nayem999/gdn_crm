@@ -4,6 +4,7 @@ use App\Domain\Access\PermissionCatalogue;
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\Actions\DeleteCustomFieldAction;
 use App\Domain\CustomFields\Actions\ReorderCustomFieldsAction;
@@ -409,6 +410,7 @@ test('every module that carries custom fields can actually store one', function 
         'quotes' => Quote::factory()->create(),
         'activities' => Activity::factory()->create(),
         'tickets' => Ticket::factory()->create(),
+        'campaigns' => Campaign::factory()->create(),
     };
 
     $field = app(SaveCustomFieldAction::class)(CustomFieldData::fromArray([

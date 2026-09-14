@@ -32,10 +32,10 @@ enum CampaignStatus: string
     {
         return match ($this) {
             self::Planned => 'slate',
-            self::Active => 'green',
+            self::Active => 'emerald',
             self::Paused => 'amber',
             self::Completed => 'blue',
-            self::Cancelled => 'red',
+            self::Cancelled => 'rose',
         };
     }
 

@@ -49,7 +49,7 @@ enum CampaignType: string
             self::Event => 'orange',
             self::Webinar => 'amber',
             self::Telemarketing => 'rose',
-            self::Referral => 'green',
+            self::Referral => 'emerald',
             self::Content => 'teal',
             self::Other => 'slate',
         };

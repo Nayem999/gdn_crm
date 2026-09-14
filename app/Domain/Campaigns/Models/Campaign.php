@@ -87,6 +87,9 @@ class Campaign extends Model
     protected $attributes = [
         'type' => CampaignType::Other->value,
         'status' => CampaignStatus::Planned->value,
+        // budget() shares its name with this column too. Null is the column's
+        // own default; what matters is that the key is always present.
+        'budget' => null,
     ];
 
     /**

@@ -60,9 +60,11 @@ enum LeadSource: string
             self::SocialMedia => 'rose',
             self::Partner => 'teal',
             self::Chat => 'indigo',
-            self::FacebookLeadAds => 'blue',
-            self::FacebookMessenger => 'sky',
-            self::WhatsApp => 'green',
+            // The colour says what kind of thing it is, so these share with
+            // the generic sources they are a specific case of.
+            self::FacebookLeadAds => 'fuchsia',
+            self::FacebookMessenger => 'indigo',
+            self::WhatsApp => 'emerald',
             self::Other => 'slate',
         };
     }

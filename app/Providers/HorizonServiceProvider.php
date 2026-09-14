@@ -27,10 +27,13 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function ($user = null) {
-            return in_array(optional($user)->email, [
-                //
-            ]);
+        // The stock stub is an empty allowlist, which closes Horizon to
+        // everybody — including the administrator who needs it — and looks
+        // like a permission fault rather than a configuration one. Gated on a
+        // real permission instead, so it follows the same roles screen as the
+        // rest of the application.
+        Gate::define('viewHorizon', function ($user = null): bool {
+            return $user !== null && $user->can('settings.view');
         });
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Domain\Notifications\Models;
 
+use Database\Factories\NotificationSettingFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -16,6 +18,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 class NotificationSetting extends Model
 {
+    /** @use HasFactory<NotificationSettingFactory> */
+    use HasFactory;
+
     /**
      * @var list<string>
      */

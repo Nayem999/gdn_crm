@@ -1,4 +1,5 @@
-@props(['title' => null, 'heading' => null, 'subheading' => null])
+{{-- width: the sign-in card is max-w-md; the installation wizard asks for more. --}}
+@props(['title' => null, 'heading' => null, 'subheading' => null, 'width' => 'max-w-md'])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
     <head>
@@ -6,7 +7,7 @@
     </head>
     <body class="h-full bg-background font-sans text-foreground antialiased">
         <div class="flex min-h-full flex-col items-center justify-center px-4 py-12 sm:px-6">
-            <div class="w-full max-w-md">
+            <div class="w-full {{ $width }}">
                 <div class="mb-8 flex items-center justify-center gap-3">
                     <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                         <x-lucide-building-2 class="h-5 w-5" aria-hidden="true" />

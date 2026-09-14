@@ -7,6 +7,8 @@ use App\Domain\Shared\Imports\ImportRowError;
 use App\Domain\Shared\Imports\ImportSource;
 use App\Domain\Shared\Imports\ImportStatus;
 use App\Models\User;
+use Database\Factories\ImportRunFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -31,6 +33,9 @@ use Illuminate\Support\Carbon;
  */
 class ImportRun extends Model
 {
+    /** @use HasFactory<ImportRunFactory> */
+    use HasFactory;
+
     /**
      * How many row errors are kept for reporting. `failed_rows` still carries
      * the true count, and the screen says so when the list is cut short.

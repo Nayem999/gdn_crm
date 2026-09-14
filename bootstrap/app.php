@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AuthenticateSession::class,
         ]);
+
+        // The headers a browser needs to defend the page. Appended to every
+        // response rather than to the web group alone, so an API response and a
+        // file download carry them too.
+        $middleware->append(SecurityHeaders::class);
 
         // Sanctum's ability guards, used to make a read-only API key a real
         // thing rather than a promise on a settings screen.
@@ -53,5 +59,28 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        /*
+         * Every logged exception carries who it happened to and which request
+         * it was.
+         *
+         * Without this a production log is a list of stack traces with no way
+         * to tell one person's broken afternoon from a passing blip, and the
+         * first question anybody asks — "who saw this?" — is unanswerable.
+         *
+         * The user's id, not their name or address: a log is the wrong place
+         * for personal data, and an id is enough to find them.
+         */
+        $exceptions->context(fn (): array => array_filter([
+            'user_id' => auth()->id(),
+            'url' => request()->fullUrl(),
+            'method' => request()->method(),
+            'ip' => request()->ip(),
+        ]));
+
+        /*
+         * An external error tracker plugs in here — `$exceptions->reportable()`
+         * handing the exception to Sentry, Flare or whichever service the
+         * company uses. None is wired up because adding one is a dependency
+         * decision, and the stack for this application is fixed.
+         */
     })->create();

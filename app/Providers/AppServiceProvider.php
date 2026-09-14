@@ -69,6 +69,7 @@ use App\Domain\Sales\Policies\QuotePolicy;
 use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
+use App\Domain\Shared\RequestMemo;
 use App\Domain\Support\Models\SlaPolicy;
 use App\Domain\Support\Models\Ticket;
 use App\Domain\Support\Models\TicketComment;
@@ -90,10 +91,12 @@ use App\Domain\Workflows\Triggers\WorkflowObserver;
 use App\Domain\Workflows\Triggers\WorkflowSuppressor;
 use App\Domain\Workflows\WorkflowCache;
 use App\Domain\Workflows\WorkflowModules;
+use App\Listeners\VerifyApplicationHealth;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
@@ -111,6 +114,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // One memo per container: per web request, per queued job, per test.
+        // Anything that resolves it mid-request shares the same instance,
+        // which is the whole point.
+        $this->app->singleton(RequestMemo::class);
+
         // One manager per request, so its per-request cache of loaded groups is
         // shared by everything that reads a setting during that request.
         $this->app->singleton(SettingsManager::class);
@@ -259,6 +267,11 @@ class AppServiceProvider extends ServiceProvider
         // the delivery log. Deliberately not in the transport: the transport is
         // also how Test Connection and a raw send reach a provider, and neither
         // belongs in the log.
+        // Laravel's /up answers 200 as long as the framework booted, which a
+        // monitor reads as "everything is fine" while the database is
+        // unreachable. This makes it mean what a monitor assumes it means.
+        Event::listen(DiagnosingHealth::class, VerifyApplicationHealth::class);
+
         Event::listen(MessageSent::class, RecordSentEmail::class);
 
         // The "crm" mailer. The transport reads the configured provider on

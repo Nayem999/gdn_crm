@@ -9,6 +9,7 @@ use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\MailWebhookController;
+use App\Http\Middleware\EnsureNotInstalled;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
 use App\Livewire\Accounts\AccountsIndex;
@@ -32,6 +33,7 @@ use App\Livewire\Deals\PipelineForm;
 use App\Livewire\Deals\PipelinesIndex;
 use App\Livewire\Duplicates\MergeRecords;
 use App\Livewire\Imports\ImportRecords;
+use App\Livewire\Install\InstallWizard;
 use App\Livewire\Knowledge\ArticleForm;
 use App\Livewire\Knowledge\ArticleShow;
 use App\Livewire\Knowledge\KnowledgeIndex;
@@ -101,6 +103,15 @@ Route::get('/f/{token}', [LeadCaptureController::class, 'show'])
 Route::post('/f/{token}', [LeadCaptureController::class, 'submit'])
     ->middleware('throttle:10,1')
     ->name('lead-capture.submit');
+
+/**
+ * The first-run wizard. Unauthenticated by necessity — it is what creates the
+ * first account — and closed for good the moment there is one, by
+ * EnsureNotInstalled rather than by being unlinked.
+ */
+Route::get('/install', InstallWizard::class)
+    ->middleware(EnsureNotInstalled::class)
+    ->name('install');
 
 Route::get('/invitations/{token}', AcceptInvitation::class)
     ->middleware('guest')

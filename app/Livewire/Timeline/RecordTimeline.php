@@ -6,6 +6,7 @@ use App\Domain\Timeline\Actions\DeleteDocumentAction;
 use App\Domain\Timeline\Actions\DeleteNoteAction;
 use App\Domain\Timeline\Actions\SaveNoteAction;
 use App\Domain\Timeline\Actions\UploadDocumentAction;
+use App\Domain\Timeline\DocumentUploads;
 use App\Domain\Timeline\Enums\TimelineEntryKind;
 use App\Domain\Timeline\Models\Document;
 use App\Domain\Timeline\Models\Note;
@@ -335,11 +336,10 @@ class RecordTimeline extends Component
         $this->authorize('create', [Document::class, $subject]);
 
         $this->validate([
-            // 10MB, matching the import screen. It has to sit below Livewire's
-            // own temporary-upload cap (12MB, config/livewire.php) or the
-            // rejection comes from the framework with a message about a
-            // temporary file rather than from here about a document.
-            'upload' => ['required', 'file', 'max:10240'],
+            // An allowlist of types as well as a size: without one, a
+            // document upload accepts an HTML page or an SVG, both of which
+            // execute script when a browser renders them. See DocumentUploads.
+            'upload' => DocumentUploads::rules(),
             'documentTitle' => ['nullable', 'string', 'max:255'],
             'documentDescription' => ['nullable', 'string', 'max:500'],
         ], [], [

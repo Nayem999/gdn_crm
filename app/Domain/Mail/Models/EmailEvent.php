@@ -3,6 +3,8 @@
 namespace App\Domain\Mail\Models;
 
 use App\Domain\Mail\Enums\EmailEventType;
+use Database\Factories\EmailEventFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -21,6 +23,9 @@ use Illuminate\Support\Carbon;
  */
 class EmailEvent extends Model
 {
+    /** @use HasFactory<EmailEventFactory> */
+    use HasFactory;
+
     /**
      * @var list<string>
      */

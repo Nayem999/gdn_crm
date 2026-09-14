@@ -69,3 +69,12 @@ Schedule::command('support:sweep-sla')
 Schedule::command('reports:send-scheduled')
     ->hourly()
     ->withoutOverlapping();
+
+// The database, nightly, before anybody arrives. Kept on the private disk for
+// a fortnight; see BackupDatabase for why it is not on the public one.
+Schedule::command('backup:database')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    // A backup that fails silently is no backup. This puts the failure in the
+    // log where the monitoring picks it up.
+    ->onFailure(fn () => logger()->error('The nightly database backup failed.'));

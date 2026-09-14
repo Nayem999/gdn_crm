@@ -22,6 +22,7 @@ use App\Domain\Reports\Enums\Aggregate;
 use App\Domain\Sales\Enums\QuoteStatus;
 use App\Domain\Sales\Models\Quote;
 use App\Domain\Sales\QuoteFields;
+use App\Domain\Shared\RequestMemo;
 use App\Domain\Support\Enums\TicketPriority;
 use App\Domain\Support\Enums\TicketSource;
 use App\Domain\Support\Enums\TicketStatus;
@@ -83,7 +84,17 @@ final class ReportSources
      */
     public static function find(string $key): ?ReportSource
     {
-        return self::make($key);
+        /** @var ReportSource|null $source */
+        $source = app(RequestMemo::class)->remember(
+            'reports.source.'.$key,
+            fn (): ?ReportSource => self::make($key),
+        );
+
+        // Memoised for the life of the request. Building the deals source reads
+        // the configured pipelines to label its stage dimension, so a screen
+        // that asked for a source per row — the reports list does, to print
+        // what each one is about — ran those queries per row.
+        return $source;
     }
 
     public static function has(string $key): bool

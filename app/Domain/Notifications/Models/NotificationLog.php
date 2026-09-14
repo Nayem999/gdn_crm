@@ -7,7 +7,9 @@ use App\Domain\Notifications\Enums\NotificationStatus;
 use App\Domain\Notifications\Enums\RecipientType;
 use App\Domain\Notifications\NotificationEventRegistry;
 use App\Models\User;
+use Database\Factories\NotificationLogFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -33,6 +35,9 @@ use Illuminate\Support\Carbon;
  */
 class NotificationLog extends Model
 {
+    /** @use HasFactory<NotificationLogFactory> */
+    use HasFactory;
+
     /**
      * @var list<string>
      */

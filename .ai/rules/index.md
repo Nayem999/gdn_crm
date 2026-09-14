@@ -18,9 +18,11 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Shared/Duplicates/**, app/Domain/Shared/Actions/MergeRecordsAction.php, app/Domain/Shared/Actions/SyncDuplicateKeysAction.php, app/Domain/Shared/Concerns/MergesWithDuplicates.php, app/Domain/Shared/Concerns/FindsDuplicates.php, app/Domain/Shared/Concerns/WarnsAboutDuplicates.php, app/Domain/*/[A-Z]*Duplicates.php, app/Livewire/Duplicates/**, resources/views/livewire/duplicates/**, resources/views/components/duplicate-* | .ai/rules/duplicates.md |
 | database/factories/** | .ai/rules/factories.md |
 | * | .ai/rules/general.md |
-| app/Domain/Api/**, app/Domain/Webhooks/**, app/Domain/Messaging/**, app/Domain/Chat/**, app/Http/Controllers/Api/**, app/Jobs/DeliverWebhook.php, routes/api.php, config/cors.php | .ai/rules/integrations.md |
 | app/Domain/Shared/Imports/**, app/Domain/Shared/Actions/RunImportAction.php, app/Domain/Shared/Models/ImportRun.php, app/Domain/*/[A-Z]*ImportSource.php, app/Livewire/Imports/**, app/Jobs/RunImport.php, resources/views/livewire/imports/** | .ai/rules/imports.md |
-| app/Domain/Ingestion/**, app/Livewire/Settings/{DataSources,SourceMapping,IntegrationLog}.php, app/Http/Controllers/Api/IngestController.php, app/Jobs/ProcessIntegrationEvent.php, resources/views/livewire/settings/{data-sources,source-mapping,integration-log}.blade.php, database/migrations/*ingest*.php | .ai/rules/ingestion.md |
+| app/Domain/Ingestion/**, app/Livewire/Settings/DataSources.php, resources/views/livewire/settings/data-sources.blade.php, database/migrations/*ingestion*.php | .ai/rules/ingestion.md |
+| app/Domain/Install/**, app/Livewire/Install/**, app/Http/Middleware/EnsureNotInstalled.php, database/seeders/{BaselineSeeder,DemoDataSeeder}.php, resources/views/livewire/install/** | .ai/rules/install.md |
+| app/Domain/Api/**, app/Domain/Webhooks/**, app/Domain/Messaging/**, app/Domain/Chat/**, app/Http/Controllers/Api/**, app/Http/Controllers/ChatCaptureController.php, app/Jobs/DeliverWebhook.php, routes/api.php, config/cors.php | .ai/rules/integrations.md |
+| app/Domain/Knowledge/**, app/Livewire/Knowledge/**, resources/views/livewire/knowledge/** | .ai/rules/knowledge.md |
 | resources/views/components/layouts/** | .ai/rules/layouts.md |
 | app/Domain/Leads/Capture/**, app/Domain/Leads/Actions/SubmitLeadCaptureAction.php, app/Http/Controllers/LeadCaptureController.php, resources/views/lead-capture/** | .ai/rules/lead-capture.md |
 | app/Domain/Leads/**, app/Livewire/Leads/**, app/Jobs/RescoreLeads.php, database/seeders/LeadScoringRulesSeeder.php, resources/views/livewire/leads/** | .ai/rules/leads.md |
@@ -33,10 +35,10 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Deals/Models/Pipeline.php, app/Domain/Deals/Models/PipelineStage.php, app/Domain/Deals/Actions/**, app/Domain/Deals/DTOs/**, app/Domain/Deals/Enums/StageOutcome.php, app/Livewire/Deals/**, resources/views/livewire/deals/**, database/seeders/PipelinesSeeder.php | .ai/rules/pipelines.md |
 | app/Domain/*/Policies/*.php | .ai/rules/policies.md |
 | app/Domain/Products/**, app/Livewire/Products/**, resources/views/livewire/products/** | .ai/rules/products.md |
-| app/Domain/Sales/**, app/Domain/Products/Cpq/**, app/Livewire/Sales/**, database/migrations/*{document_lines,quote,order,invoice}*.php, resources/views/livewire/sales/**, resources/views/pdf/** | .ai/rules/sales.md |
+| tests/Feature/Regression/**, app/Domain/Shared/RequestMemo.php, app/Http/Middleware/SecurityHeaders.php | .ai/rules/regression.md |
+| app/Domain/Reports/**, app/Livewire/Reports/**, resources/views/livewire/reports/**, resources/views/components/report-*.blade.php, resources/views/components/chart/**, app/Jobs/SendScheduledReport.php, app/Mail/ScheduledReportMail.php | .ai/rules/reports.md |
+| app/Domain/Sales/**, app/Domain/Products/Cpq/**, app/Livewire/Sales/**, database/migrations/*document_lines*.php, database/migrations/*quote*.php, database/migrations/*order*.php, database/migrations/*invoice*.php, resources/views/livewire/sales/**, resources/views/pdf/** | .ai/rules/sales.md |
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/livewire/settings/**, resources/views/components/settings-shell.blade.php, resources/views/components/form/secret.blade.php, app/Domain/Settings/DisplayTime.php, app/Domain/Settings/SettingField.php | .ai/rules/settings.md |
-| app/Domain/Knowledge/**, app/Livewire/Knowledge/**, resources/views/livewire/knowledge/** | .ai/rules/knowledge.md |
-| app/Domain/Reports/**, app/Livewire/Reports/**, resources/views/livewire/reports/**, resources/views/components/report-*.blade.php | .ai/rules/reports.md |
 | app/Domain/Support/**, app/Livewire/Support/**, resources/views/livewire/support/** | .ai/rules/support.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |

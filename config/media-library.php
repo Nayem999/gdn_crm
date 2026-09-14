@@ -33,7 +33,18 @@ return [
      * The disk on which to store added files and derived images by default. Choose
      * one or more of the disks you've configured in config/filesystems.php.
      */
-    'disk_name' => env('MEDIA_DISK', 'public'),
+    /*
+     * The PRIVATE disk, not the public one.
+     *
+     * The package ships defaulting to `public`, which is symlinked into
+     * public/storage and served directly by the web server — so every uploaded
+     * document would be readable by anyone who knew the URL, with
+     * DocumentPolicy never consulted. DownloadDocument is meant to be the only
+     * door to a document, and this is what makes that true.
+     *
+     * `local` is storage/app/private in Laravel 11+, which nothing serves.
+     */
+    'disk_name' => env('MEDIA_DISK', 'local'),
 
     /*
      * The disk on which to store conversions (thumbnails, etc.) and responsive images

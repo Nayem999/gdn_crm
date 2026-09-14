@@ -27,6 +27,22 @@ class DownloadDocument extends Controller
         // A row whose file went missing is a broken entry, not a server error.
         abort_if($file === null, 404);
 
-        return $file->toResponse(request());
+        // Always an attachment, never inline. A document is something somebody
+        // saves and opens in its own application; rendering one in the browser
+        // is how an uploaded page would run script on this origin, and the
+        // allowlist in DocumentUploads should not be the only thing standing
+        // between an upload and that.
+        $response = $file->toResponse(request());
+
+        // Through the header bag: a StreamedResponse has no
+        // setContentDisposition(), and makeDisposition() is what escapes a
+        // filename that is not plain ASCII. The stored name is already
+        // sanitised by UploadDocumentAction, so this cannot be steered.
+        $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
+            'attachment',
+            (string) $file->file_name,
+        ));
+
+        return $response;
     }
 }

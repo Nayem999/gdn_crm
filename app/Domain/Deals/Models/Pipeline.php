@@ -3,6 +3,7 @@
 namespace App\Domain\Deals\Models;
 
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Shared\RequestMemo;
 use Database\Factories\PipelineFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +35,11 @@ class Pipeline extends Model
      * pipelines for deals alone, so that is what an unqualified pipeline is.
      */
     public const DEALS = 'deals';
+
+    /**
+     * The container key the resolved default is memoised under.
+     */
+    private const MEMO_PREFIX = 'pipelines.default.';
 
     /** @use HasFactory<PipelineFactory> */
     use HasFactory;
@@ -106,8 +112,38 @@ class Pipeline extends Model
      */
     public static function defaultFor(string $module): ?self
     {
-        return static::query()->forModule($module)->where('is_default', true)->first()
-            ?? static::query()->forModule($module)->ordered()->first();
+        /** @var self|null $pipeline */
+        $pipeline = app(RequestMemo::class)->remember(
+            self::MEMO_PREFIX.$module,
+            fn (): ?self => static::query()->forModule($module)->where('is_default', true)->first()
+                ?? static::query()->forModule($module)->ordered()->first(),
+        );
+
+        // Memoised for the life of the request — and of a test, because the
+        // memo is a container singleton rather than a static property.
+        //
+        // Worth doing because a deal with no pipeline_id means "the default",
+        // so every such row on a list asked this question: the deals list ran
+        // a query per row for a value that changes when somebody edits the
+        // pipeline configuration, which is roughly never.
+        return $pipeline;
+    }
+
+    /**
+     * Drop the memo. Called whenever a pipeline changes, so a request that
+     * creates one and then asks for the default gets the one it just made.
+     */
+    public static function forgetDefaults(): void
+    {
+        app(RequestMemo::class)->forget(self::MEMO_PREFIX);
+    }
+
+    protected static function booted(): void
+    {
+        // Any change to a pipeline — including its default flag moving — makes
+        // the memoised default wrong.
+        static::saved(fn () => self::forgetDefaults());
+        static::deleted(fn () => self::forgetDefaults());
     }
 
     /**

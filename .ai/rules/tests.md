@@ -86,3 +86,10 @@ and a backgrounded pipeline can end up writing an empty output file. Redirect to
 a file and read the file afterwards:
 
     php artisan test --compact > <scratchpad>/gate.txt 2>&1
+
+## Pest datasets here must be a list of arrays, not a flat list
+`->with(['a', 'b'])` does **not** register in this project's Pest setup — the test fails with `DatasetMissing` ("has 1 argument and no dataset(s) provided"), and `->with(fn () => [...])` fails even more confusingly with "Typed static property ...::$__latestDescription must not be accessed before initialization". Neither error points at the dataset.
+
+Write every dataset as a keyed list of argument arrays, the way OperationsTest does:
+
+    ->with(['pint' => ['pint --test'], 'tests' => ['artisan test']]);

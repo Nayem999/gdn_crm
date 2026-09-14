@@ -2,6 +2,8 @@
 
 namespace App\Domain\Shared\Models;
 
+use Database\Factories\DuplicateKeyFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -19,6 +21,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class DuplicateKey extends Model
 {
+    /** @use HasFactory<DuplicateKeyFactory> */
+    use HasFactory;
+
     public $timestamps = false;
 
     /**

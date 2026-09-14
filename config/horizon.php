@@ -199,15 +199,40 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+
+            /*
+             * Two queues, listed with the quick one first.
+             *
+             * `heavy` carries the work that takes seconds — an import, an
+             * export, a report PDF. On one queue those sit in front of the
+             * notifications and webhooks that take milliseconds, and a hundred
+             * queued exports would hold up every email the application sends.
+             */
+            'queue' => ['default', 'heavy'],
+
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
             'memory' => 128,
-            'tries' => 1,
+
+            /*
+             * Three, not one. A job that fails once and is never retried is a
+             * notification nobody receives and an import that stops without
+             * saying so; the individual jobs that need a different number set
+             * $tries themselves.
+             */
+            'tries' => 3,
+
+            /*
+             * Below queue.connections.redis.retry_after, always. A timeout
+             * above it means the queue hands the job to a second worker while
+             * the first is still running it — which is how one import becomes
+             * two.
+             */
             'timeout' => 60,
+
             'nice' => 0,
         ],
     ],
@@ -218,6 +243,10 @@ return [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
+                // A long job gets longer here: a PDF of a thousand-row report
+                // is slower on a production dataset than on a developer's.
+                'timeout' => 60,
+                'tries' => 3,
             ],
         ],
 

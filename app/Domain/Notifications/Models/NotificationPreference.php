@@ -3,6 +3,8 @@
 namespace App\Domain\Notifications\Models;
 
 use App\Models\User;
+use Database\Factories\NotificationPreferenceFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -18,6 +20,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class NotificationPreference extends Model
 {
+    /** @use HasFactory<NotificationPreferenceFactory> */
+    use HasFactory;
+
     /**
      * @var list<string>
      */

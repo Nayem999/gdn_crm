@@ -3,6 +3,8 @@
 namespace App\Domain\Webhooks\Models;
 
 use App\Domain\Webhooks\Enums\WebhookDeliveryStatus;
+use Database\Factories\WebhookDeliveryFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -23,6 +25,9 @@ use Illuminate\Support\Carbon;
  */
 class WebhookDelivery extends Model
 {
+    /** @use HasFactory<WebhookDeliveryFactory> */
+    use HasFactory;
+
     /**
      * @var list<string>
      */

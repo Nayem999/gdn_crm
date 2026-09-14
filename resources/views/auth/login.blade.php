@@ -1,6 +1,16 @@
-@php use Laravel\Fortify\Features; @endphp
+@php use App\Domain\Install\Installation; use Laravel\Fortify\Features; @endphp
 
 <x-layouts.guest title="Sign in" heading="Sign in" subheading="Welcome back. Enter your details to continue.">
+    {{-- The one place the wizard is advertised. There is no link to it once an
+         installation has an account, because by then the route is shut. --}}
+    @if (Installation::isPending())
+        <x-alert variant="info" class="mb-6">
+            This CRM has not been set up yet.
+            <a href="{{ route('install') }}" class="font-medium underline">Run the setup wizard</a>
+            to create your company profile and the first administrator.
+        </x-alert>
+    @endif
+
     @if (session('status'))
         <x-alert variant="success" class="mb-6">{{ session('status') }}</x-alert>
     @endif

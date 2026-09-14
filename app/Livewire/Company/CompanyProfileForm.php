@@ -3,9 +3,9 @@
 namespace App\Livewire\Company;
 
 use App\Domain\Company\Actions\UpdateCompanyProfileAction;
+use App\Domain\Company\CompanyOptions;
 use App\Domain\Company\DTOs\CompanyProfileData;
 use App\Domain\Company\Models\Company;
-use DateTimeZone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Title;
@@ -104,9 +104,7 @@ class CompanyProfileForm extends Component
      */
     public function timezoneOptions(): array
     {
-        return collect(DateTimeZone::listIdentifiers())
-            ->mapWithKeys(fn (string $timezone) => [$timezone => str_replace('_', ' ', $timezone)])
-            ->all();
+        return CompanyOptions::timezones();
     }
 
     /**
@@ -114,23 +112,7 @@ class CompanyProfileForm extends Component
      */
     public function currencyOptions(): array
     {
-        return [
-            'USD' => 'USD — US Dollar',
-            'EUR' => 'EUR — Euro',
-            'GBP' => 'GBP — British Pound',
-            'CAD' => 'CAD — Canadian Dollar',
-            'AUD' => 'AUD — Australian Dollar',
-            'INR' => 'INR — Indian Rupee',
-            'BDT' => 'BDT — Bangladeshi Taka',
-            'PKR' => 'PKR — Pakistani Rupee',
-            'AED' => 'AED — UAE Dirham',
-            'SAR' => 'SAR — Saudi Riyal',
-            'SGD' => 'SGD — Singapore Dollar',
-            'JPY' => 'JPY — Japanese Yen',
-            'CNY' => 'CNY — Chinese Yuan',
-            'ZAR' => 'ZAR — South African Rand',
-            'NGN' => 'NGN — Nigerian Naira',
-        ];
+        return CompanyOptions::currencies();
     }
 
     /**
@@ -138,11 +120,7 @@ class CompanyProfileForm extends Component
      */
     public function monthOptions(): array
     {
-        return [
-            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
-            5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
-            9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
-        ];
+        return CompanyOptions::months();
     }
 
     public function existingLogoUrl(): ?string

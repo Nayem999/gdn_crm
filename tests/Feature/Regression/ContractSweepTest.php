@@ -212,6 +212,8 @@ test('every application route is behind authentication', function () {
         //   e/o/ e/c/     email open and click tracking, opened by a mail client
         //   c/            a chat widget token
         //   invitations/  a signed invitation, which is the thing being accepted
+        //   guide         the documentation, which is public on purpose: it is the
+        //                 instructions, and it reads nothing but two markdown files
         //   install       the first-run wizard, which creates the first account and
         //                 so cannot require one — allowed here only while it
         //                 carries EnsureNotInstalled, which shuts it for good
@@ -233,7 +235,7 @@ test('every application route is behind authentication', function () {
             || str_starts_with($uri, '_')
             || str_starts_with($uri, 'livewire/')
             || str_starts_with($uri, 'storage/')
-            || in_array($uri, ['/', 'login', 'register', 'logout', 'forgot-password', 'reset-password',
+            || in_array($uri, ['/', 'guide', 'login', 'register', 'logout', 'forgot-password', 'reset-password',
                 'reset-password/{token}', 'email/verify', 'user/confirm-password',
                 'user/confirmed-password-status', 'two-factor-challenge'], true);
 

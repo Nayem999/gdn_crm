@@ -9,6 +9,7 @@ use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\MailWebhookController;
+use App\Http\Controllers\ShowGuide;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
@@ -103,6 +104,17 @@ Route::get('/f/{token}', [LeadCaptureController::class, 'show'])
 Route::post('/f/{token}', [LeadCaptureController::class, 'submit'])
     ->middleware('throttle:10,1')
     ->name('lead-capture.submit');
+
+/**
+ * The guides, readable without an account.
+ *
+ * Public on purpose: an instruction manual behind a login is no use to somebody
+ * who cannot yet work out how to log in. It renders the repository's own
+ * markdown and touches neither the database nor anybody's records.
+ */
+Route::get('/guide', ShowGuide::class)
+    ->middleware('throttle:60,1')
+    ->name('guide');
 
 /**
  * The first-run wizard. Unauthenticated by necessity — it is what creates the

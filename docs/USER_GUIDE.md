@@ -270,6 +270,10 @@ screen shows you only what has been asked of you.
 
 ## 14. Getting help
 
+This guide and the administrator one are on your CRM at `/guide`, readable
+without signing in — so you can send the link to somebody who has not been given
+an account yet.
+
 - Your administrator can see the audit trail, so "who changed this?" is an
   answerable question.
 - Nothing you delete from a list is destroyed immediately — most records are

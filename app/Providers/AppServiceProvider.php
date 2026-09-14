@@ -54,6 +54,8 @@ use App\Domain\Mail\Policies\EmailMessagePolicy;
 use App\Domain\Mail\Policies\EmailTemplatePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Messaging\MessagingConfiguration;
+use App\Domain\Meta\Models\MetaAccount;
+use App\Domain\Meta\Policies\MetaAccountPolicy;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationMatrix;
@@ -177,6 +179,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AuditEntry::class, AuditEntryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Campaign::class, CampaignPolicy::class);
+        Gate::policy(MetaAccount::class, MetaAccountPolicy::class);
         Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketComment::class, TicketCommentPolicy::class);

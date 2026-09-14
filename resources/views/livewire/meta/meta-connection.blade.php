@@ -1,0 +1,247 @@
+<div>
+    <x-settings-shell
+        heading="Meta"
+        description="Facebook Pages, Lead Ads, advertising figures and WhatsApp — connected once, for the whole CRM."
+        active="settings.meta.connect"
+    >
+        @if ($error)
+            <div class="mb-6"><x-alert variant="error">{{ $error }}</x-alert></div>
+        @endif
+
+        @if ($notice)
+            <div class="mb-6"><x-alert variant="success">{{ $notice }}</x-alert></div>
+        @endif
+
+        {{-- The connection itself. --}}
+        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+            @if ($account === null || $account->status()->value === 'disconnected')
+                <h2 class="text-base font-semibold text-foreground">Connect Meta</h2>
+                <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    You will be sent to Meta to sign in and choose what this CRM may use. Nothing is stored until
+                    you come back.
+                </p>
+
+                @unless ($this->isAppConfigured())
+                    <div class="mt-4">
+                        <x-alert variant="info">
+                            Add the Meta app ID and secret under
+                            <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>
+                            before connecting.
+                        </x-alert>
+                    </div>
+                @endunless
+
+                @can('create', App\Domain\Meta\Models\MetaAccount::class)
+                    <div class="mt-5">
+                        {{-- A form, not a link: starting an OAuth flow writes the
+                             state into the session, and a GET that changes state
+                             is a GET somebody's browser can be made to make. --}}
+                        <form method="POST" action="{{ route('settings.meta.redirect') }}">
+                            @csrf
+                            <x-button type="submit" :disabled="! $this->isAppConfigured()">
+                                <x-icon name="lucide-link" />
+                                Connect Meta
+                            </x-button>
+                        </form>
+                    </div>
+                @endcan
+            @else
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-base font-semibold text-foreground">{{ $account->name }}</h2>
+                            <x-status-chip :label="$account->status()->label()" :color="$account->status()->color()" />
+                        </div>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Business {{ $account->business_id }}
+                            @if ($account->connectedBy)
+                                &middot; connected by {{ $account->connectedBy->name }}
+                            @endif
+                            @if ($account->connected_at)
+                                {{ \App\Domain\Settings\DisplayTime::date($account->connected_at) }}
+                            @endif
+                        </p>
+
+                        @if ($account->status()->guidance())
+                            <p class="mt-2 max-w-xl text-sm text-amber-700 dark:text-amber-300">
+                                {{ $account->status()->guidance() }}
+                            </p>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        @can('sync', $account)
+                            <x-button type="button" variant="secondary" wire:click="refresh" wire:loading.attr="disabled" wire:target="refresh">
+                                <span wire:loading.remove wire:target="refresh">Re-read from Meta</span>
+                                <span wire:loading wire:target="refresh">Reading&hellip;</span>
+                            </x-button>
+                        @endcan
+
+                        <x-button type="button" variant="secondary" wire:click="test" wire:loading.attr="disabled" wire:target="test">
+                            <span wire:loading.remove wire:target="test">Test connection</span>
+                            <span wire:loading wire:target="test">Testing&hellip;</span>
+                        </x-button>
+
+                        @can('delete', $account)
+                            <x-button
+                                type="button"
+                                variant="destructive"
+                                wire:click="disconnect"
+                                wire:confirm="Disconnect Meta? Leads and messages will stop arriving. Everything already in the CRM is kept."
+                            >
+                                Disconnect
+                            </x-button>
+                        @endcan
+                    </div>
+                </div>
+            @endif
+        </section>
+
+        {{-- What still has to happen. §32's steps, as state rather than as a
+             sequence: these are the questions somebody comes back with in three
+             months, not only on the first day. --}}
+        <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+            <h2 class="text-sm font-semibold text-foreground">Setup</h2>
+
+            <ol class="mt-4 space-y-3">
+                @foreach ($stages as $index => $stage)
+                    <li class="flex items-start gap-3">
+                        <span @class([
+                            'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' => $stage['done'],
+                            'border border-border text-muted-foreground' => ! $stage['done'],
+                        ])>
+                            @if ($stage['done'])
+                                <x-icon name="lucide-check" class="h-3.5 w-3.5" />
+                            @else
+                                {{ $index + 1 }}
+                            @endif
+                        </span>
+
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">{{ $stage['label'] }}</p>
+                            <p class="text-sm text-muted-foreground">{{ $stage['detail'] }}</p>
+                        </div>
+                    </li>
+                @endforeach
+            </ol>
+        </section>
+
+        @if ($testResults !== null)
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">Test results</h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Every capability is checked independently, so one failure does not hide the others.
+                </p>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($testResults as $result)
+                        <li class="flex items-start gap-3 py-3">
+                            <span @class([
+                                'mt-0.5 text-xs font-semibold uppercase tracking-wide',
+                                'text-emerald-600 dark:text-emerald-400' => $result['passed'],
+                                'text-destructive' => ! $result['passed'],
+                            ])>
+                                {{ $result['passed'] ? 'Pass' : 'Fail' }}
+                            </span>
+
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-foreground">{{ $result['label'] }}</p>
+                                <p class="text-sm text-muted-foreground">{{ $result['detail'] }}</p>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        @if ($account !== null && $account->whatsAppAccounts->isNotEmpty())
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">WhatsApp numbers</h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    One number at a time. A CRM sending from two produces conversations customers cannot reply to.
+                </p>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($account->whatsAppAccounts as $waba)
+                        @foreach ($waba->phoneNumbers as $number)
+                            <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-foreground">
+                                        {{ $number->display_number }}
+                                        @if ($number->verified_name)
+                                            <span class="text-muted-foreground">&middot; {{ $number->verified_name }}</span>
+                                        @endif
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ $waba->name }}
+                                        @if ($number->healthNote())
+                                            &middot; {{ $number->healthNote() }}
+                                        @endif
+                                    </p>
+                                </div>
+
+                                @if ($number->is_default)
+                                    <x-status-chip label="Sending from this" color="emerald" />
+                                @elsecan('update', $account)
+                                    <x-button type="button" variant="secondary" wire:click="useNumber({{ $number->id }})">
+                                        Use this number
+                                    </x-button>
+                                @endcan
+                            </li>
+                        @endforeach
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        @if ($account !== null && $account->pages->isNotEmpty())
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">Facebook Pages</h2>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($account->pages as $page)
+                        <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-foreground">{{ $page->name }}</p>
+                                <p class="text-xs text-muted-foreground">
+                                    Page {{ $page->page_id }}
+                                    @if ($page->last_synced_at)
+                                        &middot; read {{ $page->last_synced_at->diffForHumans() }}
+                                    @endif
+                                </p>
+                            </div>
+
+                            <x-status-chip
+                                :label="$page->is_subscribed ? 'Subscribed' : 'Not subscribed'"
+                                :color="$page->is_subscribed ? 'emerald' : 'slate'"
+                            />
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        @if ($account !== null && $account->adAccounts->isNotEmpty())
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">Ad accounts</h2>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($account->adAccounts as $adAccount)
+                        <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-foreground">{{ $adAccount->name }}</p>
+                                <p class="text-xs text-muted-foreground">{{ $adAccount->graphId() }}</p>
+                            </div>
+
+                            {{-- Currency per account, not per installation: two
+                                 accounts in different currencies must never be
+                                 added together. --}}
+                            <span class="text-xs font-medium text-muted-foreground">{{ $adAccount->currency ?? '—' }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+    </x-settings-shell>
+</div>

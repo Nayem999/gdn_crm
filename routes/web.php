@@ -9,6 +9,7 @@ use App\Http\Controllers\DownloadQuotePdf;
 use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\MailWebhookController;
+use App\Http\Controllers\MetaOAuthController;
 use App\Http\Controllers\ShowGuide;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Livewire\Accounts\AccountForm;
@@ -50,6 +51,7 @@ use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Mail\EmailDeliveryLog;
 use App\Livewire\Mail\EmailTemplates;
+use App\Livewire\Meta\MetaConnection;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -260,6 +262,16 @@ Route::middleware('auth')->group(function () {
         ->name('documents.download');
 
     Route::get('/settings/company', CompanyProfileForm::class)->name('settings.company');
+
+    // The Meta connection. Its own screen rather than a settings group: the
+    // group holds the app credentials, while this holds what those credentials
+    // have been used to connect — a different question with a different answer
+    // every time somebody looks.
+    Route::get('/settings/meta/connect', MetaConnection::class)->name('settings.meta.connect');
+    // POST, because starting the flow writes a state token into the session and
+    // a GET that changes state is one a browser can be made to make.
+    Route::post('/settings/meta/connect', [MetaOAuthController::class, 'redirect'])->name('settings.meta.redirect');
+    Route::get('/settings/meta/callback', [MetaOAuthController::class, 'callback'])->name('settings.meta.callback');
 
     Route::get('/settings/users', UsersIndex::class)->name('settings.users');
     Route::get('/settings/users/create', UserForm::class)->name('settings.users.create');

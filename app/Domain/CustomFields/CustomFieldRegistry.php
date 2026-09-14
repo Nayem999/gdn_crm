@@ -4,6 +4,7 @@ namespace App\Domain\CustomFields;
 
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\CustomModules\CustomModuleRegistry;
@@ -47,6 +48,7 @@ final class CustomFieldRegistry
             'products' => Product::class,
             'tickets' => Ticket::class,
             'quotes' => Quote::class,
+            'campaigns' => Campaign::class,
         ];
     }
 
@@ -75,6 +77,7 @@ final class CustomFieldRegistry
             'activities' => 'Activities',
             'products' => 'Products',
             'quotes' => 'Quotes',
+            'campaigns' => 'Campaigns',
         ];
     }
 
@@ -195,6 +198,7 @@ final class CustomFieldRegistry
             'activities' => Activity::query()->visibleTo($user)->orderBy('due_at'),
             'products' => Product::query()->visibleTo($user)->orderBy('name'),
             'quotes' => Quote::query()->visibleTo($user)->orderBy('number'),
+            'campaigns' => Campaign::query()->visibleTo($user)->orderBy('name'),
             // Newest first: a lookup at a ticket is almost always at a recent
             // one, and a support queue's oldest rows are its least interesting.
             'tickets' => Ticket::query()->visibleTo($user)->orderByDesc('created_at'),

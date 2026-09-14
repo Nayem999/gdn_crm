@@ -4,7 +4,9 @@ namespace App\Domain\Contacts\Models;
 
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Attribution\Concerns\HasMarketingAttribution;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\Enums\Department;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
@@ -41,6 +43,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $account_id
  * @property bool $is_primary
  * @property int $owner_id
+ * @property int|null $campaign_id
  * @property int|null $merged_into_id
  * @property Carbon|null $merged_at
  */
@@ -51,6 +54,7 @@ class Contact extends Model
     /** @use HasFactory<ContactFactory> */
     use HasFactory;
 
+    use HasMarketingAttribution;
     use HasTimeline;
     use MergesWithDuplicates;
     use RecordsActivity;
@@ -78,6 +82,7 @@ class Contact extends Model
         'account_id',
         'is_primary',
         'owner_id',
+        'campaign_id',
     ];
 
     /**
@@ -129,6 +134,20 @@ class Contact extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * What this record came from.
+     *
+     * Nullable and nulled on delete: a record whose campaign has been removed is
+     * still a record, and attribution is a label on work that happened rather
+     * than something the work depends on.
+     *
+     * @return BelongsTo<Campaign, $this>
+     */
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     /**

@@ -16,6 +16,7 @@ use App\Domain\Leads\DTOs\LeadConversionResult;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -60,6 +61,16 @@ class ConvertLeadAction
             $contact = $this->contact($lead, $data, $actor, $account, $ownerId);
             $deal = $data->createDeal ? $this->deal($lead, $data, $account, $contact, $ownerId) : null;
 
+            // Attribution follows the lead into everything it became. This is
+            // the moment a CRM normally loses it: the account, the contact and
+            // the deal are new records that never saw the advertisement, and
+            // without this the campaign that won the customer stops being
+            // answerable the instant the sale starts. §13 and §37.
+            //
+            // The campaign link is a column on each record; the detail behind
+            // it — which ad, which form, which click — is the attribution row.
+            $this->carryAttribution($lead, array_filter([$account, $contact, $deal]));
+
             $lead->forceFill([
                 'converted_at' => now(),
                 'converted_account_id' => $account->id,
@@ -76,6 +87,27 @@ class ConvertLeadAction
         });
 
         return $result;
+    }
+
+    /**
+     * Give the records a lead became its campaign and its attribution.
+     *
+     * `enrich` rather than overwrite, through the trait: an account that was
+     * already attributed to a campaign is not re-attributed by the second lead
+     * that happened to convert into it, and the first touch is the one that won
+     * the customer.
+     *
+     * @param  array<int, Model>  $records
+     */
+    private function carryAttribution(Lead $lead, array $records): void
+    {
+        foreach ($records as $record) {
+            if ($lead->campaign_id !== null && $record->getAttribute('campaign_id') === null) {
+                $record->forceFill(['campaign_id' => $lead->campaign_id])->save();
+            }
+
+            $lead->copyAttributionTo($record);
+        }
     }
 
     /**

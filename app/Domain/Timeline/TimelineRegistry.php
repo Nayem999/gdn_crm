@@ -3,6 +3,7 @@
 namespace App\Domain\Timeline;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
@@ -31,6 +32,7 @@ final class TimelineRegistry
             'accounts' => Account::class,
             'deals' => Deal::class,
             'tickets' => Ticket::class,
+            'campaigns' => Campaign::class,
         ];
     }
 

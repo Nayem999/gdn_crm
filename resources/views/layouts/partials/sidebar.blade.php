@@ -13,6 +13,7 @@
         ['label' => 'Quotes', 'icon' => 'file-text', 'route' => 'quotes.index', 'permission' => 'quotes.view'],
         ['label' => 'Support', 'icon' => 'life-buoy', 'route' => 'tickets.index', 'permission' => 'tickets.view'],
         ['label' => 'Knowledge', 'icon' => 'book-open', 'route' => 'knowledge.index', 'permission' => 'knowledge.view'],
+        ['label' => 'Campaigns', 'icon' => 'megaphone', 'route' => 'campaigns.index', 'permission' => 'campaigns.view'],
         ['label' => 'Reports', 'icon' => 'bar-chart-3', 'route' => 'reports.index', 'permission' => 'reports.view'],
         ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
     ];

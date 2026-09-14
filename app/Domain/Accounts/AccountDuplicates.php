@@ -135,6 +135,13 @@ class AccountDuplicates implements DuplicateSource
      */
     public function afterMerge(Model $survivor, Model $loser): void
     {
+        // The survivor keeps its own answer field by field; the duplicate fills
+        // the gaps. Neither record knows more than it knows, and picking one
+        // wholesale would throw away half of what the pair had between them.
+        if ($survivor instanceof Account && $loser instanceof Account) {
+            $survivor->absorbAttributionFrom($loser);
+        }
+
         /** @var Account $survivor */
         if (! $survivor->canBeParentedBy($survivor->parent)) {
             $survivor->forceFill(['parent_id' => null])->save();

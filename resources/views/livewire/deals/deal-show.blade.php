@@ -369,6 +369,8 @@
         </div>
 
         <aside class="space-y-6">
+            <x-marketing-attribution :record="$deal" />
+
             <section class="rounded-xl border border-border bg-card p-5">
                 <h2 class="text-sm font-semibold text-foreground">Ownership</h2>
 

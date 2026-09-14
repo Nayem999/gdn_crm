@@ -5,7 +5,9 @@ namespace App\Domain\Accounts\Models;
 use App\Domain\Accounts\Enums\AccountSize;
 use App\Domain\Accounts\Enums\Industry;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Attribution\Concerns\HasMarketingAttribution;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
@@ -29,7 +31,6 @@ use Illuminate\Support\Collection;
  * organisation this CRM is installed for. An Account is somebody the company
  * does business with.
  *
- * @property int $id
  * @property string $name
  * @property string|null $legal_name
  * @property string|null $industry
@@ -43,6 +44,7 @@ use Illuminate\Support\Collection;
  * @property string|null $description
  * @property int|null $parent_id
  * @property int $owner_id
+ * @property int|null $campaign_id
  * @property int|null $merged_into_id
  * @property Carbon|null $merged_at
  */
@@ -53,6 +55,7 @@ class Account extends Model
     /** @use HasFactory<AccountFactory> */
     use HasFactory;
 
+    use HasMarketingAttribution;
     use HasTimeline;
     use MergesWithDuplicates;
     use RecordsActivity;
@@ -80,6 +83,7 @@ class Account extends Model
         'description',
         'parent_id',
         'owner_id',
+        'campaign_id',
     ];
 
     /**
@@ -124,6 +128,20 @@ class Account extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * What this record came from.
+     *
+     * Nullable and nulled on delete: a customer whose campaign has been removed
+     * is still a customer, and attribution is a label on work that happened
+     * rather than something the work depends on.
+     *
+     * @return BelongsTo<Campaign, $this>
+     */
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     /**

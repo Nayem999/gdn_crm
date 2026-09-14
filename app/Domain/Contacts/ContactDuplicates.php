@@ -133,6 +133,13 @@ class ContactDuplicates implements DuplicateSource
      */
     public function afterMerge(Model $survivor, Model $loser): void
     {
+        // The survivor keeps its own answer field by field; the duplicate fills
+        // the gaps. Neither record knows more than it knows, and picking one
+        // wholesale would throw away half of what the pair had between them.
+        if ($survivor instanceof Contact && $loser instanceof Contact) {
+            $survivor->absorbAttributionFrom($loser);
+        }
+
         /** @var Contact $survivor */
         /** @var Contact $loser */
         if (! $loser->is_primary || $survivor->is_primary) {

@@ -9,6 +9,10 @@ use App\Domain\Activities\Enums\ActivityPriority;
 use App\Domain\Activities\Enums\ActivityStatus;
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Campaigns\CampaignFields;
+use App\Domain\Campaigns\Enums\CampaignStatus;
+use App\Domain\Campaigns\Enums\CampaignType;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\ContactFields;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\DealFields;
@@ -56,7 +60,7 @@ final class ReportSources
      *
      * @var array<int, string>
      */
-    public const KEYS = ['deals', 'leads', 'accounts', 'contacts', 'activities', 'tickets', 'quotes'];
+    public const KEYS = ['deals', 'leads', 'accounts', 'contacts', 'activities', 'tickets', 'quotes', 'campaigns'];
 
     /**
      * @return array<string, ReportSource>
@@ -120,6 +124,7 @@ final class ReportSources
             'activities' => self::activities(),
             'tickets' => self::tickets(),
             'quotes' => self::quotes(),
+            'campaigns' => self::campaigns(),
             default => null,
         };
     }
@@ -336,6 +341,44 @@ final class ReportSources
             ]),
             filters: TicketFields::filters(),
             description: 'Support volume, resolution times and who is carrying it.',
+        );
+    }
+
+    /**
+     * What marketing cost, in the same report engine as what it produced.
+     *
+     * Cost per lead is not a measure here: it divides one source's rows by
+     * another's, which is a join the builder deliberately does not offer. The
+     * campaign's own page computes it, and 12.13's dashboard does it across
+     * campaigns — both from the CRM's records rather than a cached column.
+     */
+    private static function campaigns(): ReportSource
+    {
+        return new ReportSource(
+            key: 'campaigns',
+            label: 'Campaigns',
+            table: 'campaigns',
+            permission: 'campaigns.view',
+            query: fn (User $viewer) => Campaign::query()->visibleTo($viewer),
+            dimensions: self::dimensions([
+                Dimension::coded('status', 'Status', 'campaigns.status', CampaignStatus::options()),
+                Dimension::coded('type', 'Type', 'campaigns.type', CampaignType::options()),
+                Dimension::joined('owner', 'Owner', 'campaign_owner.name', 'owner'),
+                Dimension::date('started', 'Starts', 'campaigns.start_date'),
+                Dimension::date('ended', 'Ends', 'campaigns.end_date'),
+            ]),
+            measures: self::measures([
+                Measure::count('count', 'Campaigns'),
+                Measure::money('budget', 'Budget', 'campaigns.budget'),
+                Measure::money('spent', 'Spent', 'campaigns.actual_cost'),
+                Measure::money('expected_revenue', 'Expected revenue', 'campaigns.expected_revenue'),
+                Measure::average('average_spend', 'Average spend', 'campaigns.actual_cost', 'money'),
+            ]),
+            joins: self::joins([
+                new ReportJoin('owner', 'users', 'owner_id', alias: 'campaign_owner'),
+            ]),
+            filters: CampaignFields::filters(),
+            description: 'What marketing costs, and what it was budgeted at.',
         );
     }
 

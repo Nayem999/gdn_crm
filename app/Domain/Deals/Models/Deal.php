@@ -4,7 +4,9 @@ namespace App\Domain\Deals\Models;
 
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Attribution\Concerns\HasMarketingAttribution;
 use App\Domain\Audit\Concerns\RecordsActivity;
+use App\Domain\Campaigns\Models\Campaign;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\Deals\Concerns\TracksStageHistory;
@@ -48,6 +50,7 @@ use Illuminate\Support\Carbon;
  * @property string $stage
  * @property string|null $description
  * @property int $owner_id
+ * @property int|null $campaign_id
  */
 class Deal extends Model implements SellingDocument
 {
@@ -61,6 +64,7 @@ class Deal extends Model implements SellingDocument
     /** @use HasFactory<DealFactory> */
     use HasFactory;
 
+    use HasMarketingAttribution;
     use HasTimeline;
     use RecordsActivity;
     use ScopesByAccessLevel;
@@ -80,6 +84,7 @@ class Deal extends Model implements SellingDocument
         'expected_close_date',
         'description',
         'owner_id',
+        'campaign_id',
     ];
 
     /**
@@ -154,6 +159,20 @@ class Deal extends Model implements SellingDocument
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * What this record came from.
+     *
+     * Nullable and nulled on delete: a record whose campaign has been removed is
+     * still a record, and attribution is a label on work that happened rather
+     * than something the work depends on.
+     *
+     * @return BelongsTo<Campaign, $this>
+     */
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     /**

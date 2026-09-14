@@ -12,6 +12,8 @@ use App\Domain\Approvals\Models\ApprovalRequest;
 use App\Domain\Approvals\Policies\ApprovalRequestPolicy;
 use App\Domain\Audit\Policies\AuditEntryPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
+use App\Domain\Campaigns\Models\Campaign;
+use App\Domain\Campaigns\Policies\CampaignPolicy;
 use App\Domain\Company\Models\Company;
 use App\Domain\Company\Policies\CompanyPolicy;
 use App\Domain\Contacts\Models\Contact;
@@ -174,6 +176,7 @@ class AppServiceProvider extends ServiceProvider
         // record. Aliased at the import so the pairing here is unambiguous.
         Gate::policy(AuditEntry::class, AuditEntryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(Campaign::class, CampaignPolicy::class);
         Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketComment::class, TicketCommentPolicy::class);

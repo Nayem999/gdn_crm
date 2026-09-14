@@ -126,6 +126,13 @@ class LeadDuplicates implements DuplicateSource
 
     public function afterMerge(Model $survivor, Model $loser): void
     {
+        // The survivor keeps its own answer field by field; the duplicate fills
+        // the gaps. Neither record knows more than it knows, and picking one
+        // wholesale would throw away half of what the pair had between them.
+        if ($survivor instanceof Lead && $loser instanceof Lead) {
+            $survivor->absorbAttributionFrom($loser);
+        }
+
         // A lead's status is not a mergeable field, so nothing here can have
         // moved it, and there is nothing else to reconcile.
     }

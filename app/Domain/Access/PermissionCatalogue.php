@@ -75,6 +75,17 @@ final class PermissionCatalogue
                     'accounts.merge' => 'Merge duplicate accounts',
                 ],
             ],
+            'campaigns' => [
+                'label' => 'Campaigns',
+                'icon' => 'megaphone',
+                'permissions' => [
+                    'campaigns.view' => 'View campaigns',
+                    'campaigns.create' => 'Create campaigns',
+                    'campaigns.update' => 'Update campaigns and their budgets',
+                    'campaigns.delete' => 'Remove campaigns',
+                    'campaigns.export' => 'Export campaigns',
+                ],
+            ],
             'leads' => [
                 'label' => 'Leads',
                 'icon' => 'target',

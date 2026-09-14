@@ -19,6 +19,9 @@ use App\Livewire\Activities\ActivityForm;
 use App\Livewire\Approvals\ApprovalsIndex;
 use App\Livewire\Audit\ActivityLogIndex;
 use App\Livewire\Calendar\ActivityCalendar;
+use App\Livewire\Campaigns\CampaignForm;
+use App\Livewire\Campaigns\CampaignShow;
+use App\Livewire\Campaigns\CampaignsIndex;
 use App\Livewire\Company\CompanyProfileForm;
 use App\Livewire\Contacts\ContactForm;
 use App\Livewire\Contacts\ContactShow;
@@ -160,6 +163,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/m/{module}', CustomRecordsIndex::class)->name('custom-modules.index');
     Route::get('/m/{module}/create', CustomRecordForm::class)->name('custom-modules.create');
     Route::get('/m/{module}/{record}/edit', CustomRecordForm::class)->name('custom-modules.edit');
+
+    // Marketing. A campaign is where spend meets revenue, so it is a module in
+    // its own right rather than a panel on the Meta integration: the company
+    // runs email, events and referral schemes too, and each has a cost.
+    Route::get('/campaigns', CampaignsIndex::class)->name('campaigns.index');
+    Route::get('/campaigns/create', CampaignForm::class)->name('campaigns.create');
+    Route::get('/campaigns/{campaign}', CampaignShow::class)->name('campaigns.show');
+    Route::get('/campaigns/{campaign}/edit', CampaignForm::class)->name('campaigns.edit');
 
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
     // Before /reports/{report}: a dashboard is not a report id.

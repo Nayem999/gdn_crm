@@ -135,13 +135,21 @@ New tables. Every one InnoDB, `utf8mb4_unicode_ci`, explicit `onDelete`, money
 
 Extensions to existing tables:
 
-- `leads`: `meta_lead_id`, `campaign_id`, `meta_campaign_id`, `meta_campaign_name`,
-  `meta_ad_set_id`, `meta_ad_set_name`, `meta_ad_id`, `meta_ad_name`, `page_id`,
-  `form_id`, `form_name`, `click_id`, `utm_source`, `utm_medium`, `utm_campaign`,
-  `utm_content`, `source_detail`. Indexed on `meta_lead_id` (unique), `campaign_id`,
-  `meta_campaign_id`.
-- `contacts` and `deals`: `campaign_id` and the same Meta attribution columns that
-  conversion must carry forward (§37).
+- `leads`, `contacts` and `deals` each gain **`campaign_id`** (12.2) — the CRM-level
+  link the list screens filter by and a person edits.
+- The attribution *detail* lives in **`marketing_attributions`**, one row per
+  record, addressed polymorphically (12.3): source and source detail, the Meta
+  lead / page / form / campaign / ad set / ad ids and names, the click id, the
+  five UTM fields and the moment of first touch.
+
+  One table rather than the sixteen columns per module the brief implies. Three
+  copies would be forty-eight mostly-null columns across the three busiest tables
+  in the application, three places to write them, three to read them, and three
+  chances for conversion to forget one. Every field is a real column — attribution
+  is precisely what has to be filtered, grouped and joined, which a JSON blob
+  cannot do.
+- `LeadSource` gains `FacebookLeadAds`, `FacebookMessenger` and `WhatsApp`.
+  Additive: a case removed or renamed would orphan every row holding it.
 - `LeadSource`: new cases `FacebookLeadAds`, `FacebookMessenger`, `WhatsApp`,
   `InstagramDirect`. Existing rows are untouched — the enum is additive.
 

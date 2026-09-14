@@ -206,6 +206,31 @@ published articles are the ones customers can be pointed at.
 
 ---
 
+## 9a. Campaigns
+
+`/campaigns` — what marketing costs, and what it brought in.
+
+A campaign is any piece of marketing the company spends money on: a Facebook
+campaign, an email send, an exhibition stand, a referral scheme. Each carries a
+type, a status, the dates it runs between, a budget and what has actually been
+spent.
+
+Attribute a lead, a contact or a deal to a campaign and its page adds up what
+followed: how many leads came in, how many became deals, how many were won, the
+revenue behind them, the cost per lead and the return.
+
+Two things worth knowing:
+
+- **Every figure is worked out from the records, never stored.** Open the page
+  again after a deal moves and the numbers have moved with it.
+- **You see your own slice.** The totals respect your access level, so two
+  people can legitimately see different numbers on the same campaign.
+
+A campaign that has overspent shows its budget figure in red, and the **Over
+budget** chip on the list finds them all.
+
+---
+
 ## 10. Reports
 
 `/reports` — saved reports anyone with permission can run.

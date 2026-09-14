@@ -19,6 +19,14 @@ enum LeadSource: string
     case SocialMedia = 'social_media';
     case Partner = 'partner';
     case Chat = 'chat';
+    // Meta's channels, added in 12.3. Separate cases rather than folded into
+    // SocialMedia or Advertising, because the whole point of the phase is
+    // telling them apart: a Lead Ads submission, a Messenger conversation and
+    // a WhatsApp message are three different costs and three different
+    // follow-ups.
+    case FacebookLeadAds = 'facebook_lead_ads';
+    case FacebookMessenger = 'facebook_messenger';
+    case WhatsApp = 'whatsapp';
     case Other = 'other';
 
     public function label(): string
@@ -33,6 +41,9 @@ enum LeadSource: string
             self::SocialMedia => 'Social media',
             self::Partner => 'Partner',
             self::Chat => 'Website chat',
+            self::FacebookLeadAds => 'Facebook Lead Ads',
+            self::FacebookMessenger => 'Facebook Messenger',
+            self::WhatsApp => 'WhatsApp',
             self::Other => 'Other',
         };
     }
@@ -49,7 +60,22 @@ enum LeadSource: string
             self::SocialMedia => 'rose',
             self::Partner => 'teal',
             self::Chat => 'indigo',
+            self::FacebookLeadAds => 'blue',
+            self::FacebookMessenger => 'sky',
+            self::WhatsApp => 'green',
             self::Other => 'slate',
+        };
+    }
+
+    /**
+     * Whether this source is one Meta produced, which is what decides whether a
+     * CRM outcome can be reported back to it through the Conversions API.
+     */
+    public function isFromMeta(): bool
+    {
+        return match ($this) {
+            self::FacebookLeadAds, self::FacebookMessenger, self::WhatsApp => true,
+            default => false,
         };
     }
 

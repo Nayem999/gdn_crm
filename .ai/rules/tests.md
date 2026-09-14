@@ -93,3 +93,10 @@ a file and read the file afterwards:
 Write every dataset as a keyed list of argument arrays, the way OperationsTest does:
 
     ->with(['pint' => ['pint --test'], 'tests' => ['artisan test']]);
+
+## Never edit the tree while the full suite is running
+RefreshDatabase migrates **once**, at the start of the run. A migration added after `php artisan test` starts is therefore not in the schema, but the app code added alongside it *is* loaded — so the run fails with `Unknown column` / `Table doesn't exist` errors that look like real defects and are not. The same applies to editing a model, a view or a doc file that a test reads at runtime.
+
+A 30-minute suite is a long time to leave the tree alone, and the temptation to start the next task during it is exactly the trap. Either wait, or accept that the run is void and re-run it clean — a half-valid gate is worth nothing, and the failures it invents cost more to diagnose than the wait.
+
+Kill the void run before starting another (`TaskStop`, then check for a lingering pest process): two suites at once destroy each other's schema on the shared `testing` database.

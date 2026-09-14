@@ -152,6 +152,7 @@ Each group of settings has its own page, reached from the settings sidebar.
 | `/settings/scheduling` | Reminder lead times and working hours. |
 | `/settings/notifications` | Quiet hours and per-channel limits. |
 | `/settings/mail` | The outbound email provider and its credentials, the from-address, and the fallback provider. |
+| `/settings/meta` | The Meta app this CRM talks to — app ID, app secret, webhook verify token and dataset ID. The application's own credentials; the pages, ad accounts and WhatsApp numbers themselves are connected under Marketing & Social. |
 | `/settings/inbound` | The mailbox polled for replies, so a customer's answer lands on the record. |
 | `/settings/api` | API defaults — rate limits and page sizes. |
 | `/settings/integrations` | Shared integration settings. |

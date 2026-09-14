@@ -319,6 +319,45 @@ final class PermissionCatalogue
                     'timeline.delete' => 'Remove notes and documents',
                 ],
             ],
+            'meta' => [
+                'label' => 'Meta',
+                'icon' => 'share-2',
+                'permissions' => [
+                    'meta.view' => 'View the Meta connection, pages and ad accounts',
+                    'meta.connect' => 'Connect a Meta business, page, ad account or WhatsApp number',
+                    'meta.disconnect' => 'Disconnect them again',
+                    'meta.manage' => 'Change lead mapping, assignment and integration settings',
+                    'meta.sync' => 'Run a synchronisation by hand rather than waiting for the schedule',
+                    'meta.leads.view' => 'View leads that came from Meta, and what they were attributed to',
+                    'meta.leads.manage' => 'Reprocess and reattribute a Meta lead',
+                    'meta.campaigns.view' => 'View Meta campaigns, ad sets, ads and their figures',
+                    'meta.campaigns.manage' => 'Link a Meta campaign to a CRM campaign',
+                    // Separate from meta.manage: sending an outcome back to Meta
+                    // changes what it optimises other people's budget towards,
+                    // and is not the same decision as changing a mapping.
+                    'meta.conversions.send' => 'Report CRM outcomes back to Meta',
+                ],
+            ],
+            'social' => [
+                'label' => 'Social inbox',
+                'icon' => 'messages-square',
+                'permissions' => [
+                    'social.inbox.view' => 'Open the social inbox and read conversations',
+                    'social.inbox.reply' => 'Reply to a conversation',
+                    'social.inbox.assign' => 'Assign a conversation to somebody',
+                    'social.analytics.view' => 'View social and campaign analytics',
+                ],
+            ],
+            'whatsapp' => [
+                'label' => 'WhatsApp',
+                'icon' => 'message-circle',
+                'permissions' => [
+                    'whatsapp.view' => 'View WhatsApp conversations',
+                    'whatsapp.reply' => 'Send WhatsApp messages from a record',
+                    'whatsapp.templates.view' => 'View the approved message templates',
+                    'whatsapp.templates.manage' => 'Synchronise templates and choose which may be used',
+                ],
+            ],
             'settings' => [
                 'label' => 'Settings',
                 'icon' => 'settings',

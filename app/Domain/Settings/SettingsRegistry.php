@@ -8,6 +8,8 @@ use App\Domain\Mail\MailSettingsTester;
 use App\Domain\Messaging\MessagingProviders;
 use App\Domain\Messaging\SmsSettingsTester;
 use App\Domain\Messaging\WhatsAppSettingsTester;
+use App\Domain\Meta\MetaApiVersion;
+use App\Domain\Meta\MetaSettingsTester;
 use App\Domain\Settings\Contracts\SettingsGroupTester;
 use App\Domain\Settings\Enums\SettingType;
 
@@ -199,6 +201,25 @@ final class SettingsRegistry
                         4096 => '4 MB',
                     ], 256, 'Deliveries are records, not files. Anything near this is a bug at the sending end.'),
                 ],
+            ],
+            'meta' => [
+                'label' => 'Meta',
+                'icon' => 'share-2',
+                'description' => 'The Meta app this CRM talks to, for Facebook Pages, Lead Ads, advertising figures and WhatsApp. These are the application\'s own credentials; the accounts, pages and numbers themselves are connected under Marketing & Social.',
+                'fields' => [
+                    SettingField::text('app_id', 'App ID', 'From your app\'s dashboard on developers.facebook.com.'),
+                    SettingField::secret('app_secret', 'App secret',
+                        'Signs every call and verifies every webhook. Anybody holding it can act as your app.'),
+                    SettingField::secret('verify_token', 'Webhook verify token',
+                        'Any hard-to-guess string. Meta echoes it back once when a webhook is subscribed; it has to match what you typed into the Meta app.'),
+                    SettingField::text('dataset_id', 'Dataset (pixel) ID',
+                        'Only needed to report CRM outcomes back to Meta through the Conversions API.'),
+                    new SettingField('graph_version', 'Graph API version', SettingType::String,
+                        default: null,
+                        help: 'Leave blank to use the version this application ships with. Meta retires a version about two years after release.',
+                        extraRules: MetaApiVersion::RULE),
+                ],
+                'tester' => MetaSettingsTester::class,
             ],
             'sms' => [
                 'label' => 'SMS',

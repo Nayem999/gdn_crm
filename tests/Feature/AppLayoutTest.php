@@ -2,6 +2,7 @@
 
 use App\Domain\Access\PermissionResolver;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 // The dashboard sits behind `auth` as of task 1.2, so the shell is only
 // reachable as a signed-in user.
@@ -143,6 +144,33 @@ test('the sidebar offers Settings only to someone who can open something there',
         ->assertSuccessful()
         ->assertSee('Settings')
         ->assertSee(route('settings.group', 'localisation'), false);
+});
+
+test('the sidebar links to the guide for everyone, whatever they may do', function () {
+    // Ungated on purpose: the page is public, and the one person who most needs
+    // the manual is the one who has just been given an account and no
+    // permissions yet.
+    $this->get('/')
+        ->assertSuccessful()
+        ->assertSee('Guide')
+        ->assertSee(route('guide'), false);
+
+    $this->actingAs(settingsAwareUser('settings.view'));
+
+    $this->get('/')->assertSuccessful()->assertSee(route('guide'), false);
+});
+
+test('the guide link opens in a new tab rather than swapping the app shell', function () {
+    // /guide is a standalone page outside this layout: wire:navigate would swap
+    // the whole shell out for it, and the reader would lose the screen they
+    // were asking about.
+    $html = $this->get('/')->assertSuccessful()->getContent();
+
+    $link = Str::of($html)->after(route('guide'))->before('</a>')->value();
+
+    expect($link)->toContain('target="_blank"')
+        ->toContain('rel="noopener"')
+        ->not->toContain('wire:navigate');
 });
 
 test('the layout loads the compiled tailwind stylesheet and the livewire/alpine script bundle', function () {

@@ -102,19 +102,41 @@
         $settingsUrl = \App\Domain\Settings\SettingsNavigation::landingRouteFor(auth()->user());
     @endphp
 
-    @if ($settingsUrl)
-    <div class="border-t border-sidebar-border px-3 py-4">
+    <div class="space-y-1 border-t border-sidebar-border px-3 py-4">
+        @if ($settingsUrl)
+            <a
+                href="{{ $settingsUrl }}"
+                @class([
+                    'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-active hover:text-white',
+                    'bg-sidebar-active text-white' => request()->routeIs('settings.*'),
+                    'text-sidebar-foreground' => ! request()->routeIs('settings.*'),
+                ])
+            >
+                <x-lucide-settings class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
+                Settings
+            </a>
+        @endif
+
+        {{-- The manual. Ungated, because the page itself is: it is the same
+             documentation a stranger can read at /guide, and hiding it from
+             somebody holding no permissions would hide the one thing that
+             explains why they hold none.
+
+             A plain link rather than wire:navigate, and a new tab: /guide is a
+             standalone page outside this shell, and somebody checking how a
+             thing works should come back to the screen they left. --}}
         <a
-            href="{{ $settingsUrl }}"
-            @class([
-                'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-active hover:text-white',
-                'bg-sidebar-active text-white' => request()->routeIs('settings.*'),
-                'text-sidebar-foreground' => ! request()->routeIs('settings.*'),
-            ])
+            href="{{ route('guide') }}"
+            target="_blank"
+            rel="noopener"
+            class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-active hover:text-white"
         >
-            <x-lucide-settings class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
-            Settings
+            {{-- Not book-open: the Knowledge module above already wears it,
+                 and two identical icons in one sidebar is two wrong guesses. --}}
+            <x-lucide-circle-help class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
+            Guide
+            <x-lucide-external-link class="ml-auto h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden="true" />
+            <span class="sr-only">(opens in a new tab)</span>
         </a>
     </div>
-    @endif
 </aside>

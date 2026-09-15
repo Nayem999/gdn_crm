@@ -333,6 +333,24 @@
                         </x-button>
                     </div>
                 @endcan
+
+                @if ($lead->phone || $lead->mobile)
+                    @can('start', App\Domain\Social\Models\SocialConversation::class)
+                        <div class="mt-4 border-t border-border pt-4">
+                            {{-- Opens or finds the thread and sends the person to
+                                 the inbox, where Meta's window rules and the
+                                 templates already live. A compose box here would
+                                 be a second place for those rules to be wrong. --}}
+                            <form method="POST" action="{{ route('social.start.lead', $lead) }}">
+                                @csrf
+                                <x-button type="submit" variant="secondary" class="w-full">
+                                    <x-icon name="lucide-message-circle" />
+                                    Message on WhatsApp
+                                </x-button>
+                            </form>
+                        </div>
+                    @endcan
+                @endif
             </section>
             <section class="rounded-xl border border-border bg-card p-5">
                 <div class="flex items-center justify-between gap-3">

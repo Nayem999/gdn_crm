@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * One thing somebody said.
@@ -32,7 +35,10 @@ use Illuminate\Support\Carbon;
  * @property string $direction
  * @property string $type
  * @property string|null $body
- * @property array<string, mixed>|null $media
+ * @property array<int, array<string, mixed>>|null $attachments What Meta said about
+ *                                                              the file. Named away from `media` on purpose: the media library's
+ *                                                              own relation is called that, and a column sharing the name shadows
+ *                                                              it — see the 12.10 rename migration.
  * @property string|null $template_name
  * @property string $status
  * @property Carbon|null $sent_at
@@ -41,10 +47,12 @@ use Illuminate\Support\Carbon;
  * @property int|null $sender_user_id
  * @property string|null $error
  */
-class SocialMessage extends Model
+class SocialMessage extends Model implements HasMedia
 {
     /** @use HasFactory<SocialMessageFactory> */
     use HasFactory;
+
+    use InteractsWithMedia;
 
     /**
      * @var list<string>
@@ -56,7 +64,7 @@ class SocialMessage extends Model
         'direction',
         'type',
         'body',
-        'media',
+        'attachments',
         'template_name',
         'sender_user_id',
         'sent_at',
@@ -81,11 +89,50 @@ class SocialMessage extends Model
     protected function casts(): array
     {
         return [
-            'media' => 'array',
+            'attachments' => 'array',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
             'read_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Where a fetched attachment lives.
+     *
+     * The **private** disk, like every other customer file in this application:
+     * WhatsApp media is photographs of damaged goods, signed paperwork and
+     * occasionally identity documents, and a public URL for one is a public URL
+     * for all of them. It is reachable only through `social.media` with the
+     * conversation's own policy asked first.
+     *
+     * Meta's own URLs are not stored instead, deliberately: they expire within
+     * minutes and need the account token, so a thread relying on them would show
+     * broken attachments to anybody looking at it an hour later.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('attachment')
+            ->useDisk('local')
+            ->singleFile();
+    }
+
+    /**
+     * The stored attachment, or nothing.
+     *
+     * Named `attachmentFile` rather than `attachment`: a public no-argument
+     * method whose name is not a column is what Laravel resolves a property
+     * through, and one called `attachment` would shadow the relation.
+     */
+    public function attachmentFile(): ?Media
+    {
+        $media = $this->getFirstMedia('attachment');
+
+        return $media instanceof Media ? $media : null;
+    }
+
+    public function hasStoredAttachment(): bool
+    {
+        return $this->attachmentFile() !== null;
     }
 
     /**

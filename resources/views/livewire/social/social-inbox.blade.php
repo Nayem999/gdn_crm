@@ -152,9 +152,20 @@
                                     'bg-muted text-foreground' => $message->isInbound(),
                                     'bg-accent text-accent-foreground' => ! $message->isInbound(),
                                 ])>
+                                    @if ($message->hasStoredAttachment())
+                                        {{-- Behind a policy on the private disk:
+                                             these are customer photographs and
+                                             signed paperwork. --}}
+                                        <a href="{{ route('social.media', $message) }}"
+                                           class="flex items-center gap-1.5 font-medium underline underline-offset-4">
+                                            <x-icon :name="$message->type()->icon()" class="h-4 w-4" />
+                                            {{ $message->type()->label() }}
+                                        </a>
+                                    @endif
+
                                     @if ($message->body)
                                         <p class="whitespace-pre-line">{{ $message->body }}</p>
-                                    @else
+                                    @elseif (! $message->hasStoredAttachment())
                                         <p class="flex items-center gap-1.5 italic opacity-80">
                                             <x-icon :name="$message->type()->icon()" class="h-4 w-4" />
                                             {{ $message->type()->label() }}
@@ -187,6 +198,45 @@
                                  send action refuses independently: a disabled box
                                  is a courtesy, not a boundary. --}}
                             <x-alert variant="info">{{ $refusal }}</x-alert>
+
+                            @if ($templates !== [] && auth()->user()->can('reply', $selected))
+                                {{-- The one thing Meta still allows: text it has
+                                     already approved, sent by name with its values
+                                     as parameters. --}}
+                                <div class="mt-4 space-y-3">
+                                    <x-select
+                                        name="inbox-template"
+                                        label="Send an approved template"
+                                        :options="$templates"
+                                        :selected="$templateId"
+                                        placeholder="Choose a template..."
+                                        wire:model.live="templateId"
+                                    />
+
+                                    @if ($chosenTemplate)
+                                        <div wire:key="template-{{ $chosenTemplate->id }}" class="space-y-2">
+                                            <p class="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                                                {{ $chosenTemplate->body }}
+                                            </p>
+
+                                            {{-- No literal braces in the label: Blade
+                                                 compiles `{{` wherever it appears,
+                                                 attributes included. The body above
+                                                 already shows where each value
+                                                 lands. --}}
+                                            @foreach ($chosenTemplate->variables ?? [] as $index => $placeholder)
+                                                <x-form.input
+                                                    wire:model="templateValues.{{ $index }}"
+                                                    placeholder="Value {{ $placeholder }}"
+                                                    aria-label="Value for placeholder {{ $placeholder }}"
+                                                />
+                                            @endforeach
+
+                                            <x-button type="button" wire:click="sendTemplate">Send template</x-button>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         @elseif (auth()->user()->can('reply', $selected))
                             <form wire:submit="send" class="flex items-end gap-2">
                                 <textarea

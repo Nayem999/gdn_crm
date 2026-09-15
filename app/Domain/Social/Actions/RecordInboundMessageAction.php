@@ -9,6 +9,7 @@ use App\Domain\Social\Enums\MessageStatus;
 use App\Domain\Social\MessagingWindow;
 use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Social\Models\SocialMessage;
+use App\Jobs\FetchWhatsAppMedia;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -43,7 +44,10 @@ use Illuminate\Support\Facades\DB;
  */
 class RecordInboundMessageAction
 {
-    public function __construct(private readonly CreateLeadFromConversationAction $createLeadFromConversation) {}
+    public function __construct(
+        private readonly CreateLeadFromConversationAction $createLeadFromConversation,
+        private readonly MatchConversationToRecordAction $match,
+    ) {}
 
     /**
      * @param  User|null  $owner  Who a created lead belongs to. A conversation
@@ -140,14 +144,43 @@ class RecordInboundMessageAction
             'type' => $inbound->type->value,
             // Somebody else's text, stored as it arrived and rendered escaped.
             'body' => $inbound->body,
-            'media' => $inbound->media === [] ? null : $inbound->media,
+            'attachments' => $inbound->media === [] ? null : $inbound->media,
             // An inbound message has no delivery story: it is here, which is the
             // whole of what is known about it.
             'status' => MessageStatus::Received->value,
             'sent_at' => $inbound->sentAt(),
         ])->save();
 
+        // WhatsApp sends a media id rather than the file, and fetching it takes
+        // two calls against a URL that expires in minutes. Off the webhook, so a
+        // customer's large video cannot make the delivery time out — Meta would
+        // retry it, and a retried delivery is a duplicated message.
+        //
+        // afterCommit, because this runs inside a transaction: a job that
+        // started before the commit would look for a row that is not there yet.
+        if ($this->hasFetchableMedia($inbound)) {
+            FetchWhatsAppMedia::dispatch((int) $message->getKey())->afterCommit();
+        }
+
         return $message;
+    }
+
+    /**
+     * Whether this message carries an attachment we can go and get.
+     *
+     * A media **id** rather than a URL is the tell: that is WhatsApp's shape,
+     * and it is the one that needs a token and two calls. Messenger's
+     * attachments arrive as links, which the thread shows without fetching.
+     */
+    private function hasFetchableMedia(InboundSocialMessage $inbound): bool
+    {
+        foreach ($inbound->media as $attachment) {
+            if (($attachment['media_id'] ?? null) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -177,6 +210,13 @@ class RecordInboundMessageAction
     private function identify(SocialConversation $conversation, InboundSocialMessage $inbound, ?User $owner): void
     {
         if ($conversation->isLinked() || $owner === null) {
+            return;
+        }
+
+        // Somebody the CRM already knows. A WhatsApp thread is a telephone
+        // number, so a customer of ten years writing for the first time on
+        // WhatsApp joins their own record rather than becoming a stranger.
+        if (($this->match)($conversation)) {
             return;
         }
 

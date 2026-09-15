@@ -6,11 +6,13 @@ use App\Domain\Shared\Imports\ImportRegistry;
 use App\Http\Controllers\ChatCaptureController;
 use App\Http\Controllers\DownloadDocument;
 use App\Http\Controllers\DownloadQuotePdf;
+use App\Http\Controllers\DownloadSocialMedia;
 use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\MailWebhookController;
 use App\Http\Controllers\MetaOAuthController;
 use App\Http\Controllers\ShowGuide;
+use App\Http\Controllers\StartWhatsAppConversation;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Livewire\Accounts\AccountForm;
 use App\Livewire\Accounts\AccountShow;
@@ -179,6 +181,19 @@ Route::middleware('auth')->group(function () {
     // One inbox for every channel a customer can message on. Not under Settings:
     // this is somebody's work all day, not a thing configured once.
     Route::get('/inbox', SocialInbox::class)->name('social.inbox');
+
+    // Attachment bytes live on the private disk, so the only way to them is
+    // through here, and the conversation's policy answers before a byte moves.
+    Route::get('/inbox/messages/{message}/attachment', DownloadSocialMedia::class)
+        ->name('social.media');
+
+    // "Message on WhatsApp", from a record. POST because it opens a
+    // conversation, and two explicit routes because a request must never name
+    // its own model class.
+    Route::post('/leads/{lead}/whatsapp', [StartWhatsAppConversation::class, 'lead'])
+        ->name('social.start.lead');
+    Route::post('/contacts/{contact}/whatsapp', [StartWhatsAppConversation::class, 'contact'])
+        ->name('social.start.contact');
 
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
     // Before /reports/{report}: a dashboard is not a report id.

@@ -55,3 +55,10 @@ blade-icons *appends* a default class to whatever the call site passes, and
 Tailwind picks the winner by its own stylesheet order — a default `h-4` would
 beat an explicit `h-3.5`. A presentation attribute loses to any CSS rule, so
 every `h-*`/`w-*` at a call site still wins.
+
+## Blade compiles `{{` inside an attribute too
+`placeholder="Value for {{ '{{' . $n . '}}' }}"` is a compile error, not a
+rendering nicety: Blade reads `{{` wherever it appears, attribute values
+included, and the failure takes down every test that renders the view. To show a
+literal placeholder (a WhatsApp template's `{{1}}`, say) escape it as `@{{` or
+write the copy without braces.

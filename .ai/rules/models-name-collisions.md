@@ -49,3 +49,6 @@ Two Pest details that dataset needs:
   time, before the application is booted.
 - Build the path from `__DIR__`, not `app_path()`. At collection time the
   container is not the full application and the path helpers are not bound.
+
+## A `media` column shadows MediaLibrary's relation
+Never name a column `media` on a model that uses InteractsWithMedia. Eloquent's attribute wins over the `media()` relation, so `getFirstMedia()` receives your JSON and throws a TypeError at runtime — the model still passes every test that does not touch a file. `social_messages` had to be migrated from `media` to `attachments` for exactly this. Same trap for any column sharing a name with a trait's relation (`tags`, `activities`).

@@ -9,9 +9,11 @@ use App\Domain\Leads\Models\Lead;
 use App\Domain\Social\Actions\AssignConversationAction;
 use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Actions\SendSocialMessageAction;
+use App\Domain\Social\Actions\SendWhatsAppTemplateAction;
 use App\Domain\Social\Enums\ConversationStatus;
 use App\Domain\Social\Enums\SocialChannel;
 use App\Domain\Social\Models\SocialConversation;
+use App\Domain\Social\Models\WhatsAppTemplate;
 use App\Domain\Timeline\Actions\SaveNoteAction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -65,6 +67,17 @@ class SocialInbox extends Component
 
     public string $reply = '';
 
+    /**
+     * The template chosen for a conversation whose window has closed, and the
+     * values its placeholders need.
+     */
+    public ?int $templateId = null;
+
+    /**
+     * @var array<int, string>
+     */
+    public array $templateValues = [];
+
     public string $note = '';
 
     public string $taskSubject = '';
@@ -115,6 +128,64 @@ class SocialInbox extends Component
 
         $this->reply = '';
         $this->notice = 'Sent.';
+    }
+
+    /**
+     * Send an approved template — the only thing Meta allows once the window
+     * has closed.
+     */
+    public function sendTemplate(SendWhatsAppTemplateAction $send): void
+    {
+        $conversation = $this->requireSelected();
+
+        $this->authorize('reply', $conversation);
+
+        $template = $this->templateId === null
+            ? null
+            : WhatsAppTemplate::query()->find($this->templateId);
+
+        if ($template === null) {
+            $this->error = 'Choose a template to send.';
+
+            return;
+        }
+
+        try {
+            $send($conversation, $template, array_values($this->templateValues), auth()->user());
+        } catch (RuntimeException $exception) {
+            // Every refusal here is one this application made before asking
+            // Meta, so the message is already in words somebody can act on.
+            $this->error = $exception->getMessage();
+
+            return;
+        }
+
+        $this->templateId = null;
+        $this->templateValues = [];
+        $this->notice = 'Template sent.';
+    }
+
+    /**
+     * The approved templates this conversation could be sent, if any.
+     *
+     * @return array<string, string>
+     */
+    public function templateOptions(): array
+    {
+        $options = [];
+
+        foreach (WhatsAppTemplate::query()->sendable()->orderBy('name')->limit(100)->get() as $template) {
+            $options[(string) $template->getKey()] = $template->displayName();
+        }
+
+        return $options;
+    }
+
+    public function chosenTemplate(): ?WhatsAppTemplate
+    {
+        return $this->templateId === null
+            ? null
+            : WhatsAppTemplate::query()->find($this->templateId);
     }
 
     public function claim(AssignConversationAction $assign): void
@@ -298,6 +369,13 @@ class SocialInbox extends Component
             'selected' => $selected,
             'subject' => $selected?->subject(),
             'waiting' => $this->waitingCount(),
+            // Only WhatsApp has templates; Messenger's way past a closed window
+            // is a message tag, which is not something an agent picks from a
+            // list.
+            'templates' => $selected?->channel() === SocialChannel::WhatsApp
+                ? $this->templateOptions()
+                : [],
+            'chosenTemplate' => $this->chosenTemplate(),
         ]);
     }
 

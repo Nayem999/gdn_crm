@@ -41,6 +41,19 @@ class SocialConversationPolicy
     }
 
     /**
+     * Opening a new conversation from a record.
+     *
+     * Takes no conversation, deliberately: there is not one yet, and a policy
+     * method requiring a record could not be called with a class name at all.
+     * Gated on replying rather than viewing, because starting a thread sends a
+     * message from the company's number.
+     */
+    public function start(User $user): bool
+    {
+        return $user->can('social.inbox.reply');
+    }
+
+    /**
      * Claiming a thread, handing it on, closing it, marking it read.
      *
      * One permission for all four: they are the same act of saying who is

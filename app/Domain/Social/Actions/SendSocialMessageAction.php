@@ -5,6 +5,7 @@ namespace App\Domain\Social\Actions;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\Graph\MetaGraphClient;
 use App\Domain\Meta\Models\MetaPage;
+use App\Domain\Meta\Models\WhatsAppPhoneNumber;
 use App\Domain\Social\Enums\ConversationStatus;
 use App\Domain\Social\Enums\MessageDirection;
 use App\Domain\Social\Enums\MessageStatus;
@@ -30,9 +31,17 @@ use RuntimeException;
  * that Meta then refused needs to see the attempt and the reason, not an empty
  * conversation and a toast that has already gone.
  *
- * Only Messenger sends here. WhatsApp's send is 12.10's, through the Cloud API
- * and its own templates — the shape is the same, which is why the window, the
- * refusal and the message row are all channel-agnostic already.
+ * Both channels send here, and only `transport()` knows the difference: a page
+ * id and form fields for Messenger, a phone number id and JSON for the Cloud
+ * API. Everything around it — the window, the pending row, the failure record,
+ * the conversation settling afterwards — is identical, which is the whole
+ * argument for one inbox.
+ *
+ * Sending a **template** outside the window is `SendWhatsAppTemplateAction`. It
+ * is a different act rather than a flag on this one: it is allowed precisely
+ * when this is not, it needs approval and variables rather than free text, and
+ * conflating them is how a free-form message gets attempted against a closed
+ * window.
  */
 class SendSocialMessageAction
 {
@@ -56,26 +65,16 @@ class SendSocialMessageAction
             throw new RuntimeException($refusal);
         }
 
-        if ($conversation->channel() !== SocialChannel::Messenger) {
-            // Honest rather than silent: WhatsApp arrives in 12.10, and a reply
-            // box that accepted the message and dropped it would be worse than
-            // one that says so.
-            throw new RuntimeException('Replying on '.$conversation->channel()->label().' is not available yet.');
-        }
+        // Credentials first, and before any row is written: a conversation
+        // whose page or number is no longer connected has nothing to send with,
+        // and a pending message for a send that was never attempted would sit
+        // in the thread looking like a delivery in progress.
+        [$path, $payload, $token] = $this->transport($conversation, $body);
 
-        $page = $this->page($conversation);
         $message = $this->pending($conversation, $body, $sender);
 
         try {
-            $response = $this->client->post($page->page_id.'/messages', [
-                // Meta's Send API takes these as JSON strings inside a form
-                // post, not as nested form fields.
-                'recipient' => (string) json_encode(['id' => $conversation->external_conversation_id]),
-                'message' => (string) json_encode(['text' => $body]),
-                // A reply inside the window. Anything else needs a tag, which is
-                // what the refusal above tells the agent to use.
-                'messaging_type' => 'RESPONSE',
-            ], (string) $page->access_token);
+            $response = $this->client->post($path, $payload, $token);
         } catch (MetaApiException $exception) {
             $message->forceFill([
                 'status' => MessageStatus::Failed->value,
@@ -91,6 +90,104 @@ class SendSocialMessageAction
         $this->settle($conversation);
 
         return $message->refresh();
+    }
+
+    /**
+     * Where this channel's messages go, what they look like, and what signs
+     * them.
+     *
+     * The only part of sending that differs per channel, which is why it is one
+     * method and not two actions: everything around it — the window, the pending
+     * row, the failure record, the conversation settling — is identical.
+     *
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    private function transport(SocialConversation $conversation, string $body): array
+    {
+        return match ($conversation->channel()) {
+            SocialChannel::Messenger => $this->messengerTransport($conversation, $body),
+            SocialChannel::WhatsApp => $this->whatsAppTransport($conversation, [
+                'type' => 'text',
+                // `preview_url` off: a link in a reply should not silently pull
+                // a preview card from somebody else's site into the thread.
+                'text' => ['body' => $body, 'preview_url' => false],
+            ]),
+        };
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    private function messengerTransport(SocialConversation $conversation, string $body): array
+    {
+        $page = $this->page($conversation);
+
+        return [
+            $page->page_id.'/messages',
+            [
+                // Meta's Send API takes these as JSON strings inside a form
+                // post, not as nested form fields.
+                'recipient' => (string) json_encode(['id' => $conversation->external_conversation_id]),
+                'message' => (string) json_encode(['text' => $body]),
+                // A reply inside the window. Anything else needs a tag, which is
+                // what the window refusal tells the agent to use.
+                'messaging_type' => 'RESPONSE',
+            ],
+            (string) $page->access_token,
+        ];
+    }
+
+    /**
+     * The Cloud API's shape, which is JSON rather than Messenger's form fields.
+     *
+     * Public so the template send shares it: a template and a free-form message
+     * differ only in the `message` object, and two copies of the credential
+     * lookup would be two places to get the token wrong.
+     *
+     * @param  array<string, mixed>  $message
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    public function whatsAppTransport(SocialConversation $conversation, array $message): array
+    {
+        $number = $this->number($conversation);
+        $token = $number->businessAccount?->access_token;
+
+        if (! is_string($token) || $token === '') {
+            throw new RuntimeException(sprintf(
+                'The WhatsApp account behind %s has no access token. Reconnect it under Settings → Meta.',
+                $number->display_number,
+            ));
+        }
+
+        return [
+            $number->phone_number_id.'/messages',
+            [
+                'messaging_product' => 'whatsapp',
+                // The customer's number, as Meta wants it: digits only.
+                'to' => ltrim($conversation->external_conversation_id, '+'),
+                ...$message,
+            ],
+            $token,
+        ];
+    }
+
+    /**
+     * The number this conversation arrived at.
+     */
+    private function number(SocialConversation $conversation): WhatsAppPhoneNumber
+    {
+        $number = $conversation->channel_account_id === null
+            ? null
+            : WhatsAppPhoneNumber::query()
+                ->with('businessAccount')
+                ->where('phone_number_id', $conversation->channel_account_id)
+                ->first();
+
+        if ($number === null) {
+            throw new RuntimeException('This conversation arrived at a WhatsApp number that is no longer connected.');
+        }
+
+        return $number;
     }
 
     /**
@@ -141,7 +238,10 @@ class SendSocialMessageAction
      */
     private function sent(SocialMessage $message, array $response): void
     {
-        $id = $response['message_id'] ?? null;
+        // Messenger answers with `message_id`; the Cloud API answers with a
+        // `messages` array. Both are the id Meta's delivery receipts will name.
+        $id = $response['message_id']
+            ?? (is_array($response['messages'][0] ?? null) ? ($response['messages'][0]['id'] ?? null) : null);
 
         $message->forceFill([
             // Meta's id for what we just sent, which is what its delivery and

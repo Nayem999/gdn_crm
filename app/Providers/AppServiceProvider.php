@@ -61,6 +61,7 @@ use App\Domain\Meta\Policies\MetaAccountPolicy;
 use App\Domain\Meta\Policies\MetaCampaignPolicy;
 use App\Domain\Meta\Webhooks\Handlers\LeadGenHandler;
 use App\Domain\Meta\Webhooks\Handlers\MessengerHandler;
+use App\Domain\Meta\Webhooks\Handlers\WhatsAppHandler;
 use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
@@ -238,6 +239,7 @@ class AppServiceProvider extends ServiceProvider
         // the health panel with red for a feature that has not shipped.
         MetaEventProcessor::handle(MetaChannel::LeadGen, LeadGenHandler::class);
         MetaEventProcessor::handle(MetaChannel::Messenger, MessengerHandler::class);
+        MetaEventProcessor::handle(MetaChannel::WhatsApp, WhatsAppHandler::class);
 
         // Outbound webhooks watch the modules the REST API publishes, which is
         // a shorter list on purpose: an event key is part of a promise to

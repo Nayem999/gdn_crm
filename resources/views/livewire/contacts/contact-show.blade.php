@@ -85,6 +85,21 @@
                 </a>
             @endcan
 
+            @if ($contact->phone || $contact->mobile)
+                @can('start', App\Domain\Social\Models\SocialConversation::class)
+                    {{-- Opens or finds the thread and hands over to the inbox,
+                         where Meta's window rules already live. --}}
+                    <form method="POST" action="{{ route('social.start.contact', $contact) }}">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+                            <x-icon name="lucide-message-circle" />
+                            Message on WhatsApp
+                        </button>
+                    </form>
+                @endcan
+            @endif
+
             @can('delete', $contact)
                 <button
                     type="button"

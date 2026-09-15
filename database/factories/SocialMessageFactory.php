@@ -73,7 +73,7 @@ class SocialMessageFactory extends Factory
         return $this->state(fn () => [
             'type' => $type->value,
             'body' => null,
-            'media' => [['type' => $type->value, 'url' => 'https://example.com/asset.jpg']],
+            'attachments' => [['type' => $type->value, 'url' => 'https://example.com/asset.jpg']],
         ]);
     }
 

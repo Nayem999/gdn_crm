@@ -24,10 +24,11 @@ return new class extends Migration
 
             // Money is always DECIMAL, never FLOAT.
             $table->decimal('budget', 15, 2)->nullable();
-            // What it has actually cost. Meta spend is added to this in 12.7;
-            // a campaign that runs nowhere near Meta still has a cost somebody
-            // types in, which is the whole reason this is a CRM field rather
-            // than a synced one.
+            // What it has actually cost, typed in by a person and written by
+            // nothing else. Meta's spend is kept in meta_insights and summed at
+            // read time rather than added here: a campaign that runs nowhere
+            // near Meta still has a cost somebody types in, and a column a sync
+            // could overwrite is one nobody can correct.
             $table->decimal('actual_cost', 15, 2)->nullable();
             $table->decimal('expected_revenue', 15, 2)->nullable();
 

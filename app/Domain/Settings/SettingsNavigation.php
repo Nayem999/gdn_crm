@@ -73,6 +73,7 @@ final class SettingsNavigation
                     ['label' => 'Notification rules', 'icon' => 'bell-ring', 'route' => 'settings.notifications', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'Email delivery', 'icon' => 'mail-check', 'route' => 'settings.mail-log', 'params' => [], 'permission' => 'notifications.view'],
                     ['label' => 'Meta connection', 'icon' => 'share-2', 'route' => 'settings.meta.connect', 'params' => [], 'permission' => 'meta.view'],
+                    ['label' => 'Meta campaigns', 'icon' => 'megaphone', 'route' => 'settings.meta.campaigns', 'params' => [], 'permission' => 'meta.campaigns.view'],
                     ['label' => 'Data sources', 'icon' => 'antenna', 'route' => 'settings.data-sources', 'params' => [], 'permission' => 'integrations.view'],
                     ['label' => 'Delivery log', 'icon' => 'scroll-text', 'route' => 'settings.integration-log', 'params' => [], 'permission' => 'integrations.view'],
                     ['label' => 'API keys', 'icon' => 'key-round', 'route' => 'settings.api-tokens', 'params' => [], 'permission' => 'api.tokens'],

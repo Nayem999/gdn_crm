@@ -29,11 +29,12 @@ use Illuminate\Support\Carbon;
  * exhibition stand, a referral scheme — which is the point: cost per lead is
  * only a useful number when every cost is in the same place as every lead.
  *
- * **`actual_cost` is typed in, not synced.** Meta's spend is added to it when a
- * linked Meta campaign is read, but a campaign that runs nowhere near Meta
- * still costs money, and a column that could only be written by an integration
- * would make the whole module useless to the half of marketing that is people
- * and stands.
+ * **`actual_cost` is typed in, and nothing else ever writes it.** Meta's spend
+ * is not added to it: it lives in `meta_insights` and is summed at read time, so
+ * a re-sync cannot silently rewrite a figure somebody typed. A campaign that
+ * runs nowhere near Meta still costs money, and a column an integration could
+ * overwrite would make the module useless to the half of marketing that is
+ * people and exhibition stands.
  *
  * @property int $id
  * @property string $name

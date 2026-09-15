@@ -7,6 +7,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Access/** | .ai/rules/access.md |
 | app/Domain/Accounts/**, app/Livewire/Accounts/**, resources/views/livewire/accounts/** | .ai/rules/accounts.md |
 | app/Domain/Activities/**, app/Livewire/Activities/**, app/Console/Commands/{SendActivityReminders,GenerateRecurringActivities}.php, resources/views/livewire/activities/** | .ai/rules/activities.md |
+| app/Domain/Campaigns/**, app/Domain/Meta/Ads/**, app/Livewire/Meta/** | .ai/rules/ads.md |
 | app/Domain/Audit/** | .ai/rules/audit.md |
 | resources/views/components/select.blade.php, resources/views/components/status-chip.blade.php | .ai/rules/components.md |
 | config/fortify.php | .ai/rules/config.md |

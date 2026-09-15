@@ -56,7 +56,9 @@ use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Messaging\MessagingConfiguration;
 use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Models\MetaAccount;
+use App\Domain\Meta\Models\MetaCampaign;
 use App\Domain\Meta\Policies\MetaAccountPolicy;
+use App\Domain\Meta\Policies\MetaCampaignPolicy;
 use App\Domain\Meta\Webhooks\Handlers\LeadGenHandler;
 use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Notifications\ChannelManager;
@@ -183,6 +185,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Campaign::class, CampaignPolicy::class);
         Gate::policy(MetaAccount::class, MetaAccountPolicy::class);
+        Gate::policy(MetaCampaign::class, MetaCampaignPolicy::class);
         Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketComment::class, TicketCommentPolicy::class);

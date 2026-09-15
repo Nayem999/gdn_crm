@@ -51,6 +51,7 @@ use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Mail\EmailDeliveryLog;
 use App\Livewire\Mail\EmailTemplates;
+use App\Livewire\Meta\MetaCampaigns;
 use App\Livewire\Meta\MetaConnection;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
@@ -272,6 +273,12 @@ Route::middleware('auth')->group(function () {
     // a GET that changes state is one a browser can be made to make.
     Route::post('/settings/meta/connect', [MetaOAuthController::class, 'redirect'])->name('settings.meta.redirect');
     Route::get('/settings/meta/callback', [MetaOAuthController::class, 'callback'])->name('settings.meta.callback');
+
+    // What the advertising is, and which CRM campaign each part of it belongs
+    // to. Beside the connection rather than under Campaigns: the decision it
+    // exists for is about an integration, and the person who makes it is the
+    // one who set Meta up.
+    Route::get('/settings/meta/campaigns', MetaCampaigns::class)->name('settings.meta.campaigns');
 
     Route::get('/settings/users', UsersIndex::class)->name('settings.users');
     Route::get('/settings/users/create', UserForm::class)->name('settings.users.create');

@@ -70,6 +70,17 @@ Schedule::command('reports:send-scheduled')
     ->hourly()
     ->withoutOverlapping();
 
+// Meta's advertising figures. Every fifteen minutes, which is as often as Meta
+// has anything new to say — its own attribution windows move a day's spend for
+// up to seventy-two hours, so a faster poll would re-read the same numbers and
+// spend the rate limit doing it. The command only queues, one job per ad
+// account, so a slow account cannot hold the tick; withoutOverlapping anyway,
+// because dispatching the same accounts twice would have two jobs upserting the
+// same days.
+Schedule::command('meta:sync-ads')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // The database, nightly, before anybody arrives. Kept on the private disk for
 // a fortnight; see BackupDatabase for why it is not on the public one.
 Schedule::command('backup:database')

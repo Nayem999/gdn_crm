@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $status
  * @property bool $is_active
  * @property Carbon|null $last_synced_at
+ * @property Carbon|null $insights_synced_through
  */
 class MetaAdAccount extends Model
 {
@@ -71,6 +72,10 @@ class MetaAdAccount extends Model
         return [
             'is_active' => 'boolean',
             'last_synced_at' => 'datetime',
+            // A date, not a datetime: insights are days, reported in the ad
+            // account's own timezone, and an hour-precision mark would make
+            // "have we got Tuesday" unanswerable. See 12.7's migration.
+            'insights_synced_through' => 'date',
         ];
     }
 

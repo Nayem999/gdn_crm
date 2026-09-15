@@ -15,6 +15,13 @@ enum CommunicationChannel: string
     case Sms = 'sms';
     case WhatsApp = 'whatsapp';
     case Chat = 'chat';
+    /**
+     * Facebook Messenger, added in 12.8. Its own case rather than folded into
+     * Chat: a website chat and a Messenger thread are different places a
+     * customer can be answered, and somebody scanning a timeline for "where did
+     * we talk to them" needs to know which one to open.
+     */
+    case Messenger = 'messenger';
 
     public function label(): string
     {
@@ -23,6 +30,7 @@ enum CommunicationChannel: string
             self::Sms => 'SMS',
             self::WhatsApp => 'WhatsApp',
             self::Chat => 'Chat',
+            self::Messenger => 'Messenger',
         };
     }
 
@@ -32,7 +40,7 @@ enum CommunicationChannel: string
             self::Email => 'lucide-mail',
             self::Sms => 'lucide-message-square',
             self::WhatsApp => 'lucide-message-circle',
-            self::Chat => 'lucide-messages-square',
+            self::Chat, self::Messenger => 'lucide-messages-square',
         };
     }
 }

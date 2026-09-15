@@ -40,6 +40,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Reports/**, app/Livewire/Reports/**, resources/views/livewire/reports/**, resources/views/components/report-*.blade.php, resources/views/components/chart/**, app/Jobs/SendScheduledReport.php, app/Mail/ScheduledReportMail.php | .ai/rules/reports.md |
 | app/Domain/Sales/**, app/Domain/Products/Cpq/**, app/Livewire/Sales/**, database/migrations/*document_lines*.php, database/migrations/*quote*.php, database/migrations/*order*.php, database/migrations/*invoice*.php, resources/views/livewire/sales/**, resources/views/pdf/** | .ai/rules/sales.md |
 | app/Domain/Settings/**, app/Livewire/Settings/**, resources/views/livewire/settings/**, resources/views/components/settings-shell.blade.php, resources/views/components/form/secret.blade.php, app/Domain/Settings/DisplayTime.php, app/Domain/Settings/SettingField.php | .ai/rules/settings.md |
+| app/Domain/Social/**, app/Livewire/Social/**, resources/views/livewire/social/** | .ai/rules/social.md |
 | app/Domain/Support/**, app/Livewire/Support/**, resources/views/livewire/support/** | .ai/rules/support.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
 | tests/** | .ai/rules/tests.md |

@@ -14,6 +14,10 @@
         ['label' => 'Support', 'icon' => 'life-buoy', 'route' => 'tickets.index', 'permission' => 'tickets.view'],
         ['label' => 'Knowledge', 'icon' => 'book-open', 'route' => 'knowledge.index', 'permission' => 'knowledge.view'],
         ['label' => 'Campaigns', 'icon' => 'megaphone', 'route' => 'campaigns.index', 'permission' => 'campaigns.view'],
+        // One entry for every channel. 12.14 gathers this and the Meta screens
+        // into a Marketing & Social section; until then it sits beside the
+        // module it feeds, which is where somebody answering customers looks.
+        ['label' => 'Social inbox', 'icon' => 'messages-square', 'route' => 'social.inbox', 'permission' => 'social.inbox.view'],
         ['label' => 'Reports', 'icon' => 'bar-chart-3', 'route' => 'reports.index', 'permission' => 'reports.view'],
         ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
     ];

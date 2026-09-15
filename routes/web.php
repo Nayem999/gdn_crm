@@ -77,6 +77,7 @@ use App\Livewire\Settings\IntegrationLog;
 use App\Livewire\Settings\SettingsGroup;
 use App\Livewire\Settings\SourceMapping;
 use App\Livewire\Settings\WebhookEndpoints;
+use App\Livewire\Social\SocialInbox;
 use App\Livewire\Support\SlaPolicies;
 use App\Livewire\Support\SupportAnalytics;
 use App\Livewire\Support\TicketForm;
@@ -174,6 +175,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/campaigns/create', CampaignForm::class)->name('campaigns.create');
     Route::get('/campaigns/{campaign}', CampaignShow::class)->name('campaigns.show');
     Route::get('/campaigns/{campaign}/edit', CampaignForm::class)->name('campaigns.edit');
+
+    // One inbox for every channel a customer can message on. Not under Settings:
+    // this is somebody's work all day, not a thing configured once.
+    Route::get('/inbox', SocialInbox::class)->name('social.inbox');
 
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
     // Before /reports/{report}: a dashboard is not a report id.

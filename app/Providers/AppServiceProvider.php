@@ -60,6 +60,7 @@ use App\Domain\Meta\Models\MetaCampaign;
 use App\Domain\Meta\Policies\MetaAccountPolicy;
 use App\Domain\Meta\Policies\MetaCampaignPolicy;
 use App\Domain\Meta\Webhooks\Handlers\LeadGenHandler;
+use App\Domain\Meta\Webhooks\Handlers\MessengerHandler;
 use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
@@ -79,6 +80,8 @@ use App\Domain\Settings\Models\Setting;
 use App\Domain\Settings\Policies\SettingPolicy;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Shared\RequestMemo;
+use App\Domain\Social\Models\SocialConversation;
+use App\Domain\Social\Policies\SocialConversationPolicy;
 use App\Domain\Support\Models\SlaPolicy;
 use App\Domain\Support\Models\Ticket;
 use App\Domain\Support\Models\TicketComment;
@@ -186,6 +189,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Campaign::class, CampaignPolicy::class);
         Gate::policy(MetaAccount::class, MetaAccountPolicy::class);
         Gate::policy(MetaCampaign::class, MetaCampaignPolicy::class);
+        Gate::policy(SocialConversation::class, SocialConversationPolicy::class);
         Gate::policy(DataSource::class, DataSourcePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketComment::class, TicketCommentPolicy::class);
@@ -233,6 +237,7 @@ class AppServiceProvider extends ServiceProvider
         // a channel nobody has built yet settles as skipped rather than filling
         // the health panel with red for a feature that has not shipped.
         MetaEventProcessor::handle(MetaChannel::LeadGen, LeadGenHandler::class);
+        MetaEventProcessor::handle(MetaChannel::Messenger, MessengerHandler::class);
 
         // Outbound webhooks watch the modules the REST API publishes, which is
         // a shorter list on purpose: an event key is part of a promise to

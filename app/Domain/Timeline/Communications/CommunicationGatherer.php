@@ -3,11 +3,14 @@
 namespace App\Domain\Timeline\Communications;
 
 use App\Domain\Chat\Models\ChatConversation;
+use App\Domain\Contacts\Models\Contact;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Mail\Models\EmailMessage;
 use App\Domain\Mail\Models\InboundMessage;
 use App\Domain\Notifications\Enums\NotificationChannel;
 use App\Domain\Notifications\Models\NotificationLog;
+use App\Domain\Social\Enums\SocialChannel;
+use App\Domain\Social\Models\SocialConversation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -42,7 +45,64 @@ class CommunicationGatherer
             ...$this->inboundEmail($subject, $emails, $take),
             ...$this->shortMessages($phones, $take),
             ...$this->chats($subject, $emails, $take),
+            ...$this->socialConversations($subject, $take),
         ];
+    }
+
+    /**
+     * Messenger and WhatsApp threads, one entry per conversation.
+     *
+     * The same judgement the website chat gets and for the same reason: a
+     * conversation is the unit somebody reads, and thirty entries for thirty
+     * messages would bury every other strand on the page.
+     *
+     * Matched only on the **explicit link** — the lead or contact the
+     * conversation was tied to — with no address fallback. A social thread has
+     * no email or telephone number to match on: what it has is a page-scoped id
+     * that means nothing outside Meta, so there is nothing here to guess with,
+     * and guessing is what puts somebody else's messages on a customer's
+     * timeline.
+     *
+     * @return array<int, Communication>
+     */
+    private function socialConversations(Model $subject, int $take): array
+    {
+        $column = match (true) {
+            $subject instanceof Lead => 'lead_id',
+            $subject instanceof Contact => 'contact_id',
+            default => null,
+        };
+
+        if ($column === null) {
+            return [];
+        }
+
+        $conversations = SocialConversation::query()
+            ->with('messages')
+            ->where($column, $subject->getKey())
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->limit($take)
+            ->get();
+
+        return $conversations->map(function (SocialConversation $conversation): Communication {
+            $latest = $conversation->messages->last();
+
+            return new Communication(
+                channel: $conversation->channel() === SocialChannel::WhatsApp
+                    ? CommunicationChannel::WhatsApp
+                    : CommunicationChannel::Messenger,
+                // The direction of the last thing said, which is what tells
+                // somebody scanning the page whether the ball is in our court.
+                outbound: $latest !== null && ! $latest->isInbound(),
+                occurredAt: $conversation->last_message_at,
+                title: $conversation->channel()->label().' with '.$conversation->displayName(),
+                body: $latest?->preview(500),
+                status: $conversation->status()->label(),
+                counterparty: $conversation->participant_handle ?? $conversation->displayName(),
+                sourceKey: 'social-'.$conversation->getKey(),
+            );
+        })->all();
     }
 
     /**

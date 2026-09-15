@@ -149,6 +149,29 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'meta.lead_received',
+                label: 'Lead arrived from Meta',
+                group: 'Marketing',
+                description: 'Somebody filled in a Facebook lead form and a lead was created for it.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                // Email as well as in-app, which is a louder default than most
+                // things here and is deliberate: a lead ad is answered in
+                // minutes or not at all — the customer is on Facebook now — and
+                // an alert nobody sees until they next open the CRM is an alert
+                // that arrived too late. A high-volume campaign turns it off in
+                // one cell of the matrix.
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: [
+                    'lead.name' => 'Who filled the form in',
+                    'lead.form' => 'Which form they used',
+                    'lead.campaign' => 'The campaign the advertisement belonged to',
+                ],
+                defaultSubject: 'New Facebook lead: {{lead.name}}',
+                defaultTemplates: [
+                    '*' => '{{lead.name}} filled in {{lead.form}} ({{lead.campaign}}). They are expecting to hear back.',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'activity.assigned',
                 label: 'Activity assigned',
                 group: 'Activities',

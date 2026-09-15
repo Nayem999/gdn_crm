@@ -54,8 +54,11 @@ use App\Domain\Mail\Policies\EmailMessagePolicy;
 use App\Domain\Mail\Policies\EmailTemplatePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Messaging\MessagingConfiguration;
+use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Policies\MetaAccountPolicy;
+use App\Domain\Meta\Webhooks\Handlers\LeadGenHandler;
+use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Notifications\ChannelManager;
 use App\Domain\Notifications\Models\NotificationLog;
 use App\Domain\Notifications\NotificationMatrix;
@@ -220,6 +223,13 @@ class AppServiceProvider extends ServiceProvider
         foreach ([...array_column(WorkflowModules::builtIn(), 'model'), CustomRecord::class] as $watched) {
             $watched::observe(WorkflowObserver::class);
         }
+
+        // Which Meta channel is answered by what. Registered here rather than
+        // named inside the processor so each channel arrives with the task that
+        // builds it — lead ads now, Messenger in 12.8, WhatsApp in 12.10 — and
+        // a channel nobody has built yet settles as skipped rather than filling
+        // the health panel with red for a feature that has not shipped.
+        MetaEventProcessor::handle(MetaChannel::LeadGen, LeadGenHandler::class);
 
         // Outbound webhooks watch the modules the REST API publishes, which is
         // a shorter list on purpose: an event key is part of a promise to

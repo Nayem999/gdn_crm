@@ -55,6 +55,7 @@ use App\Livewire\Mail\EmailDeliveryLog;
 use App\Livewire\Mail\EmailTemplates;
 use App\Livewire\Meta\MetaCampaigns;
 use App\Livewire\Meta\MetaConnection;
+use App\Livewire\Meta\MetaConversions;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -299,6 +300,12 @@ Route::middleware('auth')->group(function () {
     // exists for is about an integration, and the person who makes it is the
     // one who set Meta up.
     Route::get('/settings/meta/campaigns', MetaCampaigns::class)->name('settings.meta.campaigns');
+
+    // What the CRM has told Meta about the leads Meta sent it. Its own screen
+    // because the question it answers — "is Meta being told when we win?" — is
+    // unanswerable anywhere else: the API reports a rejection inside a 200, so
+    // an integration failing every event looks exactly like a working one.
+    Route::get('/settings/meta/conversions', MetaConversions::class)->name('settings.meta.conversions');
 
     Route::get('/settings/users', UsersIndex::class)->name('settings.users');
     Route::get('/settings/users/create', UserForm::class)->name('settings.users.create');

@@ -10,6 +10,7 @@ use App\Domain\Activities\Policies\ActivityPolicy;
 use App\Domain\Api\ApiModules;
 use App\Domain\Approvals\Models\ApprovalRequest;
 use App\Domain\Approvals\Policies\ApprovalRequestPolicy;
+use App\Domain\Attribution\Models\RecordAttribution;
 use App\Domain\Audit\Policies\AuditEntryPolicy;
 use App\Domain\Auth\Listeners\RecordLoginHistory;
 use App\Domain\Campaigns\Models\Campaign;
@@ -54,6 +55,7 @@ use App\Domain\Mail\Policies\EmailMessagePolicy;
 use App\Domain\Mail\Policies\EmailTemplatePolicy;
 use App\Domain\Mail\Transports\ManagedTransport;
 use App\Domain\Messaging\MessagingConfiguration;
+use App\Domain\Meta\Conversions\MetaConversionObserver;
 use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaCampaign;
@@ -240,6 +242,18 @@ class AppServiceProvider extends ServiceProvider
         MetaEventProcessor::handle(MetaChannel::LeadGen, LeadGenHandler::class);
         MetaEventProcessor::handle(MetaChannel::Messenger, MessengerHandler::class);
         MetaEventProcessor::handle(MetaChannel::WhatsApp, WhatsAppHandler::class);
+
+        // The outcomes Meta is told about. Observers rather than a call inside
+        // CloseDealAction, because a deal is won from the pipeline board, the
+        // deal screen, an import and a workflow — and a report that only fired
+        // from one of them would understate exactly the campaigns that were
+        // working well enough for somebody to close quickly.
+        Lead::observe(MetaConversionObserver::class);
+        Deal::observe(MetaConversionObserver::class);
+        // And the attribution row itself, because conversion copies a lead's
+        // attribution onto its new deal without saving the deal again — see the
+        // observer for why that matters.
+        RecordAttribution::observe(MetaConversionObserver::class);
 
         // Outbound webhooks watch the modules the REST API publishes, which is
         // a shorter list on purpose: an event key is part of a promise to

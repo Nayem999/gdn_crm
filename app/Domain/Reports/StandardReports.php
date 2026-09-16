@@ -41,6 +41,12 @@ final class StandardReports
         'salesperson-performance',
         'activity-by-person',
         'top-customers',
+        // Phase 12. The three the brief asks for, and each answers a question
+        // Ads Manager cannot: it stops at the form submission and knows nothing
+        // about what was qualified, opened or won.
+        'leads-by-meta-campaign',
+        'revenue-by-meta-campaign',
+        'meta-conversion-funnel',
     ];
 
     /**
@@ -172,6 +178,48 @@ final class StandardReports
                     'measures' => ['value', 'count'],
                     'sort_by' => 'value',
                     'limit' => 20,
+                ]),
+            ],
+            'leads-by-meta-campaign' => [
+                'name' => 'Leads by Meta campaign',
+                'description' => 'Which advertising produced enquiries, and what they were estimated at.',
+                'chart' => ChartType::Bar,
+                'definition' => ReportDefinition::fromArray([
+                    'source' => 'leads',
+                    'dimensions' => ['meta_campaign'],
+                    'measures' => ['count', 'estimated_value'],
+                    'sort_by' => 'count',
+                    'sort_direction' => 'desc',
+                ]),
+            ],
+            'revenue-by-meta-campaign' => [
+                'name' => 'Revenue by Meta campaign',
+                'description' => 'What each campaign eventually earned, from the deals its leads became.',
+                'chart' => ChartType::Bar,
+                'definition' => ReportDefinition::fromArray([
+                    'source' => 'deals',
+                    'dimensions' => ['meta_campaign'],
+                    'measures' => ['value', 'count'],
+                    // Won only. Counting open deals here would report a
+                    // campaign's hopes as its earnings.
+                    'filters' => self::equals('stage', DealStage::Won->value),
+                    'sort_by' => 'value',
+                    'sort_direction' => 'desc',
+                ]),
+            ],
+            'meta-conversion-funnel' => [
+                'name' => 'Meta leads by status',
+                'description' => 'What became of the leads the advertising brought in.',
+                'chart' => ChartType::Bar,
+                'definition' => ReportDefinition::fromArray([
+                    'source' => 'leads',
+                    // Status against campaign: the funnel a marketer reads left
+                    // to right, and the one that shows a campaign buying volume
+                    // that never qualifies.
+                    'dimensions' => ['meta_campaign', 'status'],
+                    'measures' => ['count'],
+                    'sort_by' => 'count',
+                    'sort_direction' => 'desc',
                 ]),
             ],
             default => null,

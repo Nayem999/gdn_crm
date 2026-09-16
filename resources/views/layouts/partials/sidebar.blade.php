@@ -52,7 +52,8 @@
         // them is a second place for the same bug to be fixed once.
         ['label' => 'WhatsApp chat', 'icon' => 'message-circle', 'route' => 'social.inbox', 'query' => ['channel' => 'whatsapp'], 'permission' => 'social.inbox.view'],
         ['label' => 'Messenger chat', 'icon' => 'messages-square', 'route' => 'social.inbox', 'query' => ['channel' => 'messenger'], 'permission' => 'social.inbox.view'],
-        ['label' => 'Meta ads', 'icon' => 'trending-up', 'route' => 'settings.meta.campaigns', 'permission' => 'meta.campaigns.view'],
+        ['label' => 'Ad performance', 'icon' => 'trending-up', 'route' => 'settings.meta.performance', 'permission' => 'meta.campaigns.view'],
+        ['label' => 'Meta ads', 'icon' => 'badge-dollar-sign', 'route' => 'settings.meta.campaigns', 'permission' => 'meta.campaigns.view'],
         ['label' => 'Meta conversions', 'icon' => 'target', 'route' => 'settings.meta.conversions', 'permission' => 'meta.view'],
 
         ['section' => 'Insight'],

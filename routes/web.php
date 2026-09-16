@@ -56,6 +56,7 @@ use App\Livewire\Mail\EmailTemplates;
 use App\Livewire\Meta\MetaCampaigns;
 use App\Livewire\Meta\MetaConnection;
 use App\Livewire\Meta\MetaConversions;
+use App\Livewire\Meta\MetaPerformance;
 use App\Livewire\Notifications\NotificationLogIndex;
 use App\Livewire\Notifications\NotificationMatrixScreen;
 use App\Livewire\Notifications\NotificationTemplates;
@@ -306,6 +307,10 @@ Route::middleware('auth')->group(function () {
     // unanswerable anywhere else: the API reports a rejection inside a 200, so
     // an integration failing every event looks exactly like a working one.
     Route::get('/settings/meta/conversions', MetaConversions::class)->name('settings.meta.conversions');
+
+    // What the advertising cost against what the CRM earned — the one screen
+    // where Meta's money and this company's revenue are in the same table.
+    Route::get('/settings/meta/performance', MetaPerformance::class)->name('settings.meta.performance');
 
     Route::get('/settings/users', UsersIndex::class)->name('settings.users');
     Route::get('/settings/users/create', UserForm::class)->name('settings.users.create');

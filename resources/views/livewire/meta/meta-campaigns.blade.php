@@ -47,6 +47,11 @@
                             <th scope="col" class="px-4 py-3 font-medium">Campaign</th>
                             <th scope="col" class="px-4 py-3 font-medium">Status</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right">Spend</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-right">Impressions</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-right">Reach</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-right">Clicks</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-right">CTR</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-right">CPC</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right">Leads</th>
                             <th scope="col" class="px-4 py-3 font-medium">CRM campaign</th>
                             <th scope="col" class="px-4 py-3 font-medium"><span class="sr-only">Link</span></th>
@@ -93,6 +98,30 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                                    {{ $figure ? number_format($figure['impressions']) : '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                                    {{ $figure ? number_format($figure['reach']) : '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                                    {{ $figure ? number_format($figure['clicks']) : '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                                    {{-- A dash where there is no denominator: a
+                                         campaign nobody has seen has no
+                                         click-through rate, and 0% would be a
+                                         claim about how it performed. --}}
+                                    {{ $figure && $figure['ctr'] !== null ? number_format($figure['ctr'], 2).'%' : '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                                    {{ $figure && $figure['cpc'] !== null ? trim(($figure['currency'] ?? '').' '.number_format($figure['cpc'], 2)) : '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-right tabular-nums text-muted-foreground">
                                     {{ $figure['leads'] ?? '—' }}
                                 </td>
 
@@ -132,7 +161,7 @@
 
                             @if ($linking === $campaign->id)
                                 <tr class="bg-muted/40">
-                                    <td colspan="6" class="px-4 py-4">
+                                    <td colspan="11" class="px-4 py-4">
                                         {{-- wire:key includes the row, so Livewire
                                              replaces the node and Tom Select
                                              rebuilds rather than keeping the

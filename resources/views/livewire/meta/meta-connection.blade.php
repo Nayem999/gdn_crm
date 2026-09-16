@@ -271,11 +271,28 @@
             <h2 class="text-sm font-semibold text-foreground">Where replies arrive</h2>
             <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
                 A WhatsApp or Messenger reply reaches this CRM only if Meta is told where to deliver it. Paste each
-                address into that product's webhook configuration in your Meta app, subscribe the field beside it, and
-                use the verify token from
-                <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>
-                — Meta calls the address once to check that token before it will send anything.
+                address into that product's webhook configuration in your Meta app, subscribe the field named beside
+                it, and give Meta the verify token below.
             </p>
+
+            @if ($this->verifyToken() !== null)
+                <div class="mt-4 rounded-lg border border-border bg-background p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Verify token</p>
+                    <code class="mt-1 block break-all text-sm text-foreground">{{ $this->verifyToken() }}</code>
+                    <p class="mt-1.5 text-xs text-muted-foreground">
+                        The same token for all three — Meta asks for it once per product, and echoes it back to check
+                        the address before it will send anything.
+                    </p>
+                </div>
+            @else
+                <div class="mt-4">
+                    <x-alert variant="info">
+                        No webhook verify token is set, so Meta's check call would be refused and the subscription
+                        would not save. Add one under
+                        <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>.
+                    </x-alert>
+                </div>
+            @endif
 
             <ul class="mt-4 space-y-2">
                 @foreach ($this->webhookUrls() as $webhook)

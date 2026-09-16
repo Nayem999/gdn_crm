@@ -166,6 +166,11 @@ final class ReportSources
                 Dimension::date('created', 'Created', 'deals.created_at'),
                 Dimension::date('expected_close', 'Expected close', 'deals.expected_close_date'),
                 Dimension::date('closed', 'Closed', 'deals.closed_at'),
+                // Which advertising this revenue can be traced to. Conversion
+                // copies a lead's attribution onto its deal, which is the only
+                // reason the question is answerable at all once a sale starts.
+                Dimension::joined('meta_campaign', 'Meta campaign', 'deal_attribution.meta_campaign_name', 'attribution'),
+                Dimension::joined('meta_ad', 'Meta advertisement', 'deal_attribution.meta_ad_name', 'attribution'),
             ]),
             measures: self::measures([
                 Measure::count('count', 'Deals'),
@@ -179,6 +184,14 @@ final class ReportSources
             joins: self::joins([
                 new ReportJoin('owner', 'users', 'owner_id', alias: 'deal_owner'),
                 new ReportJoin('account', 'accounts', 'account_id', alias: 'deal_account'),
+                new ReportJoin(
+                    'attribution',
+                    'marketing_attributions',
+                    'id',
+                    'attributable_id',
+                    'deal_attribution',
+                    ['attributable_type' => Deal::class],
+                ),
             ]),
             filters: DealFields::filters(),
             description: 'Pipeline value, win rates and how long deals take.',
@@ -200,6 +213,13 @@ final class ReportSources
                 Dimension::plain('country', 'Country', 'leads.country'),
                 Dimension::date('created', 'Created', 'leads.created_at'),
                 Dimension::date('converted', 'Converted', 'leads.converted_at'),
+                // What paid for the lead. The **stored** name rather than a
+                // join to today's campaign row: campaigns are renamed, and a
+                // report that read the current name onto last year's leads
+                // would quietly rewrite history.
+                Dimension::joined('meta_campaign', 'Meta campaign', 'lead_attribution.meta_campaign_name', 'attribution'),
+                Dimension::joined('meta_ad_set', 'Meta ad set', 'lead_attribution.meta_ad_set_name', 'attribution'),
+                Dimension::joined('meta_ad', 'Meta advertisement', 'lead_attribution.meta_ad_name', 'attribution'),
             ]),
             measures: self::measures([
                 Measure::count('count', 'Leads'),
@@ -211,6 +231,17 @@ final class ReportSources
             ]),
             joins: self::joins([
                 new ReportJoin('owner', 'users', 'owner_id', alias: 'lead_owner'),
+                // A morph table, so the type is part of the join: on the id
+                // alone it would match a deal or a contact holding the same
+                // number and report one module's campaign against another's.
+                new ReportJoin(
+                    'attribution',
+                    'marketing_attributions',
+                    'id',
+                    'attributable_id',
+                    'lead_attribution',
+                    ['attributable_type' => Lead::class],
+                ),
             ]),
             filters: LeadFields::filters(),
             description: 'Where leads come from, and what happens to them.',

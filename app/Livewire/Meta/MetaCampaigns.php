@@ -158,11 +158,24 @@ class MetaCampaigns extends Component
     }
 
     /**
-     * Spend and leads per campaign, as one grouped query rather than one per
-     * row: a hundred campaigns should not be a hundred round trips.
+     * What each campaign spent and what it delivered, as one grouped query
+     * rather than one per row: a hundred campaigns should not be a hundred
+     * round trips.
+     *
+     * **The rates are derived here, and the stored ones are not summed.** Meta
+     * gives a CTR and a CPC per day, and adding those together means nothing —
+     * a day with two impressions would weigh as heavily as a day with twenty
+     * thousand. Over a period the only correct answer is clicks over
+     * impressions and spend over clicks, which is what Ads Manager shows for a
+     * range too.
+     *
+     * **Reach is summed and therefore is not unique people.** Meta counts a
+     * person once per day; added across days, somebody reached on Monday and
+     * Tuesday is counted twice. Ads Manager's own figure for a period will be
+     * lower, and the screen says so rather than quietly disagreeing with it.
      *
      * @param  EloquentCollection<int, MetaCampaign>  $campaigns
-     * @return array<string, array{spend: float, leads: int, currency: string|null, read_at: string|null}>
+     * @return array<string, array{spend: float, leads: int, impressions: int, clicks: int, reach: int, ctr: float|null, cpc: float|null, currency: string|null, read_at: string|null}>
      */
     public function figuresFor(EloquentCollection $campaigns): array
     {
@@ -175,7 +188,10 @@ class MetaCampaigns extends Component
         return MetaInsight::query()
             ->atLevel(MetaAdLevel::Campaign)
             ->forEntities($ids)
-            ->selectRaw('entity_id, SUM(spend) as spend, SUM(leads) as leads, MAX(currency) as currency, MAX(read_at) as read_at')
+            ->selectRaw(
+                'entity_id, SUM(spend) as spend, SUM(leads) as leads, SUM(impressions) as impressions, '
+                .'SUM(clicks) as clicks, SUM(reach) as reach, MAX(currency) as currency, MAX(read_at) as read_at'
+            )
             ->groupBy('entity_id')
             ->get()
             ->mapWithKeys(function (MetaInsight $row): array {
@@ -185,10 +201,22 @@ class MetaCampaigns extends Component
                 // asked rather than implying a live number.
                 $readAt = $row->getAttributeValue('read_at');
 
+                $spend = (float) $row->getAttributeValue('spend');
+                $impressions = (int) $row->getAttributeValue('impressions');
+                $clicks = (int) $row->getAttributeValue('clicks');
+
                 return [
                     (string) $row->entity_id => [
-                        'spend' => (float) $row->getAttributeValue('spend'),
+                        'spend' => $spend,
                         'leads' => (int) $row->getAttributeValue('leads'),
+                        'impressions' => $impressions,
+                        'clicks' => $clicks,
+                        'reach' => (int) $row->getAttributeValue('reach'),
+                        // Null rather than zero where there is no denominator:
+                        // a campaign nobody has seen has no click-through rate,
+                        // and 0% would be a claim about how it performed.
+                        'ctr' => $impressions === 0 ? null : round(($clicks / $impressions) * 100, 2),
+                        'cpc' => $clicks === 0 ? null : round($spend / $clicks, 2),
                         // Aggregates come back untyped from the driver, so both
                         // are narrowed rather than asserted.
                         'currency' => is_string($currency) ? $currency : null,

@@ -15,12 +15,27 @@ namespace App\Domain\Reports;
  */
 readonly class ReportJoin
 {
+    /**
+     * @param  array<string, string>  $conditions  Extra equalities on the joined
+     *                                             table, keyed by its own column.
+     *                                             A morph table needs one: joining
+     *                                             `marketing_attributions` on the
+     *                                             id alone would match another
+     *                                             module's record with the same
+     *                                             number and report one module's
+     *                                             campaign against another's rows.
+     *                                             Declared here, like everything
+     *                                             else a report may reach, so a
+     *                                             definition still cannot ask for
+     *                                             a condition of its own.
+     */
     public function __construct(
         public string $key,
         public string $table,
         public string $localColumn,
         public string $foreignColumn = 'id',
         public ?string $alias = null,
+        public array $conditions = [],
     ) {}
 
     /**

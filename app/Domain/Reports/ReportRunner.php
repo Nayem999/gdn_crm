@@ -104,12 +104,19 @@ class ReportRunner
         $query = $eloquent->applyScopes()->getQuery();
 
         foreach ($this->requiredJoins($source, $dimensions, $measures) as $join) {
-            $query->leftJoin(
-                DB::raw($join->target()),
-                $source->table.'.'.$join->localColumn,
-                '=',
-                $join->name().'.'.$join->foreignColumn,
-            );
+            $query->leftJoin(DB::raw($join->target()), function ($clause) use ($source, $join): void {
+                $clause->on(
+                    $source->table.'.'.$join->localColumn,
+                    '=',
+                    $join->name().'.'.$join->foreignColumn,
+                );
+
+                // Declared conditions only — a morph table needs its type, and
+                // the value is bound rather than interpolated.
+                foreach ($join->conditions as $column => $value) {
+                    $clause->where($join->name().'.'.$column, '=', $value);
+                }
+            });
         }
 
         return $query;

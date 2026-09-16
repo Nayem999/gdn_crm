@@ -174,3 +174,74 @@ test('a status chip renders the label it was given', function () {
         ->toContain('Connected')
         ->not->toContain('label="Connected"');
 });
+
+test('the delivery figures sit beside the money', function () {
+    $metaCampaign = MetaCampaign::factory()->create(['name' => 'Monsoon plant hire']);
+
+    MetaInsight::factory()
+        ->atLevel(MetaAdLevel::Campaign, $metaCampaign->meta_campaign_id)
+        ->create([
+            'spend' => 100.00,
+            'impressions' => 20000,
+            'reach' => 14000,
+            'clicks' => 400,
+            'leads' => 9,
+            'currency' => 'BDT',
+        ]);
+
+    Livewire::actingAs(metaCampaignUser())
+        ->test(MetaCampaigns::class)
+        ->assertSee('20,000')
+        ->assertSee('14,000')
+        ->assertSee('400')
+        // 400 of 20,000 — computed here rather than summed from Meta's own
+        // daily rate, because rates do not add.
+        ->assertSee('2.00%')
+        // 100.00 over 400 clicks.
+        ->assertSee('BDT 0.25');
+});
+
+test('a rate over a period is clicks over impressions, never a sum of daily rates', function () {
+    $metaCampaign = MetaCampaign::factory()->create();
+
+    // A quiet day and a busy one. Summing Meta's per-day CTR would weigh them
+    // equally and report 25.5%; the truth is 1,001 clicks in 100,002
+    // impressions.
+    MetaInsight::factory()
+        ->atLevel(MetaAdLevel::Campaign, $metaCampaign->meta_campaign_id)
+        ->on('2026-09-13')
+        ->create(['spend' => 0.10, 'impressions' => 2, 'clicks' => 1, 'ctr' => 50.0]);
+
+    MetaInsight::factory()
+        ->atLevel(MetaAdLevel::Campaign, $metaCampaign->meta_campaign_id)
+        ->on('2026-09-14')
+        ->create(['spend' => 500.00, 'impressions' => 100000, 'clicks' => 1000, 'ctr' => 1.0]);
+
+    $figures = Livewire::actingAs(metaCampaignUser())
+        ->test(MetaCampaigns::class)
+        ->instance()
+        ->figuresFor(MetaCampaign::query()->get());
+
+    $figure = $figures[$metaCampaign->meta_campaign_id];
+
+    expect($figure['ctr'])->toBe(1.0)
+        ->and($figure['clicks'])->toBe(1001)
+        ->and($figure['impressions'])->toBe(100002);
+});
+
+test('a campaign nobody has seen has no rate rather than a nought', function () {
+    $metaCampaign = MetaCampaign::factory()->create();
+
+    MetaInsight::factory()
+        ->atLevel(MetaAdLevel::Campaign, $metaCampaign->meta_campaign_id)
+        ->create(['spend' => 0, 'impressions' => 0, 'clicks' => 0, 'leads' => 0]);
+
+    $figures = Livewire::actingAs(metaCampaignUser())
+        ->test(MetaCampaigns::class)
+        ->instance()
+        ->figuresFor(MetaCampaign::query()->get());
+
+    // 0% would be a claim about how it performed.
+    expect($figures[$metaCampaign->meta_campaign_id]['ctr'])->toBeNull()
+        ->and($figures[$metaCampaign->meta_campaign_id]['cpc'])->toBeNull();
+});

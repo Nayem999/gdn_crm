@@ -457,3 +457,36 @@ test('an asset can still be added once something is connected', function () {
         // Still one connection, not a second alongside it.
         ->and(MetaAccount::query()->count())->toBe(1);
 });
+
+test('the verify token is shown where it has to be pasted', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.verify_token', 'echoed-back-by-meta-once');
+
+    // Stored as a secret, which makes it write-only on the settings screen —
+    // so without this an administrator has no way to read back the value they
+    // are being asked to paste into Meta.
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('Verify token')
+        ->assertSee('echoed-back-by-meta-once')
+        // One token for all three: Meta asks per product, and three headings
+        // would imply three values to keep track of.
+        ->assertSee('The same token for all three');
+});
+
+test('somebody who may only look is not shown the token', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.verify_token', 'echoed-back-by-meta-once');
+
+    Livewire::actingAs(metaTokenConnector(['meta.view']))
+        ->test(MetaConnection::class)
+        ->assertDontSee('echoed-back-by-meta-once');
+});
+
+test('with no verify token the screen says the subscription will not save', function () {
+    metaTokenFake();
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('No webhook verify token is set');
+});

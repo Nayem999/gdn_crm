@@ -34,3 +34,22 @@ Meta answers a **rejected** event with HTTP 200 and the rejection inside
 `messages`, so `events_received` is read rather than the status code trusted.
 Identifiers are SHA-256 of the normalised value; `ctwa_clid` is sent unhashed
 because it is not a person and hashing it makes it unmatchable.
+
+## Rates do not add, and reach is not unique people
+Meta stores a CTR and a CPC **per day**. Summing them weighs a day with two
+impressions as heavily as one with twenty thousand, so over any period the
+figure is derived — clicks over impressions, spend over clicks — which is what
+Ads Manager shows for a range too. A campaign with no impressions has **no** CTR
+rather than 0%: the dash and the zero are different claims.
+
+Reach is summed and is therefore *not* unique people: Meta counts a person once
+per day, so somebody reached on two days counts twice. Ads Manager's own range
+figure will be lower, and the screen says so rather than quietly disagreeing.
+
+## The webhook verify token is shown, on purpose
+It is stored as a secret, which makes it write-only on the settings screen — and
+its entire purpose is to be pasted into Meta, so an administrator who could not
+read it back had no way to finish the setup. It is displayed on the connection
+screen to anyone holding `meta.manage`. Knowing it only lets somebody verify a
+webhook they already control; what protects a delivery is the app secret's
+signature, which is never shown. One token serves all three channels.

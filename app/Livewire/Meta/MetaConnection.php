@@ -218,6 +218,28 @@ class MetaConnection extends Component
     }
 
     /**
+     * The token Meta echoes back when a webhook is subscribed.
+     *
+     * Shown here, and deliberately: it is stored as a secret, which makes it
+     * write-only on the settings screen — so an administrator who set it (or
+     * had it generated for them) had **no way to read it back**, and it is
+     * useless unless it can be pasted into Meta. Hiding it protected nothing,
+     * because knowing it lets somebody verify a webhook they already control;
+     * what protects a delivery is the app secret's signature, which is never
+     * shown.
+     *
+     * One token for all three channels. Meta asks per product, and repeating
+     * the same value under three headings would imply three tokens to keep
+     * track of.
+     */
+    public function verifyToken(): ?string
+    {
+        return auth()->user()?->can('meta.manage') === true
+            ? app(MetaConfiguration::class)->verifyToken()
+            : null;
+    }
+
+    /**
      * Whether Meta could actually reach this installation.
      */
     public function isReachable(): bool

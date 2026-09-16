@@ -55,8 +55,10 @@ afterEach(function () {
 
 // -- The catalogue -------------------------------------------------------------
 
-test('the eight standard reports are declared', function () {
-    expect(StandardReports::SLUGS)->toHaveCount(8)
+test('the eleven standard reports are declared', function () {
+    // Phase 12 added three: leads by Meta campaign, revenue by Meta campaign,
+    // and what became of the leads the advertising brought in.
+    expect(StandardReports::SLUGS)->toHaveCount(11)
         ->and(array_keys(StandardReports::all()))->toBe(StandardReports::SLUGS);
 });
 
@@ -80,7 +82,7 @@ test('every standard report names a source and fields that exist', function (str
 })->with(StandardReports::SLUGS);
 
 test('installing is idempotent and never overwrites', function () {
-    expect(StandardReports::install())->toBe(8)
+    expect(StandardReports::install())->toBe(11)
         ->and(StandardReports::install())->toBe(0);
 
     $report = Report::query()->where('slug', 'top-customers')->firstOrFail();

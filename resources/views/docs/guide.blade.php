@@ -191,35 +191,25 @@
                     </p>
 
                     <div class="mt-5 flex flex-wrap gap-2">
+                        {{-- The picture first: somebody who has never seen this
+                             application needs the shape of it before either
+                             manual means anything. --}}
+                        <a
+                            href="#workflow"
+                            class="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+                        >Workflow diagram</a>
+
                         @foreach ($sections as $section)
                             <a
                                 href="#{{ $section['key'] }}"
                                 class="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
                             >{{ $section['title'] }}</a>
                         @endforeach
-
-                        <a
-                            href="#workflow"
-                            class="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-                        >Workflow diagram</a>
                     </div>
                 </div>
 
-                @foreach ($sections as $section)
-                    <section id="{{ $section['key'] }}" class="mb-16 scroll-mt-24">
-                        <div class="mb-8">
-                            <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{{ $section['title'] }}</h2>
-                            <p class="mt-1 text-sm text-muted-foreground">{{ $section['summary'] }}</p>
-                        </div>
-
-                        {{-- Generated from the repository's own markdown, with raw
-                             HTML stripped on the way through. --}}
-                        <x-markdown :html="$section['html']" />
-                    </section>
-                @endforeach
-
-                <section id="workflow" class="scroll-mt-24">
-                    <div class="mb-8 border-t border-border pt-8">
+                <section id="workflow" class="mb-16 scroll-mt-24">
+                    <div class="mb-8">
                         <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">How the work flows</h2>
                         <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
                             One picture of the route a piece of business takes through the CRM: from wherever it
@@ -230,7 +220,7 @@
 
                     <div class="overflow-x-auto rounded-xl border border-border bg-card p-4 sm:p-6">
                         <svg
-                            viewBox="0 0 980 800"
+                            viewBox="0 0 980 890"
                             role="img"
                             aria-labelledby="workflow-title workflow-desc"
                             class="h-auto w-full"
@@ -259,27 +249,45 @@
                                 <text x="40" y="24" text-anchor="start" font-size="11" font-weight="700" letter-spacing="1" fill="var(--muted-foreground)">IT ARRIVES</text>
 
                                 <g>
-                                    <rect x="40" y="36" width="200" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
-                                    <text x="140" y="67" font-size="14" font-weight="600" fill="var(--foreground)">Web form</text>
+                                    <rect x="40" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
+                                    <text x="99" y="67" font-size="12.5" font-weight="600" fill="var(--foreground)">Web form</text>
                                 </g>
                                 <g>
-                                    <rect x="273" y="36" width="200" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
-                                    <text x="373" y="67" font-size="14" font-weight="600" fill="var(--foreground)">Chat widget</text>
+                                    <rect x="170" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
+                                    <text x="229" y="67" font-size="12.5" font-weight="600" fill="var(--foreground)">Chat widget</text>
                                 </g>
                                 <g>
-                                    <rect x="506" y="36" width="200" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
-                                    <text x="606" y="67" font-size="14" font-weight="600" fill="var(--foreground)">Inbound email</text>
+                                    <rect x="300" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
+                                    <text x="359" y="67" font-size="12.5" font-weight="600" fill="var(--foreground)">Inbound email</text>
                                 </g>
                                 <g>
-                                    <rect x="739" y="36" width="200" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
-                                    <text x="839" y="67" font-size="14" font-weight="600" fill="var(--foreground)">Import &amp; API</text>
+                                    <rect x="430" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--accent)" stroke-width="1.75" />
+                                    <text x="489" y="60" font-size="12.5" font-weight="600" fill="var(--foreground)">WhatsApp</text>
+                                    <text x="489" y="76" font-size="10" fill="var(--muted-foreground)">Meta</text>
+                                </g>
+                                <g>
+                                    <rect x="560" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--accent)" stroke-width="1.75" />
+                                    <text x="619" y="60" font-size="12.5" font-weight="600" fill="var(--foreground)">Messenger</text>
+                                    <text x="619" y="76" font-size="10" fill="var(--muted-foreground)">Meta</text>
+                                </g>
+                                <g>
+                                    <rect x="690" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--accent)" stroke-width="1.75" />
+                                    <text x="749" y="60" font-size="12.5" font-weight="600" fill="var(--foreground)">Lead Ads</text>
+                                    <text x="749" y="76" font-size="10" fill="var(--muted-foreground)">Meta</text>
+                                </g>
+                                <g>
+                                    <rect x="820" y="36" width="118" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5" />
+                                    <text x="879" y="67" font-size="12.5" font-weight="600" fill="var(--foreground)">Import &amp; API</text>
                                 </g>
 
                                 <g fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#wf-arrow)">
-                                    <path d="M140,88 C140,122 420,112 460,144" />
-                                    <path d="M373,88 C373,118 450,118 475,144" />
-                                    <path d="M606,88 C606,118 530,118 505,144" />
-                                    <path d="M839,88 C839,122 560,112 520,144" />
+                                    <path d="M99,88 C99,118 440,116 440,144" />
+                                    <path d="M229,88 C229,118 462,116 462,144" />
+                                    <path d="M359,88 C359,118 484,116 484,144" />
+                                    <path d="M489,88 C489,118 506,116 506,144" />
+                                    <path d="M619,88 C619,118 528,116 528,144" />
+                                    <path d="M749,88 C749,118 550,116 550,144" />
+                                    <path d="M879,88 C879,118 572,116 572,144" />
                                 </g>
 
                                 {{-- 2. The lead ---------------------------------------------- --}}
@@ -406,10 +414,16 @@
                                     <path d="M706,648 L737,648" />
                                 </g>
 
-                                {{-- 7. What runs across all of it ---------------------------- --}}
-                                <rect x="40" y="712" width="900" height="64" rx="14" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="6 5" />
-                                <text x="490" y="738" font-size="13" font-weight="700" fill="var(--foreground)">Workflows, notifications and the audit trail run across every step</text>
-                                <text x="490" y="758" font-size="11.5" fill="var(--muted-foreground)">and the reports and the forecast read all of it</text>
+                                {{-- 7. What the advertising learns back ---------------------- --}}
+                                <rect x="40" y="700" width="900" height="72" rx="14" fill="none" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5 4" />
+                                <text x="56" y="722" text-anchor="start" font-size="11" font-weight="700" letter-spacing="1" fill="var(--muted-foreground)">MARKETING LEARNS</text>
+                                <text x="490" y="744" font-size="12.5" font-weight="600" fill="var(--foreground)">Every lead keeps the advertisement it came from, and carries it into the account, contact and deal</text>
+                                <text x="490" y="762" font-size="11.5" fill="var(--muted-foreground)">so a won deal can be reported back to Meta, and cost per lead is a figure rather than a guess</text>
+
+                                {{-- 8. What runs across all of it ---------------------------- --}}
+                                <rect x="40" y="798" width="900" height="64" rx="14" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="6 5" />
+                                <text x="490" y="824" font-size="13" font-weight="700" fill="var(--foreground)">Workflows, notifications and the audit trail run across every step</text>
+                                <text x="490" y="844" font-size="11.5" fill="var(--muted-foreground)">and the reports and the forecast read all of it</text>
                             </g>
                         </svg>
                     </div>
@@ -419,6 +433,20 @@
                         it is what happens on its own once an administrator has configured it.
                     </p>
                 </section>
+
+                @foreach ($sections as $section)
+                    <section id="{{ $section['key'] }}" class="mb-16 scroll-mt-24">
+                        <div class="mb-8">
+                            <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{{ $section['title'] }}</h2>
+                            <p class="mt-1 text-sm text-muted-foreground">{{ $section['summary'] }}</p>
+                        </div>
+
+                        {{-- Generated from the repository's own markdown, with raw
+                             HTML stripped on the way through. --}}
+                        <x-markdown :html="$section['html']" />
+                    </section>
+                @endforeach
+
             </main>
         </div>
 

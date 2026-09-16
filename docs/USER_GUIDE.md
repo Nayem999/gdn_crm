@@ -231,6 +231,50 @@ budget** chip on the list finds them all.
 
 ---
 
+## 9b. The chat inbox
+
+`/inbox` — WhatsApp and Facebook Messenger, in one place.
+
+The sidebar offers them as two entries, **WhatsApp chat** and **Messenger
+chat**, which open the same screen filtered to that channel. Three columns:
+the conversations, the one you are reading, and what to do about it.
+
+### The reply window is Meta's, not ours
+
+This is the thing to understand before anything else. Meta only lets you reply
+freely for a while after the customer last wrote:
+
+| Channel | You may reply freely for | After that |
+| --- | --- | --- |
+| WhatsApp | 24 hours | only a template Meta has approved |
+| Messenger | 7 days | nothing until they write again |
+
+The thread says how long is left. When the window has closed the reply box is
+replaced by the reason and, on WhatsApp, by the approved templates you may send
+instead. The clock runs from **their** message — answering does not extend it.
+
+### What happens on its own
+
+- A message from somebody the CRM does not recognise **creates a lead**, so
+  nobody has to remember to. On WhatsApp, a number already on a contact or a
+  lead joins that record instead of becoming a second one.
+- A conversation that came from a click-to-message advertisement **keeps which
+  advertisement**, and the panel says so. That is what lets the campaign be
+  credited when the deal is won.
+- Attachments are fetched and kept; the thread shows them.
+
+### What you do
+
+- **Take it** puts your name on the conversation so two people do not answer at
+  once. **Close** ends it — a new message from the customer reopens it.
+- **Create a lead** if the conversation was matched to nobody and you want one.
+- Add a note or a task against the record without leaving the screen.
+- From a lead or a contact, **Message on WhatsApp** starts a thread with their
+  number, or opens the one that already exists. Meta opens no window when *we*
+  write first, so that conversation begins with a template.
+
+---
+
 ## 10. Reports
 
 `/reports` — saved reports anyone with permission can run.

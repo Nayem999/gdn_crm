@@ -78,7 +78,7 @@ test('raw HTML in the markdown is stripped rather than rendered', function () {
 
 // -- The diagram ---------------------------------------------------------------
 
-test('the page ends with the workflow diagram', function () {
+test('the page opens with the workflow diagram', function () {
     $html = $this->get(route('guide'))->assertOk()->getContent();
 
     expect($html)->toContain('id="workflow"')
@@ -87,8 +87,11 @@ test('the page ends with the workflow diagram', function () {
         ->toContain('role="img"')
         ->toContain('The CRM workflow');
 
-    // It is the last section on the page.
-    expect(strrpos($html, 'id="workflow"'))->toBeGreaterThan((int) strrpos($html, 'id="admin"'));
+    // Ahead of both manuals. It used to close the page, which put the one
+    // thing that orientates a newcomer behind six hundred lines of manual —
+    // the picture is what makes the rest legible, so it leads.
+    expect(strpos($html, 'id="workflow"'))->toBeLessThan((int) strpos($html, 'id="user"'))
+        ->and(strpos($html, 'id="workflow"'))->toBeLessThan((int) strpos($html, 'id="admin"'));
 });
 
 test('the diagram names every stage of the flow it claims to show', function (string $label) {
@@ -105,6 +108,11 @@ test('the diagram names every stage of the flow it claims to show', function (st
     'invoice' => ['Invoice'],
     'payment' => ['Payment'],
     'support' => ['Ticket raised'],
+    // The channels Phase 12 added arrive like any other work.
+    'whatsapp' => ['WhatsApp'],
+    'messenger' => ['Messenger'],
+    'lead ads' => ['Lead Ads'],
+    'attribution' => ['MARKETING LEARNS'],
 ]);
 
 test('the diagram scrolls on a narrow screen rather than stretching the page', function () {
@@ -113,5 +121,5 @@ test('the diagram scrolls on a narrow screen rather than stretching the page', f
     $this->get(route('guide'))
         ->assertOk()
         ->assertSee('overflow-x-auto', false)
-        ->assertSee('viewBox="0 0 980 800"', false);
+        ->assertSee('viewBox="0 0 980 890"', false);
 });

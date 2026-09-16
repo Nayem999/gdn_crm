@@ -240,6 +240,84 @@ php artisan api:docs
 
 ---
 
+## 8a. Connecting Meta
+
+Facebook Pages, Lead Ads, advertising figures, Messenger and WhatsApp. Two
+screens: `/settings/meta` holds the **application's** credentials, and
+`/settings/meta/connect` holds what those credentials have been used to
+connect.
+
+### 1. The app credentials
+
+`/settings/meta` takes the app ID, the app secret, a webhook verify token of
+your own choosing and — only if you report conversions back — a dataset ID.
+They are encrypted at rest and never written to the environment file.
+
+### 2. The connection
+
+`/settings/meta/connect` offers two ways in:
+
+- **Connect Meta** sends you to Meta to sign in. Meta only returns to a public
+  HTTPS address, so this is unavailable on a laptop or a company network.
+- **Connect with an access token** takes a system user token from Business
+  Manager instead, with the ids it was given: the WhatsApp business account,
+  the Facebook Page, the ad account.
+
+Meta issues a token **per asset** and they are often different strings, so each
+id has its own optional token beside it. Leave one blank and the token at the
+top is used for it. Each id is checked against Meta as it is stored and
+reported on separately — one wrong id does not discard the others.
+
+**Test connection** checks each capability independently: authentication, the
+permissions Meta actually granted, the Page, the ad account, the WhatsApp
+number and the webhook token. A missing permission is named.
+
+### 3. Where replies arrive
+
+The same screen prints the three webhook addresses and the verify token to
+paste into Meta, with the field to subscribe beside each:
+
+| Product | Subscribe | Address |
+| --- | --- | --- |
+| Facebook Lead Ads | `leadgen` | `/api/webhooks/meta/leadgen` |
+| Facebook Messenger | `messages` | `/api/webhooks/meta/messenger` |
+| WhatsApp | `messages` | `/api/webhooks/meta/whatsapp` |
+
+The addresses are built from the application's configured URL. **Meta cannot
+deliver to a private address**, so nothing arrives until the CRM is published
+somewhere Meta can call — the screen says so rather than leaving you to find
+out. Sending, templates and the advertising figures work regardless; only
+inbound messages need it.
+
+One callback exists per product per app. Pointing it at this CRM takes delivery
+away from whatever held it before.
+
+### 4. What is read, and when
+
+| Command | What it does |
+| --- | --- |
+| `php artisan meta:sync-ads` | Campaigns, ad sets, advertisements and their daily figures. Scheduled. |
+| `php artisan meta:backfill-leads` | Lead Ads submissions that arrived before the CRM was connected. |
+| `php artisan meta:import-messenger` | A Page's existing Messenger conversations. Creates no leads unless you pass `--create-leads=`. |
+
+There is no WhatsApp equivalent of the last one. The Cloud API publishes no
+endpoint for message history, so a WhatsApp thread begins at the first message
+delivered to your webhook and earlier conversations cannot be fetched.
+
+### What it produces
+
+`/settings/meta/campaigns` links a Meta campaign to a CRM campaign and shows
+spend, impressions, reach, clicks, CTR and CPC. `/settings/meta/performance`
+carries that through to leads, deals and revenue with cost per lead and return.
+`/settings/meta/conversions` shows what has been reported back to Meta, and
+retries what failed.
+
+Meta's spend is never written into a CRM campaign's own cost: that column is a
+figure a person typed, and an integration that overwrote it would be one nobody
+could correct.
+
+---
+
 ## 9. The audit trail
 
 `/settings/audit-log` — who changed what, and when: field-level changes, logins,

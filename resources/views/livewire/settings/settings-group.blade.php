@@ -44,13 +44,25 @@
                                     wire:model="values.{{ $key }}"
                                 />
                             @elseif ($field->options !== [])
+                                {{-- The modifier belongs to the attribute *name*
+                                     (`wire:model.live`), and Blade cannot compile a
+                                     component tag whose attribute name contains an
+                                     echo: it silently leaves the whole <x-select>
+                                     in the page as literal HTML, so the control
+                                     never renders and the label stands over
+                                     nothing. Built as a bag instead, where the key
+                                     is allowed to vary. --}}
+                                @php($model = new \Illuminate\View\ComponentAttributeBag([
+                                    ($field->live ? 'wire:model.live' : 'wire:model') => 'values.' . $key,
+                                ]))
+
                                 <x-select
                                     :name="'setting-' . $key"
                                     :options="$field->options"
                                     :selected="$this->values[$key] ?? null"
                                     :error="$errors->first('values.' . $key)"
                                     :hint="$field->help"
-                                    wire:model{{ $field->live ? '.live' : '' }}="values.{{ $key }}"
+                                    :attributes="$model"
                                 />
                             @else
                                 <x-form.input

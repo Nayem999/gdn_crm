@@ -32,7 +32,7 @@
                 @endunless
 
                 @can('create', App\Domain\Meta\Models\MetaAccount::class)
-                    <div class="mt-5">
+                    <div class="mt-5 flex flex-wrap items-center gap-3">
                         {{-- A form, not a link: starting an OAuth flow writes the
                              state into the session, and a GET that changes state
                              is a GET somebody's browser can be made to make. --}}
@@ -43,7 +43,63 @@
                                 Connect Meta
                             </x-button>
                         </form>
+
+                        <x-button type="button" variant="secondary" wire:click="$toggle('showToken')">
+                            {{ $showToken ? 'Hide token option' : 'Use an access token instead' }}
+                        </x-button>
                     </div>
+
+                    @if ($showToken)
+                        {{-- For the installations Meta cannot redirect to: it only
+                             returns to a public HTTPS address, so a CRM on a
+                             company network or a laptop has no way through the
+                             flow above. Business Manager gives those a system user
+                             token and a list of asset ids instead. --}}
+                        <div class="mt-5 border-t border-border pt-5">
+                            <h3 class="text-sm font-semibold text-foreground">Connect with an access token</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+                                For a system user token from Business Manager. Meta only redirects to a public HTTPS
+                                address, so this is the way in for a CRM that is not on one. Each identifier is checked
+                                against Meta as it is stored, and told about separately.
+                            </p>
+
+                            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="sm:col-span-2">
+                                    <x-form.label for="meta-token" required>Access token</x-form.label>
+                                    <x-form.password id="meta-token" wire:model="token" autocomplete="off" />
+                                    <x-form.error for="token" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-waba">WhatsApp business account ID</x-form.label>
+                                    <x-form.input id="meta-waba" wire:model="wabaId" />
+                                    <x-form.error for="wabaId" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-page">Facebook Page ID</x-form.label>
+                                    <x-form.input id="meta-page" wire:model="pageId" />
+                                    <x-form.error for="pageId" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-ad-account">Ad account ID</x-form.label>
+                                    <x-form.input id="meta-ad-account" wire:model="adAccountId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        With or without the <code>act_</code> prefix.
+                                    </p>
+                                    <x-form.error for="adAccountId" />
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <x-button type="button" wire:click="connectWithToken" wire:loading.attr="disabled" wire:target="connectWithToken">
+                                    <span wire:loading.remove wire:target="connectWithToken">Connect with this token</span>
+                                    <span wire:loading wire:target="connectWithToken">Checking with Meta&hellip;</span>
+                                </x-button>
+                            </div>
+                        </div>
+                    @endif
                 @endcan
             @else
                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -125,6 +181,63 @@
                     </li>
                 @endforeach
             </ol>
+        </section>
+
+        @if ($tokenResults !== null)
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-foreground">What that token reached</h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    One line per identifier. A wrong one is named rather than throwing away the others.
+                </p>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($tokenResults as $result)
+                        <li class="flex items-start gap-3 py-3">
+                            <span @class([
+                                'mt-0.5 text-xs font-semibold uppercase tracking-wide',
+                                'text-emerald-600 dark:text-emerald-400' => $result['ok'],
+                                'text-destructive' => ! $result['ok'],
+                            ])>
+                                {{ $result['ok'] ? 'Ok' : 'Check' }}
+                            </span>
+
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-foreground">{{ $result['label'] }}</p>
+                                <p class="text-sm text-muted-foreground">{{ $result['detail'] }}</p>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        {{-- The half of the setup that happens in Meta rather than here. --}}
+        <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+            <h2 class="text-sm font-semibold text-foreground">Webhook addresses</h2>
+            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Paste these into the matching product's webhook configuration in your Meta app, with the verify token
+                from
+                <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>.
+                Meta calls the address once to check the token before it will send anything.
+            </p>
+
+            <ul class="mt-4 space-y-2">
+                @foreach ($this->webhookUrls() as $webhook)
+                    <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                        <span class="text-sm font-medium text-foreground">{{ $webhook['label'] }}</span>
+                        <code class="min-w-0 break-all text-xs text-muted-foreground">{{ $webhook['url'] }}</code>
+                    </li>
+                @endforeach
+            </ul>
+
+            @unless (str_starts_with($this->webhookUrls()[0]['url'], 'https://'))
+                <div class="mt-4">
+                    <x-alert variant="info">
+                        These addresses are not public HTTPS ones, so Meta cannot reach them yet. Nothing will arrive
+                        on its own until this CRM is published at an address Meta can call.
+                    </x-alert>
+                </div>
+            @endunless
         </section>
 
         @if ($testResults !== null)

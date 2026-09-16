@@ -70,6 +70,45 @@ test('no other route claims a settings group url', function () {
     }
 });
 
+test('every group renders its components rather than printing them', function (string $group) {
+    // A component tag Blade could not compile is left in the page as literal
+    // text, and the page still returns 200: the label renders, the control does
+    // not, and nothing fails. That is how every select on every settings group
+    // was dead — `wire:model{{ $field->live ? '.live' : '' }}` put an echo in an
+    // attribute *name*, which the component tag compiler will not parse.
+    $html = $this->actingAs(settingsUser(['settings.view', 'settings.update', 'settings.secrets']))
+        ->get(route('settings.group', $group))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->not->toContain('<x-', "[{$group}] printed an uncompiled component tag");
+})->with(SettingsRegistry::groupKeys());
+
+test('a group with a choice renders a usable control for it', function () {
+    // The other half of the same failure: a select whose options never reach the
+    // page cannot be chosen from, so the credentials behind it can never be
+    // entered. WhatsApp is the case that matters — the provider decides which
+    // fields the form offers at all.
+    $html = $this->actingAs(settingsUser(['settings.view', 'settings.update', 'settings.secrets']))
+        ->get(route('settings.group', 'whatsapp'))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('wire:model.live="values.provider"')
+        ->and($html)->toContain('value="cloud_api"')
+        ->and($html)->toContain('value="twilio"');
+});
+
+test('choosing a provider offers that provider\'s credentials', function () {
+    Livewire::actingAs(settingsUser(['settings.view', 'settings.update', 'settings.secrets']))
+        ->test(SettingsGroup::class, ['group' => 'whatsapp'])
+        ->set('values.provider', 'cloud_api')
+        ->assertSee('WhatsApp phone number ID')
+        ->assertSee('Meta access token')
+        // Twilio's fields belong to the provider nobody chose.
+        ->assertDontSee('Account SID');
+});
+
 test('a group the registry does not declare is not routable', function () {
     $this->actingAs(settingsUser(['settings.view']))
         ->get('/settings/made-up-group')

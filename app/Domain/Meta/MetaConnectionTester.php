@@ -6,6 +6,7 @@ use App\Domain\Meta\Auth\MetaAuthService;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\Graph\MetaGraphClient;
 use App\Domain\Meta\Models\MetaAccount;
+use App\Domain\Meta\Models\WhatsAppBusinessAccount;
 use Throwable;
 
 /**
@@ -55,6 +56,7 @@ class MetaConnectionTester
 
         $results[] = $this->pages($account, $token->value);
         $results[] = $this->adAccounts($account, $token->value);
+        $results[] = $this->whatsAppNumber($account);
         $results[] = $this->webhooks();
 
         return $results;
@@ -104,17 +106,42 @@ class MetaConnectionTester
      */
     private function pages(MetaAccount $account, string $token): array
     {
-        try {
-            $response = $this->client->get('me/accounts', ['fields' => 'id,name', 'limit' => 5], $token);
-        } catch (MetaApiException $exception) {
-            return $this->result('pages', 'Facebook Pages', false, $exception->userMessage());
+        // The pages this CRM actually holds, asked for one by one, rather than
+        // "what can this token list". The two differ for a system user token,
+        // which is assigned a page and administers nothing: `me/accounts` comes
+        // back empty and the page it was given works perfectly. Reading the
+        // stored row is also the call every later feature makes, so a pass here
+        // means Messenger and Lead Ads will work rather than merely that Meta
+        // was polite.
+        $pages = $account->pages;
+
+        if ($pages->isEmpty()) {
+            try {
+                $response = $this->client->get('me/accounts', ['fields' => 'id,name', 'limit' => 5], $token);
+            } catch (MetaApiException $exception) {
+                return $this->result('pages', 'Facebook Pages', false, $exception->userMessage());
+            }
+
+            $count = is_array($response['data'] ?? null) ? count($response['data']) : 0;
+
+            return $count > 0
+                ? $this->result('pages', 'Facebook Pages', true, $count.' page'.($count === 1 ? '' : 's').' reachable, none stored yet — re-read from Meta.')
+                : $this->result('pages', 'Facebook Pages', false, 'No pages are available to this account. Check that it administers one, or add the page id when connecting with a token.');
         }
 
-        $count = is_array($response['data'] ?? null) ? count($response['data']) : 0;
+        $unreachable = [];
 
-        return $count > 0
-            ? $this->result('pages', 'Facebook Pages', true, $count.' page'.($count === 1 ? '' : 's').' reachable.')
-            : $this->result('pages', 'Facebook Pages', false, 'No pages are available to this account. Check that it administers one.');
+        foreach ($pages as $page) {
+            try {
+                $this->client->get($page->page_id, ['fields' => 'id'], $page->access_token ?? $token);
+            } catch (MetaApiException) {
+                $unreachable[] = $page->name;
+            }
+        }
+
+        return $unreachable === []
+            ? $this->result('pages', 'Facebook Pages', true, $pages->count().' page'.($pages->count() === 1 ? '' : 's').' reachable.')
+            : $this->result('pages', 'Facebook Pages', false, 'Meta would not answer for '.implode(', ', $unreachable).'. The page token may have been revoked.');
     }
 
     /**
@@ -122,17 +149,73 @@ class MetaConnectionTester
      */
     private function adAccounts(MetaAccount $account, string $token): array
     {
-        try {
-            $response = $this->client->get('me/adaccounts', ['fields' => 'account_id', 'limit' => 5], $token);
-        } catch (MetaApiException $exception) {
-            return $this->result('ad_accounts', 'Ad accounts', false, $exception->userMessage());
+        $adAccounts = $account->adAccounts;
+
+        if ($adAccounts->isEmpty()) {
+            try {
+                $response = $this->client->get('me/adaccounts', ['fields' => 'account_id', 'limit' => 5], $token);
+            } catch (MetaApiException $exception) {
+                return $this->result('ad_accounts', 'Ad accounts', false, $exception->userMessage());
+            }
+
+            $count = is_array($response['data'] ?? null) ? count($response['data']) : 0;
+
+            return $count > 0
+                ? $this->result('ad_accounts', 'Ad accounts', true, $count.' ad account'.($count === 1 ? '' : 's').' reachable, none stored yet — re-read from Meta.')
+                : $this->result('ad_accounts', 'Ad accounts', false, 'No ad accounts are available. Campaign figures will be empty.');
         }
 
-        $count = is_array($response['data'] ?? null) ? count($response['data']) : 0;
+        $unreachable = [];
 
-        return $count > 0
-            ? $this->result('ad_accounts', 'Ad accounts', true, $count.' ad account'.($count === 1 ? '' : 's').' reachable.')
-            : $this->result('ad_accounts', 'Ad accounts', false, 'No ad accounts are available. Campaign figures will be empty.');
+        foreach ($adAccounts as $adAccount) {
+            try {
+                $this->client->get($adAccount->graphId(), ['fields' => 'account_id'], $token);
+            } catch (MetaApiException) {
+                $unreachable[] = $adAccount->name;
+            }
+        }
+
+        return $unreachable === []
+            ? $this->result('ad_accounts', 'Ad accounts', true, $adAccounts->count().' ad account'.($adAccounts->count() === 1 ? '' : 's').' reachable.')
+            : $this->result('ad_accounts', 'Ad accounts', false, 'Meta would not answer for '.implode(', ', $unreachable).'. Check the system user has a role on it.');
+    }
+
+    /**
+     * Whether the number this CRM sends from can actually be reached.
+     *
+     * Its own check rather than part of the scope list, because the scope being
+     * granted and the number being usable are different facts: a token may carry
+     * `whatsapp_business_messaging` and still have no number assigned to it,
+     * which fails at the first message rather than here.
+     *
+     * @return array{key: string, label: string, passed: bool, detail: string}
+     */
+    private function whatsAppNumber(MetaAccount $account): array
+    {
+        $numbers = $account->whatsAppAccounts->flatMap(fn (WhatsAppBusinessAccount $waba) => $waba->phoneNumbers);
+        $sending = $numbers->firstWhere('is_default', true) ?? $numbers->first();
+
+        if ($sending === null) {
+            return $this->result('whatsapp_number', 'WhatsApp number', false,
+                'No WhatsApp number is connected. Add the business account id when connecting, or re-read from Meta.');
+        }
+
+        $token = $sending->businessAccount?->access_token;
+
+        if (! is_string($token) || $token === '') {
+            return $this->result('whatsapp_number', 'WhatsApp number', false,
+                $sending->display_number.' has no stored token. Reconnect the WhatsApp business account.');
+        }
+
+        try {
+            $this->client->get($sending->phone_number_id, ['fields' => 'display_phone_number'], $token);
+        } catch (MetaApiException $exception) {
+            return $this->result('whatsapp_number', 'WhatsApp number', false,
+                'Meta would not answer for '.$sending->display_number.': '.$exception->userMessage());
+        }
+
+        return $this->result('whatsapp_number', 'WhatsApp number', true,
+            'Sending from '.$sending->display_number.'.');
     }
 
     /**

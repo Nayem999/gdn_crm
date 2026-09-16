@@ -62,3 +62,22 @@ rendering nicety: Blade reads `{{` wherever it appears, attribute values
 included, and the failure takes down every test that renders the view. To show a
 literal placeholder (a WhatsApp template's `{{1}}`, say) escape it as `@{{` or
 write the copy without braces.
+
+### An echo in an attribute *name* kills the whole component tag
+Worse than the value case above, because nothing fails. Blade's component tag
+compiler will not parse `<x-select wire:model{{ $live ? '.live' : '' }}="...">`,
+so it leaves the entire `<x-select>` element in the page as literal HTML: the
+label renders, the control does not, the request is still 200, and the only
+symptom is Alpine throwing `Unexpected token '>'` while trying to read
+`:options="$field->options"` as JavaScript. Every select on every settings group
+was dead this way.
+
+Build the attribute as a bag instead, where the key is allowed to vary:
+
+    @php($model = new \Illuminate\View\ComponentAttributeBag([
+        ($field->live ? 'wire:model.live' : 'wire:model') => 'values.' . $key,
+    ]))
+    <x-select ... :attributes="$model" />
+
+`SettingsScreenTest` renders every group and fails on any `<x-` reaching the
+page, which is the cheap guard against this whole class.

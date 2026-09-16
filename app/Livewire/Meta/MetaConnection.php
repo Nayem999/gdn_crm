@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Meta;
 
+use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
 use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Actions\SyncMetaAssetsAction;
+use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConfiguration;
 use App\Domain\Meta\MetaConnectionTester;
@@ -46,6 +48,28 @@ class MetaConnection extends Component
      * @var array<int, array{key: string, label: string, passed: bool, detail: string}>|null
      */
     public ?array $testResults = null;
+
+    /**
+     * The paste-a-token form. Kept shut until somebody asks for it: OAuth is the
+     * way in for installations that can use it, and offering a token box first
+     * would invite people to paste a credential they did not need to.
+     */
+    public bool $showToken = false;
+
+    public string $token = '';
+
+    public string $pageId = '';
+
+    public string $adAccountId = '';
+
+    public string $wabaId = '';
+
+    /**
+     * What each pasted identifier turned out to be, one line each.
+     *
+     * @var array<int, array{label: string, ok: bool, detail: string}>|null
+     */
+    public ?array $tokenResults = null;
 
     public function mount(): void
     {
@@ -140,6 +164,24 @@ class MetaConnection extends Component
         ];
     }
 
+    /**
+     * The three addresses Meta has to be given, and the token it will echo.
+     *
+     * Shown rather than described, because this is the step of the setup that
+     * cannot be done from here: somebody has to paste each URL into Meta's own
+     * webhook configuration, and an address they have to assemble from a
+     * documentation page is one they will assemble wrongly.
+     *
+     * @return array<int, array{label: string, url: string}>
+     */
+    public function webhookUrls(): array
+    {
+        return array_map(fn (MetaChannel $channel): array => [
+            'label' => $channel->label(),
+            'url' => route('api.webhooks.meta', $channel->value),
+        ], MetaChannel::cases());
+    }
+
     // -- Actions ---------------------------------------------------------------
 
     /**
@@ -202,6 +244,45 @@ class MetaConnection extends Component
         $number->forceFill(['is_default' => true])->save();
 
         $this->notice = 'WhatsApp messages will be sent from '.$number->display_number.'.';
+    }
+
+    /**
+     * Connect by pasting a system user token and the ids it was given.
+     *
+     * The token is cleared from the component as soon as it is stored, so it
+     * does not sit in Livewire's state being sent back and forth with every
+     * subsequent click on this screen.
+     */
+    public function connectWithToken(): void
+    {
+        $this->authorize('create', MetaAccount::class);
+
+        $this->validate([
+            'token' => ['required', 'string', 'min:20'],
+            'pageId' => ['nullable', 'string', 'max:64'],
+            'adAccountId' => ['nullable', 'string', 'max:64'],
+            'wabaId' => ['nullable', 'string', 'max:64'],
+        ], [
+            'token.min' => 'That looks too short to be a Meta access token.',
+        ]);
+
+        try {
+            $outcome = app(ConnectMetaWithTokenAction::class)(
+                $this->token,
+                ['page_id' => $this->pageId, 'ad_account_id' => $this->adAccountId, 'waba_id' => $this->wabaId],
+                auth()->user(),
+            );
+        } catch (MetaApiException $exception) {
+            $this->error = $exception->userMessage();
+
+            return;
+        }
+
+        $this->token = '';
+        $this->error = null;
+        $this->tokenResults = $outcome['results'];
+        $this->testResults = null;
+        $this->notice = 'Connected to '.$outcome['account']->name.'.';
     }
 
     public function test(): void

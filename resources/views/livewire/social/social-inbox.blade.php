@@ -1,8 +1,9 @@
 <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h1 class="text-xl font-semibold text-foreground">Social inbox</h1>
+            <h1 class="text-xl font-semibold text-foreground">Chat inbox</h1>
             <p class="text-sm text-muted-foreground">
+                WhatsApp and Facebook Messenger &middot;
                 {{ $waiting }} {{ \Illuminate\Support\Str::plural('conversation', $waiting) }} waiting for a reply.
             </p>
         </div>
@@ -60,7 +61,17 @@
             <div class="overflow-hidden rounded-xl border border-border bg-card">
                 @if ($conversations->isEmpty())
                     <div class="p-6 text-center text-sm text-muted-foreground">
-                        Nothing here. Messages appear the moment somebody writes to a connected page.
+                        Nothing here. Messages appear the moment somebody writes to a connected page or number.
+
+                        @can('viewAny', App\Domain\Meta\Models\MetaAccount::class)
+                            {{-- The commonest reason an inbox stays empty is not
+                                 that nobody wrote: it is that Meta was never told
+                                 where to deliver. Said here, where somebody is
+                                 already wondering. --}}
+                            <a href="{{ route('settings.meta.connect') }}" wire:navigate class="block pt-2 font-medium underline">
+                                Check where replies are delivered
+                            </a>
+                        @endcan
                     </div>
                 @else
                     <ul class="max-h-[32rem] divide-y divide-border overflow-y-auto">

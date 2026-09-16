@@ -180,3 +180,51 @@ test('the layout loads the compiled tailwind stylesheet and the livewire/alpine 
     $response->assertSee('/build/assets/app-', escape: false);
     $response->assertSee('/livewire/livewire.js', escape: false);
 });
+
+test('the marketing section gathers the channels and the advertising', function () {
+    // Task 12: answering a customer on WhatsApp and reading what an
+    // advertisement cost are the same person's morning, and the Meta screens
+    // used to be reachable only by going through Settings.
+    $marketer = User::factory()->create();
+
+    foreach (PermissionResolver::models(['social.inbox.view', 'meta.campaigns.view', 'meta.view']) as $permission) {
+        $marketer->givePermissionTo($permission);
+    }
+
+    $this->actingAs($marketer->fresh())
+        ->get('/')
+        ->assertSuccessful()
+        ->assertSee('Marketing &amp; social', false)
+        ->assertSee('Chat inbox')
+        ->assertSee('Meta ads')
+        ->assertSee(route('settings.meta.campaigns'), false);
+});
+
+test('a heading with nothing under it is not shown at all', function () {
+    // A header standing over no rows tells somebody a feature exists and then
+    // refuses to say where.
+    $stranger = User::factory()->create();
+
+    $this->actingAs($stranger)
+        ->get('/')
+        ->assertSuccessful()
+        ->assertDontSee('Marketing &amp; social', false)
+        ->assertDontSee('Insight');
+});
+
+test('a Meta row in the sidebar does not light up on every settings page', function () {
+    // Every one of those routes begins "settings", and the highlight used to
+    // match on everything before the first dot.
+    $marketer = User::factory()->create();
+
+    foreach (PermissionResolver::models(['meta.campaigns.view', 'settings.view', 'users.view']) as $permission) {
+        $marketer->givePermissionTo($permission);
+    }
+
+    $html = $this->actingAs($marketer->fresh())
+        ->get(route('settings.users'))
+        ->assertSuccessful()
+        ->getContent();
+
+    expect(substr_count($html, 'aria-current="page"'))->toBeLessThanOrEqual(1);
+});

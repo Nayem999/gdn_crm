@@ -317,3 +317,37 @@ test('a connection with no WhatsApp number says so rather than passing quietly',
     expect($results['whatsapp_number']['passed'])->toBeFalse()
         ->and($results['whatsapp_number']['detail'])->toContain('No WhatsApp number is connected');
 });
+
+test('the token form is open when there is nothing connected', function () {
+    metaTokenFake();
+
+    // It was behind a button, which hid the only way in for every installation
+    // Meta cannot redirect to.
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSet('showToken', true)
+        ->assertSee('Ad account ID')
+        ->assertSee('Ads Manager')
+        ->assertSee('WhatsApp business account ID');
+});
+
+test('the webhook addresses are built from the configured address, not the current host', function () {
+    config(['app.url' => 'https://crm.goldeninfotech.com.bd']);
+
+    // Somebody setting Meta up is usually looking at a development host, and an
+    // address printed from *this* request would be one Meta can never call.
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('https://crm.goldeninfotech.com.bd/api/webhooks/meta/whatsapp')
+        ->assertSee('Where replies arrive')
+        // The field to subscribe, which decides whether anything is delivered.
+        ->assertSee('leadgen');
+});
+
+test('an installation Meta cannot reach is told so plainly', function () {
+    config(['app.url' => 'http://localhost:8080']);
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('no reply will arrive here');
+});

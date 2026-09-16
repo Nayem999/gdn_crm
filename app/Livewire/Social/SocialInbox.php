@@ -40,7 +40,7 @@ use Throwable;
  * the record, and the panel links to it rather than reimplementing it badly in a
  * third of a screen.
  */
-#[Title('Social inbox')]
+#[Title('Chat inbox')]
 class SocialInbox extends Component
 {
     use AuthorizesRequests;

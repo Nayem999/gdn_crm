@@ -50,9 +50,12 @@ class MetaConnection extends Component
     public ?array $testResults = null;
 
     /**
-     * The paste-a-token form. Kept shut until somebody asks for it: OAuth is the
-     * way in for installations that can use it, and offering a token box first
-     * would invite people to paste a credential they did not need to.
+     * The paste-a-token form, open when nothing is connected yet.
+     *
+     * OAuth stays the first option offered, but it is not available to every
+     * installation — Meta only redirects to a public HTTPS address — and a
+     * token form hidden behind a button is a way in that the person holding a
+     * system user token cannot tell exists.
      */
     public bool $showToken = false;
 
@@ -77,6 +80,12 @@ class MetaConnection extends Component
 
         $this->error = session('error');
         $this->notice = session('status');
+
+        // Open when there is nothing connected yet. The button was hiding the
+        // only way in for every installation Meta cannot redirect to, and an
+        // administrator holding a system user token could not tell this screen
+        // would take one.
+        $this->showToken = $this->account() === null;
     }
 
     public function account(): ?MetaAccount
@@ -176,10 +185,29 @@ class MetaConnection extends Component
      */
     public function webhookUrls(): array
     {
+        // Built on the **configured** address rather than the one this request
+        // arrived on. Somebody setting Meta up is usually looking at a
+        // development host, and a panel that printed "localhost:8123" would
+        // hand them an address Meta can never call — which fails silently,
+        // weeks later, as messages that simply never arrive.
+        $base = rtrim((string) config('app.url'), '/');
+
         return array_map(fn (MetaChannel $channel): array => [
             'label' => $channel->label(),
-            'url' => route('api.webhooks.meta', $channel->value),
+            'url' => $base.route('api.webhooks.meta', $channel->value, false),
+            // What to subscribe on Meta's side. Naming it here saves a trip to
+            // the documentation for the one detail that decides whether
+            // anything is delivered at all.
+            'field' => $channel->field(),
         ], MetaChannel::cases());
+    }
+
+    /**
+     * Whether Meta could actually reach this installation.
+     */
+    public function isReachable(): bool
+    {
+        return str_starts_with(rtrim((string) config('app.url'), '/'), 'https://');
     }
 
     // -- Actions ---------------------------------------------------------------

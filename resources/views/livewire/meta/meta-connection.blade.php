@@ -45,7 +45,7 @@
                         </form>
 
                         <x-button type="button" variant="secondary" wire:click="$toggle('showToken')">
-                            {{ $showToken ? 'Hide token option' : 'Use an access token instead' }}
+                            {{ $showToken ? 'Hide the token form' : 'Connect with an access token instead' }}
                         </x-button>
                     </div>
 
@@ -73,12 +73,19 @@
                                 <div>
                                     <x-form.label for="meta-waba">WhatsApp business account ID</x-form.label>
                                     <x-form.input id="meta-waba" wire:model="wabaId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        Business Manager &rarr; WhatsApp accounts. Its numbers are read from Meta, so
+                                        the phone number ID is not asked for here.
+                                    </p>
                                     <x-form.error for="wabaId" />
                                 </div>
 
                                 <div>
                                     <x-form.label for="meta-page">Facebook Page ID</x-form.label>
                                     <x-form.input id="meta-page" wire:model="pageId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        Page settings &rarr; About. Needed for Messenger and Lead Ads.
+                                    </p>
                                     <x-form.error for="pageId" />
                                 </div>
 
@@ -86,7 +93,8 @@
                                     <x-form.label for="meta-ad-account">Ad account ID</x-form.label>
                                     <x-form.input id="meta-ad-account" wire:model="adAccountId" />
                                     <p class="mt-1.5 text-xs text-muted-foreground">
-                                        With or without the <code>act_</code> prefix.
+                                        Ads Manager &rarr; Account overview, with or without the <code>act_</code>
+                                        prefix. This is what campaign spend is read from.
                                     </p>
                                     <x-form.error for="adAccountId" />
                                 </div>
@@ -211,33 +219,47 @@
             </section>
         @endif
 
-        {{-- The half of the setup that happens in Meta rather than here. --}}
+        {{-- The half of the setup that happens in Meta rather than here: where
+             a customer's reply actually arrives. --}}
         <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
-            <h2 class="text-sm font-semibold text-foreground">Webhook addresses</h2>
+            <h2 class="text-sm font-semibold text-foreground">Where replies arrive</h2>
             <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Paste these into the matching product's webhook configuration in your Meta app, with the verify token
-                from
-                <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>.
-                Meta calls the address once to check the token before it will send anything.
+                A WhatsApp or Messenger reply reaches this CRM only if Meta is told where to deliver it. Paste each
+                address into that product's webhook configuration in your Meta app, subscribe the field beside it, and
+                use the verify token from
+                <a href="{{ route('settings.group', 'meta') }}" wire:navigate class="font-medium underline">Settings &rarr; Meta</a>
+                — Meta calls the address once to check that token before it will send anything.
             </p>
 
             <ul class="mt-4 space-y-2">
                 @foreach ($this->webhookUrls() as $webhook)
-                    <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                        <span class="text-sm font-medium text-foreground">{{ $webhook['label'] }}</span>
-                        <code class="min-w-0 break-all text-xs text-muted-foreground">{{ $webhook['url'] }}</code>
+                    <li class="rounded-lg border border-border px-3 py-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="text-sm font-medium text-foreground">{{ $webhook['label'] }}</span>
+                            <span class="text-xs text-muted-foreground">
+                                subscribe <code>{{ $webhook['field'] }}</code>
+                            </span>
+                        </div>
+                        <code class="mt-1 block break-all text-xs text-muted-foreground">{{ $webhook['url'] }}</code>
                     </li>
                 @endforeach
             </ul>
 
-            @unless (str_starts_with($this->webhookUrls()[0]['url'], 'https://'))
-                <div class="mt-4">
+            <div class="mt-4">
+                @if (! $this->isReachable())
                     <x-alert variant="info">
-                        These addresses are not public HTTPS ones, so Meta cannot reach them yet. Nothing will arrive
-                        on its own until this CRM is published at an address Meta can call.
+                        These are built from this installation's configured address, which is not a public HTTPS one —
+                        so Meta cannot call it and no reply will arrive here, whatever is pasted into Meta. Sending,
+                        templates and the advertising figures all work from here regardless; only inbound messages need
+                        the CRM published at an address Meta can reach.
                     </x-alert>
-                </div>
-            @endunless
+                @elseif (! $this->isAppConfigured() || ! app(App\Domain\Meta\MetaConfiguration::class)->canVerifyWebhooks())
+                    <x-alert variant="info">
+                        Set a webhook verify token under Settings &rarr; Meta before subscribing, or Meta's check call
+                        will be refused and the subscription will not save.
+                    </x-alert>
+                @endif
+            </div>
         </section>
 
         @if ($testResults !== null)

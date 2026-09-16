@@ -1,6 +1,12 @@
 @php
+    use Illuminate\Support\Str;
+
     // Modules gain a route as their phase lands; the rest stay inert
     // placeholders rather than pretending to be links.
+    //
+    // A `section` entry is a heading for the rows beneath it, and it is shown
+    // only when at least one of them is. A header standing over nothing tells
+    // somebody a feature exists and then refuses to say where.
     $navigation = [
         ['label' => 'Dashboard', 'icon' => 'layout-dashboard', 'route' => 'dashboard'],
         ['label' => 'Leads', 'icon' => 'target', 'route' => 'leads.index', 'permission' => 'leads.view'],
@@ -13,18 +19,14 @@
         ['label' => 'Quotes', 'icon' => 'file-text', 'route' => 'quotes.index', 'permission' => 'quotes.view'],
         ['label' => 'Support', 'icon' => 'life-buoy', 'route' => 'tickets.index', 'permission' => 'tickets.view'],
         ['label' => 'Knowledge', 'icon' => 'book-open', 'route' => 'knowledge.index', 'permission' => 'knowledge.view'],
-        ['label' => 'Campaigns', 'icon' => 'megaphone', 'route' => 'campaigns.index', 'permission' => 'campaigns.view'],
-        // One entry for every channel. 12.14 gathers this and the Meta screens
-        // into a Marketing & Social section; until then it sits beside the
-        // module it feeds, which is where somebody answering customers looks.
-        ['label' => 'Social inbox', 'icon' => 'messages-square', 'route' => 'social.inbox', 'permission' => 'social.inbox.view'],
-        ['label' => 'Reports', 'icon' => 'bar-chart-3', 'route' => 'reports.index', 'permission' => 'reports.view'],
-        ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
+
     ];
 
-    // Modules an administrator added at runtime, appended after the built-in
-    // ones. Read through the memoised registry, so this costs one query per
-    // request however many there are.
+    // Modules an administrator added at runtime, added after the built-in ones
+    // and **before** the headed sections below: appended at the very end they
+    // would sit under whichever heading happened to be last, which would file a
+    // module called Projects under "Insight". Read through the memoised
+    // registry, so this costs one query per request however many there are.
     if (auth()->user()?->can('custom-modules.view')) {
         foreach (app(\App\Domain\CustomModules\CustomModuleRegistry::class)->all() as $custom) {
             $navigation[] = [
@@ -33,6 +35,41 @@
                 'route' => 'custom-modules.index',
                 'params' => ['module' => $custom->moduleKey()],
             ];
+        }
+    }
+
+    // Everything Meta touches, gathered where somebody would look for it.
+    // Answering a customer on WhatsApp and reading what an advertisement cost
+    // are the same person's morning, and the Meta screens were previously
+    // reachable only by going through Settings — which is where an integration
+    // is *configured*, not where it is used.
+    $navigation = array_merge($navigation, [
+        ['section' => 'Marketing & social'],
+        ['label' => 'Campaigns', 'icon' => 'megaphone', 'route' => 'campaigns.index', 'permission' => 'campaigns.view'],
+        ['label' => 'Chat inbox', 'icon' => 'messages-square', 'route' => 'social.inbox', 'permission' => 'social.inbox.view'],
+        ['label' => 'Meta ads', 'icon' => 'trending-up', 'route' => 'settings.meta.campaigns', 'permission' => 'meta.campaigns.view'],
+        ['label' => 'Meta conversions', 'icon' => 'target', 'route' => 'settings.meta.conversions', 'permission' => 'meta.view'],
+
+        ['section' => 'Insight'],
+        ['label' => 'Reports', 'icon' => 'bar-chart-3', 'route' => 'reports.index', 'permission' => 'reports.view'],
+        ['label' => 'Automation', 'icon' => 'zap', 'route' => 'workflows.index', 'permission' => 'workflows.view'],
+    ]);
+
+    // Which headings have something under them. Worked out once here rather
+    // than peered at during the loop, because "is any later row visible" is a
+    // question about the list, not about the row being drawn.
+    $visibleSections = [];
+    $openSection = null;
+
+    foreach ($navigation as $entry) {
+        if (isset($entry['section'])) {
+            $openSection = $entry['section'];
+
+            continue;
+        }
+
+        if ($openSection !== null && ! (isset($entry['permission']) && ! auth()->user()?->can($entry['permission']))) {
+            $visibleSections[$openSection] = true;
         }
     }
 @endphp
@@ -65,13 +102,33 @@
 
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         @foreach ($navigation as $item)
+            @if (isset($item['section']))
+                @continue(! isset($visibleSections[$item['section']]))
+
+                <p class="px-3 pb-1 pt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {{ $item['section'] }}
+                </p>
+
+                @continue
+            @endif
+
             @continue(isset($item['permission']) && ! auth()->user()?->can($item['permission']))
 
             @php
                 // Generated modules pass route parameters; the built-in ones
                 // take none.
                 $url = isset($item['route']) ? route($item['route'], $item['params'] ?? []) : null;
-                $active = isset($item['route']) && request()->routeIs(str($item['route'])->before('.')->value() . '*')
+
+                // Matched on the whole route name for anything under settings,
+                // and on the module prefix otherwise. Without the distinction
+                // every Meta row in this list lights up on every settings page,
+                // because they all begin "settings".
+                $pattern = isset($item['route']) && Str::startsWith($item['route'], 'settings.')
+                    ? $item['route']
+                    : Str::before((string) ($item['route'] ?? ''), '.').'*';
+
+                $active = isset($item['route'])
+                    && request()->routeIs($pattern)
                     && $item['route'] !== 'dashboard';
 
                 // Several generated modules share one route name, so the

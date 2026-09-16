@@ -2,6 +2,7 @@
 
 namespace App\Domain\Social\Models;
 
+use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Social\Enums\ConversationStatus;
@@ -52,6 +53,8 @@ class SocialConversation extends Model
     /** @use HasFactory<SocialConversationFactory> */
     use HasFactory;
 
+    use RecordsActivity;
+
     /**
      * `status`, `unread_count` and `window_expires_at` are absent: the actions
      * own them. Nothing that records a message may declare that somebody has
@@ -97,6 +100,24 @@ class SocialConversation extends Model
             'last_message_at' => 'datetime',
             'window_expires_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Only what a person decided.
+     *
+     * A conversation's other columns move on every message that arrives —
+     * `last_message_at`, `unread_count`, `window_expires_at` — and logging those
+     * would bury the entries that matter under one row per delivery, in the one
+     * screen somebody opens to find out who did what.
+     *
+     * What is left is the audit trail people actually ask for: who took the
+     * conversation, who closed it, and which record it was attached to.
+     *
+     * @return list<string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'assigned_to_id', 'lead_id', 'contact_id'];
     }
 
     /**

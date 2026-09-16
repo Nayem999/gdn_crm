@@ -2,6 +2,7 @@
 
 namespace App\Domain\Meta\Analytics;
 
+use App\Domain\Company\Models\Company;
 use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -114,8 +115,23 @@ class CampaignPerformance
             deals: (int) $rows->sum('deals'),
             won: (int) $rows->sum('won'),
             revenue: (float) $rows->sum('revenue'),
+            revenueCurrency: $this->revenueCurrency(),
             reportedLeads: (int) $rows->sum('reportedLeads'),
         );
+    }
+
+    /**
+     * What this company's own money is counted in.
+     *
+     * Read once per request: the deals carry no currency of their own — the
+     * company has one — and the comparison with Meta's matters because the two
+     * are frequently different.
+     */
+    private function revenueCurrency(): ?string
+    {
+        $currency = Company::current()->currency;
+
+        return $currency === '' ? null : $currency;
     }
 
     /**
@@ -162,6 +178,7 @@ class CampaignPerformance
                     deals: (int) ($deal->total ?? 0),
                     won: (int) ($deal->won ?? 0),
                     revenue: (float) ($deal->revenue ?? 0),
+                    revenueCurrency: $this->revenueCurrency(),
                     reportedLeads: (int) ($money->leads ?? 0),
                 );
             })

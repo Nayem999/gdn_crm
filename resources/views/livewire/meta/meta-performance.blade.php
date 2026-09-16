@@ -116,9 +116,21 @@
                                 <td class="py-3 pr-4 text-right text-muted-foreground">{{ $row->qualified }}</td>
                                 <td class="py-3 pr-4 text-right text-muted-foreground">{{ $this->money($row->costPerQualifiedLead(), $row->currency) }}</td>
                                 <td class="py-3 pr-4 text-right text-muted-foreground">{{ $row->won }}</td>
-                                <td class="py-3 pr-4 text-right text-muted-foreground">{{ $this->money($row->revenue, $row->currency) }}</td>
+                                {{-- The company's currency, not the ad account's:
+                                     a business paying Meta in dollars and
+                                     invoicing in taka must not see its revenue
+                                     labelled with Meta's. --}}
+                                <td class="py-3 pr-4 text-right text-muted-foreground">{{ $this->money($row->revenue, $row->revenueCurrency) }}</td>
                                 <td class="py-3 text-right">
-                                    @if ($row->roi() === null)
+                                    @if ($row->mixesCurrencies())
+                                        {{-- Subtracting dollars from taka gives a
+                                             percentage that looks authoritative
+                                             and means nothing. --}}
+                                        <span
+                                            class="cursor-help text-muted-foreground"
+                                            title="Spend is in {{ $row->currency }} and revenue in {{ $row->revenueCurrency }}. A return needs both in one currency."
+                                        >&mdash;</span>
+                                    @elseif ($row->roi() === null)
                                         <span class="text-muted-foreground">&mdash;</span>
                                     @else
                                         <span @class([
@@ -140,6 +152,16 @@
                     </tbody>
                 </table>
             </div>
+
+            @if ($total->mixesCurrencies())
+                <div class="mt-4">
+                    <x-alert variant="info">
+                        Meta bills this advertising in {{ $total->currency }} and this company counts its revenue in
+                        {{ $total->revenueCurrency }}, so return is left unanswered rather than computed across the two.
+                        Cost per lead is still shown: it is spend divided by a count, which stays in one currency.
+                    </x-alert>
+                </div>
+            @endif
 
             <p class="mt-4 max-w-3xl text-xs text-muted-foreground">
                 A dash means the question cannot be answered yet rather than that the answer is zero — a campaign that

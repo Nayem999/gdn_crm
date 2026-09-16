@@ -2,6 +2,7 @@
 
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Attribution\MarketingAttribution;
+use App\Domain\Company\Models\Company;
 use App\Domain\Dashboard\DashboardKpis;
 use App\Domain\Dashboard\DashboardScope;
 use App\Domain\Dashboard\Enums\DashboardPeriod;
@@ -99,6 +100,11 @@ function adPerfLead(User $owner, string $campaignId, string $status = 'new', str
 
 beforeEach(function () {
     Carbon::setTestNow('2026-09-16 12:00:00');
+
+    // The fixtures spend in BDT, so the company counts in BDT. Leaving the two
+    // to differ by accident is exactly the mistake the currency rules exist to
+    // catch, and it would make every return in this file unanswerable.
+    Company::current()->forceFill(['currency' => 'BDT'])->save();
 });
 
 afterEach(function () {
@@ -359,4 +365,80 @@ test('an installation that does not advertise carries no empty cards', function 
     ))->pluck('key');
 
     expect($keys)->not->toContain('meta_spend');
+});
+
+// -- Two currencies ------------------------------------------------------------
+
+test('revenue is labelled with the company\'s currency, not the ad account\'s', function () {
+    Company::current()->forceFill(['currency' => 'BDT'])->save();
+
+    $user = adPerfUser();
+    adPerfCampaign();
+    // Meta charged in dollars.
+    MetaInsight::query()->create([
+        'level' => MetaAdLevel::Campaign->value,
+        'entity_id' => '120200000000001',
+        'date' => '2026-09-10',
+        'spend' => 100,
+        'impressions' => 500,
+        'clicks' => 10,
+        'currency' => 'USD',
+        'read_at' => now(),
+    ]);
+
+    $lead = adPerfLead($user, '120200000000001', LeadStatus::Converted->value);
+    $deal = Deal::factory()->create(['value' => 400000, 'stage' => DealStage::Won->value, 'owner_id' => $user->id]);
+    $lead->copyAttributionTo($deal);
+
+    $row = app(CampaignPerformance::class)
+        ->campaigns($user, Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'))
+        ->firstOrFail();
+
+    expect($row->currency)->toBe('USD')
+        ->and($row->revenueCurrency)->toBe('BDT')
+        ->and($row->mixesCurrencies())->toBeTrue()
+        // Subtracting dollars from taka gives a percentage that looks
+        // authoritative and means nothing — 399,900% in this case.
+        ->and($row->roi())->toBeNull()
+        // Cost per lead survives: it is spend over a count, which stays in one
+        // currency.
+        ->and($row->costPerLead())->toBe(100.0);
+});
+
+test('a return is computed when both sides are the same money', function () {
+    Company::current()->forceFill(['currency' => 'BDT'])->save();
+
+    $user = adPerfUser();
+    adPerfCampaign();
+    adPerfSpend('120200000000001', MetaAdLevel::Campaign, 100000);
+
+    $lead = adPerfLead($user, '120200000000001', LeadStatus::Converted->value);
+    $deal = Deal::factory()->create(['value' => 400000, 'stage' => DealStage::Won->value, 'owner_id' => $user->id]);
+    $lead->copyAttributionTo($deal);
+
+    $row = app(CampaignPerformance::class)
+        ->campaigns($user, Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'))
+        ->firstOrFail();
+
+    expect($row->mixesCurrencies())->toBeFalse()
+        ->and($row->roi())->toBe(300.0);
+});
+
+test('the screen says why a return is missing rather than leaving a bare dash', function () {
+    Company::current()->forceFill(['currency' => 'BDT'])->save();
+
+    adPerfCampaign();
+    MetaInsight::query()->create([
+        'level' => MetaAdLevel::Campaign->value,
+        'entity_id' => '120200000000001',
+        'date' => Carbon::now()->toDateString(),
+        'spend' => 100,
+        'currency' => 'USD',
+        'read_at' => now(),
+    ]);
+
+    Livewire::actingAs(adPerfUser())
+        ->test(MetaPerformance::class)
+        ->assertSee('Meta bills this advertising in USD')
+        ->assertSee('return is left unanswered');
 });

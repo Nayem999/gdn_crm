@@ -22,6 +22,7 @@ readonly class PerformanceRow
         public string $id,
         public string $name,
         public float $spend = 0.0,
+        /** What Meta charged in — the ad account's currency, not ours. */
         public ?string $currency = null,
         public int $impressions = 0,
         public int $clicks = 0,
@@ -30,6 +31,13 @@ readonly class PerformanceRow
         public int $deals = 0,
         public int $won = 0,
         public float $revenue = 0.0,
+        /**
+         * What the revenue is in — the company's currency, which is often not
+         * the one the advertising was billed in. A Bangladeshi business paying
+         * Meta in dollars and invoicing in taka is the ordinary case, not the
+         * exception.
+         */
+        public ?string $revenueCurrency = null,
         /** Meta's own reported lead count, which is not ours. See below. */
         public int $reportedLeads = 0,
     ) {}
@@ -74,10 +82,37 @@ readonly class PerformanceRow
      * Revenue **minus** spend over spend, so 100% means the campaign doubled
      * its money and 0% means it broke even — not the ratio some tools print as
      * "ROI" where 100% means it lost everything.
+     *
+     * **Null when the two sides are in different currencies.** Subtracting
+     * dollars from taka produces a number with no meaning, and a percentage is
+     * exactly the shape that hides it: an installation paying Meta in USD and
+     * invoicing in BDT would read a return of several hundred thousand per cent
+     * and believe it. Converting would need a rate this application does not
+     * have and could not date correctly — the spend is from the day it was
+     * charged, the revenue from the day the deal closed — so it refuses to
+     * answer rather than inventing one.
      */
     public function roi(): ?float
     {
-        return $this->spend <= 0.0 ? null : round((($this->revenue - $this->spend) / $this->spend) * 100, 1);
+        if ($this->spend <= 0.0 || $this->mixesCurrencies()) {
+            return null;
+        }
+
+        return round((($this->revenue - $this->spend) / $this->spend) * 100, 1);
+    }
+
+    /**
+     * Whether the money on the two sides of this row is the same money.
+     *
+     * Unknown currencies are treated as comparable: an installation that has
+     * never set one is not asking a question about exchange rates, and refusing
+     * every figure would be worse than answering in whatever it uses.
+     */
+    public function mixesCurrencies(): bool
+    {
+        return $this->currency !== null
+            && $this->revenueCurrency !== null
+            && $this->currency !== $this->revenueCurrency;
     }
 
     /**

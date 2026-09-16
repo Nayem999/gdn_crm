@@ -6,6 +6,7 @@ use App\Domain\Activities\Actions\CreateActivityAction;
 use App\Domain\Activities\DTOs\ActivityData;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Meta\Models\MetaAd;
 use App\Domain\Social\Actions\AssignConversationAction;
 use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Actions\SendSocialMessageAction;
@@ -400,6 +401,27 @@ class SocialInbox extends Component
     /**
      * What the lead or contact link points at.
      */
+    /**
+     * The campaign behind the advertisement this conversation came from.
+     *
+     * Null when the advertisement has not been synced — which is honest rather
+     * than unhelpful: showing an id nobody recognises would be worse than
+     * showing the headline alone, and the next sync makes the name appear.
+     */
+    public function referralCampaign(): ?string
+    {
+        $referral = $this->selected()?->referral();
+
+        if ($referral === null || ! $referral->namesAnAd()) {
+            return null;
+        }
+
+        return MetaAd::query()
+            ->with('campaign')
+            ->where('meta_ad_id', $referral->adId)
+            ->first()?->campaign?->name;
+    }
+
     public function subjectRoute(Lead|Contact|null $subject): ?string
     {
         return match (true) {

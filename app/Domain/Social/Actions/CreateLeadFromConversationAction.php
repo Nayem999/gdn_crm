@@ -7,6 +7,7 @@ use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Social\Models\SocialConversation;
+use App\Domain\Social\Referrals\ReferralAttributionAction;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -28,7 +29,10 @@ use Illuminate\Support\Carbon;
  */
 class CreateLeadFromConversationAction
 {
-    public function __construct(private readonly CreateLeadAction $createLead) {}
+    public function __construct(
+        private readonly CreateLeadAction $createLead,
+        private readonly ReferralAttributionAction $referralAttribution,
+    ) {}
 
     /**
      * @param  Carbon|null  $capturedAt  When they first wrote. Their moment, not
@@ -52,13 +56,20 @@ class CreateLeadFromConversationAction
             ),
         ]), $owner);
 
-        $lead->recordAttribution(new MarketingAttribution(
-            source: $channel->leadSource(),
-            sourceDetail: $conversation->displayName(),
-            // 12.11 fills the campaign side in from the referral payload a
-            // click-to-message advertisement carries.
-            capturedAt: $capturedAt ?? $conversation->last_message_at ?? Carbon::now(),
-        ));
+        $moment = $capturedAt ?? $conversation->last_message_at ?? Carbon::now();
+        $referral = $conversation->referral();
+
+        // Read from the conversation rather than passed in, so the automatic
+        // path and the inbox button attribute identically — including weeks
+        // later, when the only remaining record of the advertisement is the one
+        // the thread kept.
+        $lead->recordAttribution($referral !== null
+            ? ($this->referralAttribution)($referral, $channel, $conversation->displayName(), $moment)
+            : new MarketingAttribution(
+                source: $channel->leadSource(),
+                sourceDetail: $conversation->displayName(),
+                capturedAt: $moment,
+            ));
 
         $conversation->forceFill(['lead_id' => $lead->getKey()])->save();
 

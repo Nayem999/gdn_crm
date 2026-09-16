@@ -260,6 +260,32 @@
         <div class="lg:col-span-3">
             @if ($selected !== null)
                 <div class="space-y-4 rounded-xl border border-border bg-card p-4">
+                    @php($referral = $selected->referral())
+
+                    @if ($referral !== null)
+                        {{-- Which advertisement started this. Worth the space at
+                             the top of the panel: an agent who knows what the
+                             customer was promised answers the question they
+                             actually have. --}}
+                        <div class="rounded-lg border border-border bg-background p-3">
+                            <h2 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Came from an advertisement
+                            </h2>
+
+                            <p class="mt-1.5 text-sm font-medium text-foreground">{{ $referral->label() }}</p>
+
+                            @if ($referral->body)
+                                <p class="mt-1 text-xs text-muted-foreground">{{ $referral->body }}</p>
+                            @endif
+
+                            @if ($this->referralCampaign() !== null)
+                                <p class="mt-2 text-xs text-muted-foreground">
+                                    Campaign: {{ $this->referralCampaign() }}
+                                </p>
+                            @endif
+                        </div>
+                    @endif
+
                     <div>
                         <h2 class="text-sm font-semibold text-foreground">In the CRM</h2>
 

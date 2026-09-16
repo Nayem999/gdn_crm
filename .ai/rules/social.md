@@ -38,3 +38,21 @@ beats a numeric error code from Meta.
 
 Placeholders come from the body text, never from Meta's `example` block: the
 example is optional and the `{{1}}` in the body is not.
+
+## The referral arrives once, and only on the first message
+Meta names the advertisement a conversation came from in a `referral` object on
+the customer's **first** message. It is not repeated on their second, it is not
+on the conversation, and it cannot be fetched afterwards — so a thread that did
+not store it has permanently lost which campaign won the customer.
+
+`social_conversations.referral` keeps it, first touch wins, and both the
+automatic lead and the inbox's "create lead" button read it from there, so they
+attribute identically however long apart they happen.
+
+Meta spells the same fact differently per channel: WhatsApp `source_id` +
+`ctwa_clid`, Messenger `ad_id` + `ref`. `ClickToMessageReferral` reads both;
+never read the array directly.
+
+A customer already in the CRM gets `enrichAttribution` (gaps filled, first-touch
+`captured_at` kept), never `recordAttribution` — an advertisement they clicked
+today does not rewrite where they originally came from.

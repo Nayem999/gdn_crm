@@ -9,8 +9,11 @@ use App\Domain\Social\Enums\MessageStatus;
 use App\Domain\Social\MessagingWindow;
 use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Social\Models\SocialMessage;
+use App\Domain\Social\Referrals\ClickToMessageReferral;
+use App\Domain\Social\Referrals\ReferralAttributionAction;
 use App\Jobs\FetchWhatsAppMedia;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,6 +50,7 @@ class RecordInboundMessageAction
     public function __construct(
         private readonly CreateLeadFromConversationAction $createLeadFromConversation,
         private readonly MatchConversationToRecordAction $match,
+        private readonly ReferralAttributionAction $referralAttribution,
     ) {}
 
     /**
@@ -101,6 +105,17 @@ class RecordInboundMessageAction
             if ($value !== null && $value !== '' && blank($conversation->getAttributeValue($column))) {
                 $conversation->setAttribute($column, $value);
             }
+        }
+
+        // The advertisement that started this, kept the first time it is seen.
+        // Meta sends it once — not on the customer's second message, and never
+        // on request — so a thread that did not keep it has permanently lost
+        // which campaign won the customer. First touch wins for the same reason
+        // attribution does: a later click is a second visit, not a correction.
+        $referral = ClickToMessageReferral::fromPayload($inbound->referral);
+
+        if ($referral !== null && $conversation->referral() === null) {
+            $conversation->setAttribute('referral', $referral->toArray());
         }
 
         if (! $conversation->exists) {
@@ -205,6 +220,25 @@ class RecordInboundMessageAction
     }
 
     /**
+     * Fill in what the advertisement knows about a record that already exists.
+     */
+    private function enrich(Model $record, SocialConversation $conversation): void
+    {
+        $referral = $conversation->referral();
+
+        if ($referral === null || ! method_exists($record, 'enrichAttribution')) {
+            return;
+        }
+
+        $record->enrichAttribution(($this->referralAttribution)(
+            $referral,
+            $conversation->channel(),
+            $conversation->displayName(),
+            $conversation->last_message_at,
+        ));
+    }
+
+    /**
      * Give the conversation a lead, when it has nothing yet.
      */
     private function identify(SocialConversation $conversation, InboundSocialMessage $inbound, ?User $owner): void
@@ -216,7 +250,15 @@ class RecordInboundMessageAction
         // Somebody the CRM already knows. A WhatsApp thread is a telephone
         // number, so a customer of ten years writing for the first time on
         // WhatsApp joins their own record rather than becoming a stranger.
-        if (($this->match)($conversation)) {
+        $matched = ($this->match)($conversation);
+
+        if ($matched !== null) {
+            // Their record already says where they came from, and an
+            // advertisement they clicked today does not rewrite two years of
+            // history. `enrichAttribution` fills the gaps only — which is how
+            // the campaign still gets credit for starting the conversation.
+            $this->enrich($matched, $conversation);
+
             return;
         }
 

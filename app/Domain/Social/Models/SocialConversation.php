@@ -7,6 +7,7 @@ use App\Domain\Leads\Models\Lead;
 use App\Domain\Social\Enums\ConversationStatus;
 use App\Domain\Social\Enums\SocialChannel;
 use App\Domain\Social\MessagingWindow;
+use App\Domain\Social\Referrals\ClickToMessageReferral;
 use App\Models\User;
 use Database\Factories\SocialConversationFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,8 +73,8 @@ class SocialConversation extends Model
     ];
 
     /**
-     * `channel()` and `status()` are named after their columns, so both keys
-     * must be present on every instance — see
+     * `channel()`, `status()` and `referral()` are named after their columns, so
+     * every one of those keys must be present on every instance — see
      * .ai/rules/models-name-collisions.md.
      *
      * @var array<string, mixed>
@@ -82,6 +83,7 @@ class SocialConversation extends Model
         'channel' => SocialChannel::Messenger->value,
         'status' => ConversationStatus::Open->value,
         'unread_count' => 0,
+        'referral' => null,
     ];
 
     /**
@@ -91,6 +93,7 @@ class SocialConversation extends Model
     {
         return [
             'unread_count' => 'integer',
+            'referral' => 'array',
             'last_message_at' => 'datetime',
             'window_expires_at' => 'datetime',
         ];
@@ -126,6 +129,20 @@ class SocialConversation extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    /**
+     * The advertisement this conversation started from, if it did.
+     *
+     * Named after its own column, so it carries a default in `$attributes` and
+     * reads through `getAttributeValue()` — see
+     * .ai/rules/models-name-collisions.md for what happens otherwise.
+     */
+    public function referral(): ?ClickToMessageReferral
+    {
+        $referral = $this->getAttributeValue('referral');
+
+        return ClickToMessageReferral::fromPayload(is_array($referral) ? $referral : null);
     }
 
     public function channel(): SocialChannel

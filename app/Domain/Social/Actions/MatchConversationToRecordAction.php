@@ -34,14 +34,19 @@ use Illuminate\Database\Eloquent\Model;
 class MatchConversationToRecordAction
 {
     /**
-     * Link the conversation to a record it matches, and say whether it did.
+     * Link the conversation to a record it matches, and hand that record back.
+     *
+     * The record rather than a yes: whoever asked usually has something to do
+     * with it — 12.11 fills in the advertisement the customer came from — and
+     * fetching it a second time by the same fingerprint would be a second chance
+     * to disagree about which record matched.
      */
-    public function __invoke(SocialConversation $conversation): bool
+    public function __invoke(SocialConversation $conversation): ?Model
     {
         $fingerprint = $this->fingerprint($conversation);
 
         if ($fingerprint === null) {
-            return false;
+            return null;
         }
 
         $contact = $this->find(Contact::class, $fingerprint);
@@ -55,7 +60,7 @@ class MatchConversationToRecordAction
                 'lead_id' => $conversation->lead_id,
             ])->save();
 
-            return true;
+            return $contact;
         }
 
         $lead = $this->find(Lead::class, $fingerprint);
@@ -63,10 +68,10 @@ class MatchConversationToRecordAction
         if ($lead instanceof Lead) {
             $conversation->forceFill(['lead_id' => $lead->getKey()])->save();
 
-            return true;
+            return $lead;
         }
 
-        return false;
+        return null;
     }
 
     /**

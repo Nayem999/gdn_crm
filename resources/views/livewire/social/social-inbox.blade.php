@@ -1,9 +1,9 @@
 <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h1 class="text-xl font-semibold text-foreground">Chat inbox</h1>
+            <h1 class="text-xl font-semibold text-foreground">{{ $this->heading() }}</h1>
             <p class="text-sm text-muted-foreground">
-                WhatsApp and Facebook Messenger &middot;
+                {{ $this->subheading() }} &middot;
                 {{ $waiting }} {{ \Illuminate\Support\Str::plural('conversation', $waiting) }} waiting for a reply.
             </p>
         </div>

@@ -68,6 +68,21 @@ class MetaConnection extends Component
     public string $wabaId = '';
 
     /**
+     * A token per asset, where Meta issued separate ones.
+     *
+     * Left blank they fall back to the connection's token, which is what a
+     * single system user holding every asset looks like. Filled in, each is
+     * stored against its own asset — which is what a business that was given
+     * three tokens actually has, and refusing them would mean refusing
+     * credentials that work.
+     */
+    public string $pageToken = '';
+
+    public string $wabaToken = '';
+
+    public string $adsToken = '';
+
+    /**
      * What each pasted identifier turned out to be, one line each.
      *
      * @var array<int, array{label: string, ok: bool, detail: string}>|null
@@ -290,14 +305,27 @@ class MetaConnection extends Component
             'pageId' => ['nullable', 'string', 'max:64'],
             'adAccountId' => ['nullable', 'string', 'max:64'],
             'wabaId' => ['nullable', 'string', 'max:64'],
+            'pageToken' => ['nullable', 'string', 'min:20'],
+            'wabaToken' => ['nullable', 'string', 'min:20'],
+            'adsToken' => ['nullable', 'string', 'min:20'],
         ], [
             'token.min' => 'That looks too short to be a Meta access token.',
+            'pageToken.min' => 'That looks too short to be a page access token.',
+            'wabaToken.min' => 'That looks too short to be an access token.',
+            'adsToken.min' => 'That looks too short to be an access token.',
         ]);
 
         try {
             $outcome = app(ConnectMetaWithTokenAction::class)(
                 $this->token,
-                ['page_id' => $this->pageId, 'ad_account_id' => $this->adAccountId, 'waba_id' => $this->wabaId],
+                [
+                    'page_id' => $this->pageId,
+                    'ad_account_id' => $this->adAccountId,
+                    'waba_id' => $this->wabaId,
+                    'page_token' => $this->pageToken,
+                    'ads_token' => $this->adsToken,
+                    'waba_token' => $this->wabaToken,
+                ],
                 auth()->user(),
             );
         } catch (MetaApiException $exception) {
@@ -306,7 +334,13 @@ class MetaConnection extends Component
             return;
         }
 
+        // Cleared the moment they are stored, so no credential sits in the
+        // component's state being shipped back and forth with every later click
+        // on this screen.
         $this->token = '';
+        $this->pageToken = '';
+        $this->wabaToken = '';
+        $this->adsToken = '';
         $this->error = null;
         $this->tokenResults = $outcome['results'];
         $this->testResults = null;

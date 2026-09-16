@@ -195,7 +195,8 @@ test('the marketing section gathers the channels and the advertising', function 
         ->get('/')
         ->assertSuccessful()
         ->assertSee('Marketing &amp; social', false)
-        ->assertSee('Chat inbox')
+        ->assertSee('WhatsApp chat')
+        ->assertSee('Messenger chat')
         ->assertSee('Meta ads')
         ->assertSee(route('settings.meta.campaigns'), false);
 });
@@ -227,4 +228,35 @@ test('a Meta row in the sidebar does not light up on every settings page', funct
         ->getContent();
 
     expect(substr_count($html, 'aria-current="page"'))->toBeLessThanOrEqual(1);
+});
+
+test('the two chat channels are separate rows onto one screen', function () {
+    $agent = User::factory()->create();
+    $agent->givePermissionTo(PermissionResolver::models(['social.inbox.view'])[0]);
+
+    $html = $this->actingAs($agent->fresh())
+        ->get('/')
+        ->assertSuccessful()
+        ->assertSee('WhatsApp chat')
+        ->assertSee('Messenger chat')
+        ->getContent();
+
+    // One screen, filtered — not two inboxes, because the window rules,
+    // templates and assignment are the same whichever channel was used.
+    expect($html)->toContain(route('social.inbox', ['channel' => 'whatsapp']))
+        ->and($html)->toContain(route('social.inbox', ['channel' => 'messenger']));
+});
+
+test('only the channel being read is highlighted', function () {
+    $agent = User::factory()->create();
+    $agent->givePermissionTo(PermissionResolver::models(['social.inbox.view'])[0]);
+
+    $html = $this->actingAs($agent->fresh())
+        ->get(route('social.inbox', ['channel' => 'whatsapp']))
+        ->assertSuccessful()
+        ->getContent();
+
+    // Both rows point at the same route, so without comparing the query both
+    // would light up whichever one somebody opened.
+    expect(substr_count($html, 'aria-current="page"'))->toBe(1);
 });

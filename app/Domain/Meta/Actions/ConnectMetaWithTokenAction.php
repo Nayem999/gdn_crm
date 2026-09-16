@@ -49,7 +49,7 @@ class ConnectMetaWithTokenAction
     ) {}
 
     /**
-     * @param  array{page_id?: string|null, ad_account_id?: string|null, waba_id?: string|null}  $assets
+     * @param  array{page_id?: string|null, ad_account_id?: string|null, waba_id?: string|null, page_token?: string|null, waba_token?: string|null, ads_token?: string|null}  $assets
      * @return array{account: MetaAccount, results: array<int, array{label: string, ok: bool, detail: string}>}
      *
      * @throws MetaApiException when the token itself is refused
@@ -86,12 +86,26 @@ class ConnectMetaWithTokenAction
 
         $results = [$this->tokenResult($inspection)];
 
-        foreach (['page_id' => 'page', 'ad_account_id' => 'adAccount', 'waba_id' => 'whatsApp'] as $key => $method) {
+        // Each asset may carry a token of its own. Meta hands them out that
+        // way as often as not — a page token from the app's own settings, a
+        // permanent token for the WhatsApp business account, another for the ad
+        // account — and a screen that took one token would either refuse
+        // credentials that work or quietly store the wrong one against an
+        // asset. Where no separate token is given the connection's own is used,
+        // which is what a single system user token with every asset assigned to
+        // it actually looks like.
+        $assetTokens = [
+            'page_id' => ['page', $this->clean($assets['page_token'] ?? null)],
+            'ad_account_id' => ['adAccount', $this->clean($assets['ads_token'] ?? null)],
+            'waba_id' => ['whatsApp', $this->clean($assets['waba_token'] ?? null)],
+        ];
+
+        foreach ($assetTokens as $key => [$method, $assetToken]) {
             $id = $this->clean($assets[$key] ?? null);
 
             if ($id !== null) {
                 /** @var array{label: string, ok: bool, detail: string} $result */
-                $result = $this->{$method}($account, $id, $token);
+                $result = $this->{$method}($account, $id, $assetToken ?? $token);
                 $results[] = $result;
             }
         }
@@ -186,21 +200,25 @@ class ConnectMetaWithTokenAction
             'name' => is_string($row['name'] ?? null) ? $row['name'] : 'Facebook page',
             'category' => is_string($row['category'] ?? null) ? $row['category'] : null,
             // A page token is what Messenger sends and Lead Ads retrieves with.
-            // Without one the page is readable and useless, so say so rather
-            // than storing a row that looks finished.
-            'access_token' => is_string($row['access_token'] ?? null) ? $row['access_token'] : null,
+            // Meta's answer where it gave one, else whatever token reached the
+            // page — which for a pasted page token is that token itself, and it
+            // is the credential every later call will use.
+            'access_token' => is_string($row['access_token'] ?? null) ? $row['access_token'] : $token,
             'last_synced_at' => now(),
         ], fn (mixed $value): bool => $value !== null))->save();
 
-        $hasToken = $page->refresh()->access_token !== null;
+        // Meta's own page token where it gave one, and otherwise the token that
+        // reached the page. Both work; saying which is stored is the difference
+        // between somebody trusting this screen and somebody checking Meta.
+        $ownToken = is_string($row['access_token'] ?? null);
 
         return [
             'label' => 'Facebook Page',
-            'ok' => $hasToken,
-            'detail' => $hasToken
-                ? $page->name.' is connected, with a page token.'
-                : $page->name.' was found, but Meta returned no page token for it. Messenger and Lead Ads both need one: '
-                    .'give the system user a role on the page, or paste the page access token under Settings → Meta.',
+            'ok' => true,
+            'detail' => $page->name.($ownToken
+                ? ' is connected, with the page token Meta issued.'
+                : ' is connected, using the token you supplied — Meta issued no separate page token for it, which is '
+                    .'normal for a system user. Messenger and Lead Ads will call with this one.'),
         ];
     }
 

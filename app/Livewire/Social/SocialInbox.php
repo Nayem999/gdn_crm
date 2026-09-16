@@ -317,6 +317,30 @@ class SocialInbox extends Component
     }
 
     /**
+     * What this inbox is called while a channel is chosen.
+     *
+     * The sidebar offers WhatsApp and Messenger as separate rows onto this one
+     * screen, so the heading has to follow the filter — a page titled "Chat
+     * inbox" while showing only WhatsApp reads as though the other channel is
+     * missing rather than filtered out.
+     */
+    public function heading(): string
+    {
+        $channel = SocialChannel::tryFrom($this->channel);
+
+        return $channel === null ? 'Chat inbox' : $channel->label().' chat';
+    }
+
+    public function subheading(): string
+    {
+        return match (SocialChannel::tryFrom($this->channel)) {
+            SocialChannel::WhatsApp => 'Replies are free for 24 hours after the customer writes; outside that, only an approved template.',
+            SocialChannel::Messenger => 'Replies are free for 7 days after the customer writes.',
+            default => 'WhatsApp and Facebook Messenger',
+        };
+    }
+
+    /**
      * The conversations this filter describes.
      *
      * @return EloquentCollection<int, SocialConversation>

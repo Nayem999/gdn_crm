@@ -56,3 +56,17 @@ never read the array directly.
 A customer already in the CRM gets `enrichAttribution` (gaps filled, first-touch
 `captured_at` kept), never `recordAttribution` — an advertisement they clicked
 today does not rewrite where they originally came from.
+
+## Messenger has history; WhatsApp has none
+`GET /{page-id}/conversations` returns a Page's past conversations with their
+messages, so an inbox connected today can be filled with what came before.
+`GET /{waba-id}/conversations` and `/messages` answer **"(#100) Tried accessing
+nonexisting field"** — the WhatsApp Cloud API has no history endpoint at all. A
+WhatsApp thread therefore begins at the first delivered webhook and there is
+nothing to backfill; say so rather than offering a button that returns nothing.
+
+`ImportMessengerHistoryAction` threads on the **customer's page-scoped id**, not
+Meta's `t_` conversation id, so an imported thread and a later live delivery are
+one conversation. It is idempotent on the message id, and it creates **no leads**
+unless an owner is passed: a stranger writing today is an enquiry worth a lead,
+two years of history is not.

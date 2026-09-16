@@ -46,7 +46,12 @@
     $navigation = array_merge($navigation, [
         ['section' => 'Marketing & social'],
         ['label' => 'Campaigns', 'icon' => 'megaphone', 'route' => 'campaigns.index', 'permission' => 'campaigns.view'],
-        ['label' => 'Chat inbox', 'icon' => 'messages-square', 'route' => 'social.inbox', 'permission' => 'social.inbox.view'],
+        // Two rows onto one screen, pre-filtered. Not two screens: the reply
+        // window, the templates, the assignment and the lead creation are the
+        // same rules whichever channel a customer used, and a second copy of
+        // them is a second place for the same bug to be fixed once.
+        ['label' => 'WhatsApp chat', 'icon' => 'message-circle', 'route' => 'social.inbox', 'query' => ['channel' => 'whatsapp'], 'permission' => 'social.inbox.view'],
+        ['label' => 'Messenger chat', 'icon' => 'messages-square', 'route' => 'social.inbox', 'query' => ['channel' => 'messenger'], 'permission' => 'social.inbox.view'],
         ['label' => 'Meta ads', 'icon' => 'trending-up', 'route' => 'settings.meta.campaigns', 'permission' => 'meta.campaigns.view'],
         ['label' => 'Meta conversions', 'icon' => 'target', 'route' => 'settings.meta.conversions', 'permission' => 'meta.view'],
 
@@ -117,7 +122,9 @@
             @php
                 // Generated modules pass route parameters; the built-in ones
                 // take none.
-                $url = isset($item['route']) ? route($item['route'], $item['params'] ?? []) : null;
+                $url = isset($item['route'])
+                    ? route($item['route'], array_merge($item['params'] ?? [], $item['query'] ?? []))
+                    : null;
 
                 // Matched on the whole route name for anything under settings,
                 // and on the module prefix otherwise. Without the distinction
@@ -136,6 +143,14 @@
                 // together.
                 if ($active && isset($item['params']['module'])) {
                     $active = request()->route('module') === $item['params']['module'];
+                }
+
+                // Same for two rows onto one screen: without this both channels
+                // are highlighted whichever one is being read.
+                if ($active && isset($item['query'])) {
+                    foreach ($item['query'] as $key => $value) {
+                        $active = $active && request()->query($key) === $value;
+                    }
                 }
             @endphp
 

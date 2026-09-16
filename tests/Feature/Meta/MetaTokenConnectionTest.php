@@ -351,3 +351,109 @@ test('an installation Meta cannot reach is told so plainly', function () {
         ->test(MetaConnection::class)
         ->assertSee('no reply will arrive here');
 });
+
+test('a token per asset is stored against that asset', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/106069340959538?*' => Http::response([
+            'id' => '106069340959538',
+            'name' => 'Golden Info Systems Ltd.',
+        ]),
+        'graph.facebook.com/*/1405962320928347?*' => Http::response([
+            'id' => '1405962320928347',
+            'name' => 'GIS WhatsApp',
+        ]),
+        'graph.facebook.com/*/1405962320928347/phone_numbers*' => Http::response(['data' => [
+            ['id' => '1310844125447923', 'display_phone_number' => '+880 1895-657039'],
+        ]]),
+    ]);
+
+    // Meta issues tokens per asset, and a business holding three different ones
+    // is the ordinary case rather than the exception.
+    app(ConnectMetaWithTokenAction::class)('EAAbusinesssystemusertoken', [
+        'page_id' => '106069340959538',
+        'page_token' => 'EAApagetokenvaluehere',
+        'waba_id' => '1405962320928347',
+        'waba_token' => 'EAAwhatsapptokenvalue',
+    ], metaTokenConnector());
+
+    expect(MetaPage::query()->where('page_id', '106069340959538')->value('access_token'))
+        ->toBe('EAApagetokenvaluehere')
+        ->and(WhatsAppBusinessAccount::query()->where('waba_id', '1405962320928347')->value('access_token'))
+        ->toBe('EAAwhatsapptokenvalue');
+});
+
+test('an asset with no token of its own falls back to the connection', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/1405962320928347?*' => Http::response(['id' => '1405962320928347', 'name' => 'GIS WhatsApp']),
+        'graph.facebook.com/*/1405962320928347/phone_numbers*' => Http::response(['data' => [
+            ['id' => '1310844125447923', 'display_phone_number' => '+880 1895-657039'],
+        ]]),
+    ]);
+
+    // One system user holding every asset is equally ordinary, and it must not
+    // mean typing the same token four times.
+    app(ConnectMetaWithTokenAction::class)('EAAbusinesssystemusertoken', [
+        'waba_id' => '1405962320928347',
+    ], metaTokenConnector());
+
+    expect(WhatsAppBusinessAccount::query()->where('waba_id', '1405962320928347')->value('access_token'))
+        ->toBe('EAAbusinesssystemusertoken');
+});
+
+test('the screen takes a token for each asset and keeps none of them afterwards', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response([
+            'account_id' => '23914816791552795',
+            'name' => 'GIS Ads',
+            'currency' => 'BDT',
+        ]),
+    ]);
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('Holding three tokens is normal')
+        ->set('token', 'EAAbusinesssystemusertoken')
+        ->set('adAccountId', '23914816791552795')
+        ->set('adsToken', 'EAAadsmonitoringtokenvalue')
+        ->call('connectWithToken')
+        ->assertHasNoErrors()
+        ->assertSet('token', '')
+        ->assertSet('adsToken', '');
+
+    expect(MetaAdAccount::query()->where('ad_account_id', '23914816791552795')->exists())->toBeTrue();
+
+    // Read with the ad account's own token, not the business one.
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'act_23914816791552795')
+        && str_contains((string) $request->header('Authorization')[0], 'EAAadsmonitoringtokenvalue'));
+});
+
+test('an asset can still be added once something is connected', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response([
+            'account_id' => '23914816791552795',
+            'name' => 'GIS Ads',
+            'currency' => 'BDT',
+        ]),
+    ]);
+
+    // Connected with one of the three tokens, which is what happens: the form
+    // used to disappear the moment anything was connected, leaving nowhere to
+    // put the other two.
+    MetaAccount::factory()->create(['business_id' => '55500011122233', 'user_token' => 'EAAbusinesssystemusertoken']);
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        // Shut by default now — there *is* a connection — but reachable.
+        ->assertSet('showToken', false)
+        ->assertSee('Add an asset, or replace a token')
+        ->set('showToken', true)
+        ->set('token', 'EAAbusinesssystemusertoken')
+        ->set('adAccountId', '23914816791552795')
+        ->set('adsToken', 'EAAadsmonitoringtokenvalue')
+        ->call('connectWithToken')
+        ->assertHasNoErrors();
+
+    expect(MetaAdAccount::query()->where('ad_account_id', '23914816791552795')->exists())->toBeTrue()
+        // Still one connection, not a second alongside it.
+        ->and(MetaAccount::query()->count())->toBe(1);
+});

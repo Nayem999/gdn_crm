@@ -49,65 +49,6 @@
                         </x-button>
                     </div>
 
-                    @if ($showToken)
-                        {{-- For the installations Meta cannot redirect to: it only
-                             returns to a public HTTPS address, so a CRM on a
-                             company network or a laptop has no way through the
-                             flow above. Business Manager gives those a system user
-                             token and a list of asset ids instead. --}}
-                        <div class="mt-5 border-t border-border pt-5">
-                            <h3 class="text-sm font-semibold text-foreground">Connect with an access token</h3>
-                            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
-                                For a system user token from Business Manager. Meta only redirects to a public HTTPS
-                                address, so this is the way in for a CRM that is not on one. Each identifier is checked
-                                against Meta as it is stored, and told about separately.
-                            </p>
-
-                            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div class="sm:col-span-2">
-                                    <x-form.label for="meta-token" required>Access token</x-form.label>
-                                    <x-form.password id="meta-token" wire:model="token" autocomplete="off" />
-                                    <x-form.error for="token" />
-                                </div>
-
-                                <div>
-                                    <x-form.label for="meta-waba">WhatsApp business account ID</x-form.label>
-                                    <x-form.input id="meta-waba" wire:model="wabaId" />
-                                    <p class="mt-1.5 text-xs text-muted-foreground">
-                                        Business Manager &rarr; WhatsApp accounts. Its numbers are read from Meta, so
-                                        the phone number ID is not asked for here.
-                                    </p>
-                                    <x-form.error for="wabaId" />
-                                </div>
-
-                                <div>
-                                    <x-form.label for="meta-page">Facebook Page ID</x-form.label>
-                                    <x-form.input id="meta-page" wire:model="pageId" />
-                                    <p class="mt-1.5 text-xs text-muted-foreground">
-                                        Page settings &rarr; About. Needed for Messenger and Lead Ads.
-                                    </p>
-                                    <x-form.error for="pageId" />
-                                </div>
-
-                                <div>
-                                    <x-form.label for="meta-ad-account">Ad account ID</x-form.label>
-                                    <x-form.input id="meta-ad-account" wire:model="adAccountId" />
-                                    <p class="mt-1.5 text-xs text-muted-foreground">
-                                        Ads Manager &rarr; Account overview, with or without the <code>act_</code>
-                                        prefix. This is what campaign spend is read from.
-                                    </p>
-                                    <x-form.error for="adAccountId" />
-                                </div>
-                            </div>
-
-                            <div class="mt-4">
-                                <x-button type="button" wire:click="connectWithToken" wire:loading.attr="disabled" wire:target="connectWithToken">
-                                    <span wire:loading.remove wire:target="connectWithToken">Connect with this token</span>
-                                    <span wire:loading wire:target="connectWithToken">Checking with Meta&hellip;</span>
-                                </x-button>
-                            </div>
-                        </div>
-                    @endif
                 @endcan
             @else
                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -160,6 +101,111 @@
                 </div>
             @endif
         </section>
+
+        @can('create', App\Domain\Meta\Models\MetaAccount::class)
+            {{-- Offered whether or not something is connected. Meta issues a
+                 token per asset, so a business that connected with one of them
+                 must be able to come back and add the others — and a form that
+                 disappeared the moment anything was connected left them
+                 nowhere to put the other two. --}}
+            @if ($showToken)
+                <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                        {{-- For the installations Meta cannot redirect to: it only
+                             returns to a public HTTPS address, so a CRM on a
+                             company network or a laptop has no way through the
+                             flow above. Business Manager gives those a system user
+                             token and a list of asset ids instead. --}}
+                        <div class="mt-5 border-t border-border pt-5">
+                            <h3 class="text-sm font-semibold text-foreground">Connect with an access token</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+                                For a system user token from Business Manager. Meta only redirects to a public HTTPS
+                                address, so this is the way in for a CRM that is not on one. Each identifier is checked
+                                against Meta as it is stored, and told about separately.
+                            </p>
+
+                        <p class="mt-2 max-w-2xl text-sm text-muted-foreground">
+                            <strong class="font-medium text-foreground">Holding three tokens is normal.</strong>
+                            Meta issues them per asset — one for the ad account, one for the Page, one for the
+                            WhatsApp business account — and they are often not the same string. Put the one that
+                            identifies the business at the top and each asset's own beside it. Leave an asset's token
+                            blank and the one at the top is used for it, which is what a single system user holding
+                            everything looks like.
+                        </p>
+
+                            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="sm:col-span-2">
+                                    <x-form.label for="meta-token" required>Access token</x-form.label>
+                                    <x-form.password id="meta-token" wire:model="token" autocomplete="off" />
+                                    <x-form.error for="token" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-waba">WhatsApp business account ID</x-form.label>
+                                    <x-form.input id="meta-waba" wire:model="wabaId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        Business Manager &rarr; WhatsApp accounts. Its numbers are read from Meta, so
+                                        the phone number ID is not asked for here.
+                                    </p>
+                                    <x-form.error for="wabaId" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-waba-token">WhatsApp access token</x-form.label>
+                                    <x-form.password id="meta-waba-token" wire:model="wabaToken" autocomplete="off" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">Only if it differs from the one above.</p>
+                                    <x-form.error for="wabaToken" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-page">Facebook Page ID</x-form.label>
+                                    <x-form.input id="meta-page" wire:model="pageId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        Page settings &rarr; About. Needed for Messenger and Lead Ads.
+                                    </p>
+                                    <x-form.error for="pageId" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-page-token">Page access token</x-form.label>
+                                    <x-form.password id="meta-page-token" wire:model="pageToken" autocomplete="off" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">The token Messenger replies are sent with.</p>
+                                    <x-form.error for="pageToken" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-ad-account">Ad account ID</x-form.label>
+                                    <x-form.input id="meta-ad-account" wire:model="adAccountId" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">
+                                        Ads Manager &rarr; Account overview, with or without the <code>act_</code>
+                                        prefix. This is what campaign spend is read from.
+                                    </p>
+                                    <x-form.error for="adAccountId" />
+                                </div>
+
+                                <div>
+                                    <x-form.label for="meta-ads-token">Ads access token</x-form.label>
+                                    <x-form.password id="meta-ads-token" wire:model="adsToken" autocomplete="off" />
+                                    <p class="mt-1.5 text-xs text-muted-foreground">Only if it differs from the one above.</p>
+                                    <x-form.error for="adsToken" />
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <x-button type="button" wire:click="connectWithToken" wire:loading.attr="disabled" wire:target="connectWithToken">
+                                    <span wire:loading.remove wire:target="connectWithToken">Connect with this token</span>
+                                    <span wire:loading wire:target="connectWithToken">Checking with Meta&hellip;</span>
+                                </x-button>
+                            </div>
+                        </div>
+                </section>
+            @else
+                <div class="mt-6">
+                    <x-button type="button" variant="secondary" wire:click="$toggle('showToken')">
+                        Add an asset, or replace a token
+                    </x-button>
+                </div>
+            @endif
+        @endcan
 
         {{-- What still has to happen. §32's steps, as state rather than as a
              sequence: these are the questions somebody comes back with in three

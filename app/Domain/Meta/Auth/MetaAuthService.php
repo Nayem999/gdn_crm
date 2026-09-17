@@ -95,7 +95,10 @@ class MetaAuthService
                 'client_id' => $appId,
                 'redirect_uri' => $redirectUri,
                 'state' => $state,
-                'scope' => implode(',', self::SCOPES),
+                // What this installation asks for, which is not always
+                // everything: an app still awaiting review for one permission
+                // must be able to connect for the rest.
+                'scope' => implode(',', $this->config->scopes()),
                 // Code, not token: the implicit flow would put a credential in a
                 // URL fragment, which is a credential in the browser's history.
                 'response_type' => 'code',
@@ -180,7 +183,11 @@ class MetaAuthService
      */
     public function missingScopes(array $granted): array
     {
-        return array_values(array_diff(self::SCOPES, $granted));
+        // Against what was **asked for**, not against everything this
+        // application can use: a permission deliberately not requested is not
+        // missing, and reporting it as such would leave a red line on the
+        // screen that nobody can ever clear.
+        return array_values(array_diff($this->config->scopes(), $granted));
     }
 
     /**

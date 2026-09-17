@@ -2,6 +2,7 @@
 
 namespace App\Domain\Meta;
 
+use App\Domain\Meta\Auth\MetaAuthService;
 use App\Domain\Settings\SettingsManager;
 
 /**
@@ -72,6 +73,41 @@ class MetaConfiguration
         // has never opened the settings screen still has to be able to call
         // Meta. An administrator's override wins when it is a real version.
         return MetaApiVersion::resolve($this->stored('graph_version'));
+    }
+
+    /**
+     * The permissions this installation asks Meta for.
+     *
+     * Configurable, and that is not a nicety. Meta refuses the whole consent
+     * screen with **"Invalid Scopes"** when an app asks for a permission it has
+     * not been approved for — `leads_retrieval` being the usual one, since Lead
+     * Ads needs App Review before an app may request it at all. An installation
+     * whose app is still under review must be able to connect for Messenger,
+     * WhatsApp and advertising in the meantime rather than being locked out of
+     * everything by the one permission it does not have yet.
+     *
+     * Only names this application actually uses are honoured: an unknown scope
+     * is dropped rather than passed through, because the value goes straight
+     * into a URL somebody is sent to, and a typo there is a consent screen that
+     * fails with Meta's own unhelpful wording.
+     *
+     * @return array<int, string>
+     */
+    public function scopes(): array
+    {
+        $configured = $this->stored('scopes');
+
+        if ($configured === null) {
+            return MetaAuthService::SCOPES;
+        }
+
+        $asked = array_filter(array_map('trim', explode(',', $configured)));
+
+        $known = array_values(array_intersect(MetaAuthService::SCOPES, $asked));
+
+        // Everything removed leaves nothing to ask for, which Meta answers with
+        // a different error again. The full set is a better answer than none.
+        return $known === [] ? MetaAuthService::SCOPES : $known;
     }
 
     /**

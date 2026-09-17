@@ -214,6 +214,11 @@ final class SettingsRegistry
                         'Any hard-to-guess string. Meta echoes it back once when a webhook is subscribed; it has to match what you typed into the Meta app.'),
                     SettingField::text('dataset_id', 'Dataset (pixel) ID',
                         'Only needed to report CRM outcomes back to Meta through the Conversions API.'),
+                    SettingField::text('scopes', 'Permissions to request',
+                        'Leave blank to ask for everything this CRM can use. Meta refuses the whole sign-in with '
+                        .'"Invalid Scopes" if the app has not been approved for one of them — usually leads_retrieval, '
+                        .'which needs App Review — so list the rest here, comma separated, to connect meanwhile. '
+                        .'Connecting with an access token instead does not use these at all.'),
                     new SettingField('graph_version', 'Graph API version', SettingType::String,
                         default: null,
                         help: 'Leave blank to use the version this application ships with. Meta retires a version about two years after release.',

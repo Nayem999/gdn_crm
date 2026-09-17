@@ -96,9 +96,20 @@ class MetaConnectionTester
      */
     private function scope(array $granted, string $scope, string $key, string $label): array
     {
-        return in_array($scope, $granted, true)
-            ? $this->result($key, $label, true, 'Granted.')
-            : $this->result($key, $label, false, 'Meta has not granted '.$scope.'. Reconnect and allow it, or check whether the app has been reviewed for it.');
+        if (in_array($scope, $granted, true)) {
+            return $this->result($key, $label, true, 'Granted.');
+        }
+
+        // A permission this installation deliberately does not ask for is not
+        // missing. An app still awaiting review for `leads_retrieval` has to
+        // leave it out or Meta refuses the whole sign-in, and a red line nobody
+        // can ever clear teaches people to ignore the whole panel.
+        if (! in_array($scope, app(MetaConfiguration::class)->scopes(), true)) {
+            return $this->result($key, $label, false,
+                'Not requested by this installation. Add '.$scope.' under Settings → Meta once Meta has approved the app for it.');
+        }
+
+        return $this->result($key, $label, false, 'Meta has not granted '.$scope.'. Reconnect and allow it, or check whether the app has been reviewed for it.');
     }
 
     /**

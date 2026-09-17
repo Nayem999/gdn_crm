@@ -2,9 +2,11 @@
 
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
+use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Auth\MetaAuthService;
 use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Graph\MetaApiException;
+use App\Domain\Meta\MetaConfiguration;
 use App\Domain\Meta\MetaConnectionTester;
 use App\Domain\Meta\MetaUrls;
 use App\Domain\Meta\Models\MetaAccount;
@@ -628,4 +630,109 @@ test('more than one number asks which to send from', function () {
         ->stages())->keyBy('label');
 
     expect($stages['WhatsApp number']['detail'])->toContain('Choose which of the 2 numbers');
+});
+
+// -- Which permissions are asked for ------------------------------------------
+
+test('an installation can leave out a permission its app is not approved for', function () {
+    metaTokenFake();
+
+    // Meta refuses the whole consent screen with "Invalid Scopes" when an app
+    // asks for a permission it has not been reviewed for. Lead Ads is the usual
+    // one, and it must not lock a business out of Messenger and WhatsApp too.
+    app(SettingsManager::class)->set('meta.scopes', 'pages_messaging, ads_read, whatsapp_business_messaging');
+
+    $url = app(MetaAuthService::class)->authorizeUrl('state', 'https://crm.test/callback');
+
+    expect($url)->toContain('pages_messaging')
+        ->and($url)->not->toContain('leads_retrieval');
+});
+
+test('a scope this application does not use is dropped rather than sent', function () {
+    metaTokenFake();
+
+    // The value goes straight into a URL somebody is sent to.
+    app(SettingsManager::class)->set('meta.scopes', 'ads_read, drop_database, <script>');
+
+    expect(app(MetaConfiguration::class)->scopes())->toBe(['ads_read']);
+});
+
+test('clearing the setting asks for everything again', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.scopes', '');
+
+    expect(app(MetaConfiguration::class)->scopes())
+        ->toBe(MetaAuthService::SCOPES);
+});
+
+test('a permission nobody asked for is reported as not requested, not as refused', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.scopes', 'pages_messaging, ads_read, whatsapp_business_messaging');
+
+    $account = MetaAccount::factory()->create([
+        'granted_scopes' => ['pages_messaging', 'ads_read', 'whatsapp_business_messaging'],
+    ]);
+
+    $results = collect(app(MetaConnectionTester::class)->run($account))->keyBy('key');
+
+    // A red line nobody can ever clear teaches people to ignore the panel.
+    expect($results['leads']['detail'])->toContain('Not requested by this installation')
+        ->and($results['messenger']['passed'])->toBeTrue();
+});
+
+// -- Disconnecting -------------------------------------------------------------
+
+test('after disconnecting, nothing in the setup still claims to work', function () {
+    metaTokenFake();
+
+    $account = MetaAccount::factory()->create(['user_token' => 'EAAlivetoken']);
+
+    MetaPage::query()->create([
+        'meta_account_id' => $account->id,
+        'page_id' => '106069340959538',
+        'name' => 'Golden Info Systems Ltd.',
+        'access_token' => 'page-token',
+        'is_subscribed' => true,
+    ]);
+
+    MetaAdAccount::query()->create([
+        'meta_account_id' => $account->id,
+        'ad_account_id' => '23914816791552795',
+        'name' => 'GIS Ads',
+    ]);
+
+    $waba = WhatsAppBusinessAccount::query()->create([
+        'meta_account_id' => $account->id,
+        'waba_id' => '1405962320928347',
+        'name' => 'GIS WhatsApp',
+        'access_token' => 'waba-token',
+    ]);
+
+    WhatsAppPhoneNumber::query()->create([
+        'whatsapp_business_account_id' => $waba->id,
+        'phone_number_id' => '1310844125447923',
+        'display_number' => '+880 1895-657039',
+        'is_default' => true,
+    ]);
+
+    app(DisconnectMetaAccountAction::class)($account);
+
+    $stages = collect(Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->instance()
+        ->stages())->keyBy('label');
+
+    // The rows stay — every lead attributed to a form on that page still points
+    // at it — but nothing may still read as working.
+    expect($stages['Business connected']['done'])->toBeFalse()
+        ->and($stages['Facebook Pages']['done'])->toBeFalse()
+        ->and($stages['Ad accounts']['done'])->toBeFalse()
+        ->and($stages['WhatsApp number']['done'])->toBeFalse()
+        ->and($stages['WhatsApp number']['detail'])->toContain('nothing can be sent')
+        ->and($stages['Facebook Pages']['detail'])->toContain('none usable');
+
+    // And every token is gone, which is what "disconnect" has to mean.
+    expect(MetaPage::query()->value('access_token'))->toBeNull()
+        ->and(WhatsAppBusinessAccount::query()->value('access_token'))->toBeNull()
+        ->and($account->fresh()->user_token)->toBeNull();
 });

@@ -72,3 +72,26 @@ is not a better answer than the http one, it is an address that serves nothing.
 Both sides of OAuth ask `MetaUrls::callback()` — Meta compares the redirect_uri
 sent at the consent screen with the one sent at the exchange and refuses a
 mismatch, so they cannot be generated independently.
+
+## One unapproved permission refuses the whole consent screen
+Meta answers an OAuth request containing a scope the app has not been reviewed
+for with **"Invalid Scopes"**, and the sign-in fails entirely — so
+`leads_retrieval`, which needs App Review, locks a business out of Messenger,
+WhatsApp and advertising as well.
+
+`meta.scopes` therefore configures what is asked for, defaulting to everything
+this application can use. Only names in `MetaAuthService::SCOPES` are honoured:
+the value goes straight into a URL somebody is sent to. `missingScopes()` and
+the connection tester compare against what was **requested**, so a permission
+deliberately left out reads "not requested by this installation" rather than a
+refusal nobody can ever clear.
+
+Connecting with a system user token uses no scopes at all, which is the way in
+while an app is still under review.
+
+## Disconnecting keeps the rows and must stop claiming they work
+Tokens are revoked at Meta and cleared locally, but the pages, ad accounts and
+numbers keep their rows — every lead attributed to a form on one of those pages
+points at them. So every setup step below the connection is gated on
+`$account?->isUsable()`: without it the checklist goes on ticking "sending from
++880…" for a number that can no longer send anything.

@@ -138,6 +138,14 @@ class MetaConnection extends Component
 
         $numbers = $whatsApp->flatMap(fn ($waba) => $waba->phoneNumbers);
 
+        // Nothing below the connection can work without it. After a disconnect
+        // the rows stay — every lead attributed to a form on one of those pages
+        // still points at them, and deleting them to look tidy would turn a
+        // year of marketing history into orphaned ids — but the tokens are
+        // gone, so a checklist still ticking "sending from +880…" would be
+        // describing something that cannot send.
+        $connected = $account?->isUsable() === true;
+
         return [
             [
                 'label' => 'Meta app credentials',
@@ -157,21 +165,25 @@ class MetaConnection extends Component
             ],
             [
                 'label' => 'Facebook Pages',
-                'done' => $pages->contains(fn (MetaPage $page): bool => $page->isUsable()),
-                'detail' => $pages->isEmpty()
-                    ? 'None yet. Add the Page ID below and the Page is read from Meta.'
-                    : $pages->count().' available, '.$pages->filter(fn (MetaPage $page): bool => $page->is_subscribed)->count().' subscribed.',
+                'done' => $connected && $pages->contains(fn (MetaPage $page): bool => $page->isUsable()),
+                'detail' => match (true) {
+                    $pages->isEmpty() => 'None yet. Add the Page ID below and the Page is read from Meta.',
+                    ! $connected => $pages->count().' known, none usable until Meta is connected again.',
+                    default => $pages->count().' available, '.$pages->filter(fn (MetaPage $page): bool => $page->is_subscribed)->count().' subscribed.',
+                },
             ],
             [
                 'label' => 'Ad accounts',
-                'done' => $adAccounts->isNotEmpty(),
-                'detail' => $adAccounts->isEmpty()
-                    ? 'None yet, so campaign figures will be empty. Add the ad account ID below.'
-                    : $adAccounts->count().' available.',
+                'done' => $connected && $adAccounts->isNotEmpty(),
+                'detail' => match (true) {
+                    $adAccounts->isEmpty() => 'None yet, so campaign figures will be empty. Add the ad account ID below.',
+                    ! $connected => $adAccounts->count().' known, but the figures stopped updating when Meta was disconnected.',
+                    default => $adAccounts->count().' available.',
+                },
             ],
             [
                 'label' => 'WhatsApp number',
-                'done' => $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default),
+                'done' => $connected && $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default),
                 // **Numbers are never typed here.** They are read from Meta
                 // against the business account, because a phone number ID
                 // entered by hand is one that can be wrong — and the failure
@@ -181,6 +193,8 @@ class MetaConnection extends Component
                 'detail' => match (true) {
                     $whatsApp->isEmpty() => 'None yet. Add the WhatsApp business account ID below; its numbers are read from Meta rather than typed.',
                     $numbers->isEmpty() => 'The connected business account has no numbers. Add one to it in Business Manager, then re-read from Meta.',
+                    ! $connected => (string) ($numbers->firstWhere('is_default', true) ?? $numbers->first())->display_number
+                        .' is remembered, but nothing can be sent until Meta is connected again.',
                     $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default) => 'Sending from '
                         .(string) $numbers->firstWhere('is_default', true)?->display_number,
                     default => 'Choose which of the '.$numbers->count().' numbers this CRM sends from, below.',

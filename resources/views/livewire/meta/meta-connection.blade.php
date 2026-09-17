@@ -277,12 +277,11 @@
 
             @if ($this->verifyToken() !== null)
                 <div class="mt-4 rounded-lg border border-border bg-background p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Verify token</p>
-                    <code class="mt-1 block break-all text-sm text-foreground">{{ $this->verifyToken() }}</code>
-                    <p class="mt-1.5 text-xs text-muted-foreground">
-                        The same token for all three — Meta asks for it once per product, and echoes it back to check
-                        the address before it will send anything.
-                    </p>
+                    <x-copy-field
+                        label="Verify token"
+                        :value="$this->verifyToken()"
+                        hint="The same token for all three — Meta asks for it once per product, and echoes it back to check the address before it will send anything."
+                    />
                 </div>
             @else
                 <div class="mt-4">
@@ -303,12 +302,27 @@
                                 subscribe <code>{{ $webhook['field'] }}</code>
                             </span>
                         </div>
-                        <code class="mt-1 block break-all text-xs text-muted-foreground">{{ $webhook['url'] }}</code>
+
+                        <div class="mt-1.5">
+                            <x-copy-field :value="$webhook['url']" />
+                        </div>
                     </li>
                 @endforeach
             </ul>
 
-            <div class="mt-4">
+            <div class="mt-4 space-y-4">
+                @if ($this->looksMisconfigured())
+                    {{-- Meta is safe — the addresses above are forced to https —
+                         but every other link this application generates is not. --}}
+                    <x-alert variant="info">
+                        These addresses are shown over <strong class="font-medium">https</strong> because Meta accepts
+                        nothing else, but this installation's configured address begins <code>http://</code>. Password
+                        reset links and other generated URLs will be insecure too. Set <code>APP_URL</code> to the
+                        https address, and if the site sits behind a proxy that terminates TLS, set
+                        <code>TRUSTED_PROXIES</code> as well.
+                    </x-alert>
+                @endif
+
                 @if (! $this->isReachable())
                     <x-alert variant="info">
                         These are built from this installation's configured address, which is not a public HTTPS one —

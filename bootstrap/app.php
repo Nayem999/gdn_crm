@@ -16,6 +16,27 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind a proxy that terminates TLS — nginx, a load balancer,
+        // Cloudflare — every request reaches PHP as plain HTTP, so Laravel
+        // builds `http://` links for a site that is served over https. That is
+        // not cosmetic: Meta refuses an insecure OAuth redirect outright, and a
+        // password reset email sends somebody to an address their browser
+        // warns them about.
+        //
+        // Configured rather than assumed. Trusting every proxy is right behind
+        // a load balancer whose addresses change and wrong on a host reachable
+        // directly, where it would let a client claim any address it liked, so
+        // an installation says which — and one that says nothing trusts
+        // nothing, exactly as before.
+        $proxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', ''))
+        )));
+
+        if ($proxies !== []) {
+            $middleware->trustProxies(at: $proxies === ['*'] ? '*' : $proxies);
+        }
+
         // Binds each session to the user's current password hash, so changing a
         // password (or logging out other devices) invalidates sibling sessions.
         $middleware->web(append: [

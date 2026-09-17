@@ -53,3 +53,22 @@ read it back had no way to finish the setup. It is displayed on the connection
 screen to anyone holding `meta.manage`. Knowing it only lets somebody verify a
 webhook they already control; what protects a delivery is the app secret's
 signature, which is never shown. One token serves all three channels.
+
+## Meta's addresses are always https, and never the request's scheme
+`MetaUrls` builds the OAuth redirect and the three webhook addresses from
+`config('app.url')` with the scheme forced to https, because Meta refuses an
+`http://` redirect outright — "Facebook has detected that this app isn't using a
+secure connection" — and will not deliver a webhook to one either.
+
+Behind a proxy that terminates TLS the application sees plain HTTP on every
+request, so `route()` generates exactly the URL Meta rejects while the site
+itself is served over https. Forcing the scheme fixes Meta; it does **not** fix
+password reset links or asset URLs, so `looksMisconfigured()` says so on screen
+and `TRUSTED_PROXIES` is the real cure.
+
+The scheme is forced only for a publicly reachable host: `https://localhost:8080`
+is not a better answer than the http one, it is an address that serves nothing.
+
+Both sides of OAuth ask `MetaUrls::callback()` — Meta compares the redirect_uri
+sent at the consent screen with the one sent at the exchange and refuses a
+mismatch, so they cannot be generated independently.

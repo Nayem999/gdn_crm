@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domain\Meta\Actions\ConnectMetaAccountAction;
 use App\Domain\Meta\Auth\MetaAuthService;
 use App\Domain\Meta\Graph\MetaApiException;
+use App\Domain\Meta\MetaUrls;
 use App\Domain\Meta\Models\MetaAccount;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +52,7 @@ class MetaOAuthController extends Controller
         $request->session()->put(MetaAuthService::STATE_KEY, $state);
 
         try {
-            $url = $this->auth->authorizeUrl($state, route('settings.meta.callback'));
+            $url = $this->auth->authorizeUrl($state, MetaUrls::callback());
         } catch (MetaApiException $exception) {
             return redirect()
                 ->route('settings.group', 'meta')
@@ -96,7 +97,7 @@ class MetaOAuthController extends Controller
         }
 
         try {
-            $token = $this->auth->exchangeCode($code, route('settings.meta.callback'));
+            $token = $this->auth->exchangeCode($code, MetaUrls::callback());
             $account = ($this->connect)($token, $request->user());
         } catch (MetaApiException $exception) {
             // Meta's own words here: an administrator connecting an integration

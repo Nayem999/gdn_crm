@@ -3,8 +3,10 @@
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
 use App\Domain\Meta\Auth\MetaAuthService;
+use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConnectionTester;
+use App\Domain\Meta\MetaUrls;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
@@ -489,4 +491,141 @@ test('with no verify token the screen says the subscription will not save', func
     Livewire::actingAs(metaTokenConnector())
         ->test(MetaConnection::class)
         ->assertSee('No webhook verify token is set');
+});
+
+// -- The addresses Meta is given ----------------------------------------------
+
+test('the OAuth redirect is https even when the application thinks it is not', function () {
+    // The real failure: a site served over https behind a proxy, which reaches
+    // PHP as plain HTTP. Meta answers that redirect_uri with "Facebook has
+    // detected that this app isn't using a secure connection" and the
+    // administrator never reaches the consent screen.
+    config(['app.url' => 'http://gdncrm.example.net']);
+
+    expect(MetaUrls::callback())
+        ->toBe('https://gdncrm.example.net/settings/meta/callback');
+});
+
+test('the webhook addresses are https for the same reason', function () {
+    config(['app.url' => 'http://gdncrm.example.net']);
+
+    foreach (MetaChannel::cases() as $channel) {
+        expect(MetaUrls::webhook($channel))->toStartWith('https://gdncrm.example.net/');
+    }
+});
+
+test('an https address is left exactly as it is', function () {
+    config(['app.url' => 'https://gdncrm.example.net/']);
+
+    expect(MetaUrls::callback())
+        ->toBe('https://gdncrm.example.net/settings/meta/callback');
+});
+
+test('a private address is not reachable, however it is spelled', function (string $url) {
+    config(['app.url' => $url]);
+
+    expect(MetaUrls::isReachable())->toBeFalse()
+        // And it is not a misconfiguration to report: an unpublished
+        // installation is not a deployment mistake.
+        ->and(MetaUrls::looksMisconfigured())->toBeFalse();
+})->with([
+    'http://localhost:8080',
+    'http://127.0.0.1',
+    'http://gdncrm.test',
+    'http://192.168.1.40',
+]);
+
+test('the screen says when the application is generating insecure links', function () {
+    metaTokenFake();
+    config(['app.url' => 'http://gdncrm.example.net']);
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->assertSee('Password')
+        ->assertSee('TRUSTED_PROXIES')
+        ->assertSee('https://gdncrm.example.net/api/webhooks/meta/whatsapp');
+});
+
+test('the addresses and the token can be copied', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.verify_token', 'echoed-back-by-meta-once');
+
+    $html = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->html();
+
+    // One copy control per address, plus the token: reading a 32-character
+    // token off a screen and typing it into Meta is how a verify token gets a
+    // character wrong.
+    expect(substr_count($html, "copied ? 'Copied' : 'Copy'"))
+        ->toBe(count(MetaChannel::cases()) + 1);
+});
+
+// -- The setup checklist -------------------------------------------------------
+
+test('an unfinished step says what completes it', function () {
+    metaTokenFake();
+
+    // A checklist line that names something missing and not how to supply it is
+    // a dead end with a tick box beside it. The WhatsApp one was read as a
+    // missing field, fairly: there is no field, because Meta owns the list.
+    $stages = collect(Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->instance()
+        ->stages())->keyBy('label');
+
+    expect($stages['WhatsApp number']['detail'])->toContain('read from Meta rather than typed')
+        ->and($stages['Facebook Pages']['detail'])->toContain('Add the Page ID')
+        ->and($stages['Ad accounts']['detail'])->toContain('Add the ad account ID');
+});
+
+test('a business account with no numbers is a different problem, and says so', function () {
+    metaTokenFake();
+
+    $account = MetaAccount::factory()->create();
+
+    // Connected, but nobody has added a number to it in Business Manager —
+    // which is not something this screen can fix.
+    WhatsAppBusinessAccount::query()->create([
+        'meta_account_id' => $account->id,
+        'waba_id' => '1405962320928347',
+        'name' => 'GIS WhatsApp',
+        'access_token' => 'waba-token',
+    ]);
+
+    $stages = collect(Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->instance()
+        ->stages())->keyBy('label');
+
+    expect($stages['WhatsApp number']['detail'])->toContain('Add one to it in Business Manager');
+});
+
+test('more than one number asks which to send from', function () {
+    metaTokenFake();
+
+    $account = MetaAccount::factory()->create();
+
+    $waba = WhatsAppBusinessAccount::query()->create([
+        'meta_account_id' => $account->id,
+        'waba_id' => '1405962320928347',
+        'name' => 'GIS WhatsApp',
+        'access_token' => 'waba-token',
+    ]);
+
+    foreach (['1310844125447923' => '+880 1895-657039', '1310844125447924' => '+880 1895-657040'] as $id => $display) {
+        WhatsAppPhoneNumber::query()->create([
+            'whatsapp_business_account_id' => $waba->id,
+            'phone_number_id' => $id,
+            'display_number' => $display,
+            'is_default' => false,
+        ]);
+    }
+
+    $stages = collect(Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->instance()
+        ->stages())->keyBy('label');
+
+    expect($stages['WhatsApp number']['detail'])->toContain('Choose which of the 2 numbers');
 });

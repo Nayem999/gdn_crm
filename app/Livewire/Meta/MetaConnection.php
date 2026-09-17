@@ -9,6 +9,7 @@ use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConfiguration;
 use App\Domain\Meta\MetaConnectionTester;
+use App\Domain\Meta\MetaUrls;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
@@ -158,24 +159,31 @@ class MetaConnection extends Component
                 'label' => 'Facebook Pages',
                 'done' => $pages->contains(fn (MetaPage $page): bool => $page->isUsable()),
                 'detail' => $pages->isEmpty()
-                    ? 'No pages have been read from Meta yet.'
+                    ? 'None yet. Add the Page ID below and the Page is read from Meta.'
                     : $pages->count().' available, '.$pages->filter(fn (MetaPage $page): bool => $page->is_subscribed)->count().' subscribed.',
             ],
             [
                 'label' => 'Ad accounts',
                 'done' => $adAccounts->isNotEmpty(),
                 'detail' => $adAccounts->isEmpty()
-                    ? 'No ad accounts yet — campaign figures will be empty.'
+                    ? 'None yet, so campaign figures will be empty. Add the ad account ID below.'
                     : $adAccounts->count().' available.',
             ],
             [
                 'label' => 'WhatsApp number',
                 'done' => $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default),
+                // **Numbers are never typed here.** They are read from Meta
+                // against the business account, because a phone number ID
+                // entered by hand is one that can be wrong — and the failure
+                // that produces is messages that go nowhere rather than an
+                // error anybody sees. A checklist line that asked for a number
+                // with no field to put it in was, fairly, read as an omission.
                 'detail' => match (true) {
-                    $numbers->isEmpty() => 'No WhatsApp numbers are available to this business.',
+                    $whatsApp->isEmpty() => 'None yet. Add the WhatsApp business account ID below; its numbers are read from Meta rather than typed.',
+                    $numbers->isEmpty() => 'The connected business account has no numbers. Add one to it in Business Manager, then re-read from Meta.',
                     $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default) => 'Sending from '
                         .(string) $numbers->firstWhere('is_default', true)?->display_number,
-                    default => 'Choose which number this CRM sends from.',
+                    default => 'Choose which of the '.$numbers->count().' numbers this CRM sends from, below.',
                 },
             ],
             [
@@ -201,15 +209,10 @@ class MetaConnection extends Component
     public function webhookUrls(): array
     {
         // Built on the **configured** address rather than the one this request
-        // arrived on. Somebody setting Meta up is usually looking at a
-        // development host, and a panel that printed "localhost:8123" would
-        // hand them an address Meta can never call — which fails silently,
-        // weeks later, as messages that simply never arrive.
-        $base = rtrim((string) config('app.url'), '/');
-
+        // arrived on, and always over https — see MetaUrls for why both matter.
         return array_map(fn (MetaChannel $channel): array => [
             'label' => $channel->label(),
-            'url' => $base.route('api.webhooks.meta', $channel->value, false),
+            'url' => MetaUrls::webhook($channel),
             // What to subscribe on Meta's side. Naming it here saves a trip to
             // the documentation for the one detail that decides whether
             // anything is delivered at all.
@@ -244,7 +247,19 @@ class MetaConnection extends Component
      */
     public function isReachable(): bool
     {
-        return str_starts_with(rtrim((string) config('app.url'), '/'), 'https://');
+        return MetaUrls::isReachable();
+    }
+
+    /**
+     * Whether this installation is generating its own links insecurely.
+     *
+     * Meta is handled — the addresses above force https — but everything else
+     * this application builds a URL for is not, and that is worth one line on
+     * the screen rather than a password reset nobody can open.
+     */
+    public function looksMisconfigured(): bool
+    {
+        return MetaUrls::looksMisconfigured();
     }
 
     // -- Actions ---------------------------------------------------------------

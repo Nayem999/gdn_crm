@@ -5,7 +5,9 @@ namespace App\Domain\Meta\Actions;
 use App\Domain\Meta\Enums\MetaConnectionStatus;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\Graph\MetaGraphClient;
+use App\Domain\Meta\MetaConfiguration;
 use App\Domain\Meta\Models\MetaAccount;
+use App\Domain\Settings\SettingsManager;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -21,7 +23,13 @@ use Throwable;
  * 2. **Every stored token is cleared**, on the account, its pages and its
  *    WhatsApp accounts. A revoked token is useless, and useless credentials in a
  *    database are a liability with no upside.
- * 3. **The rows stay.** The pages, the ad accounts and the numbers keep their
+ * 3. **The app's own credentials go too.** The app ID, the secret and the
+ *    webhook verify token are what this installation uses to *be* the Meta
+ *    application, and somebody disconnecting is finished with it — leaving them
+ *    behind means the setup screen goes on reporting itself half configured,
+ *    and a verify token nobody knows is still live is a subscription somebody
+ *    else's deployment could satisfy.
+ * 4. **The rows stay.** The pages, the ad accounts and the numbers keep their
  *    ids and their names, because every lead in the CRM attributed to a form on
  *    one of those pages still points here. Deleting them to look tidy would turn
  *    a year of marketing history into orphaned ids.
@@ -33,7 +41,10 @@ use Throwable;
  */
 class DisconnectMetaAccountAction
 {
-    public function __construct(private readonly MetaGraphClient $client) {}
+    public function __construct(
+        private readonly MetaGraphClient $client,
+        private readonly SettingsManager $settings,
+    ) {}
 
     public function __invoke(MetaAccount $account): void
     {
@@ -42,6 +53,13 @@ class DisconnectMetaAccountAction
         DB::transaction(function () use ($account, $revokeError): void {
             $account->pages()->update(['access_token' => null, 'is_subscribed' => false, 'subscribed_at' => null]);
             $account->whatsAppAccounts()->update(['access_token' => null, 'is_subscribed' => false]);
+
+            // The application's own credentials, not this connection's. See the
+            // class comment: a disconnect that leaves them behind reports a
+            // setup half done and a webhook token still live.
+            foreach (['app_id', 'app_secret', 'verify_token'] as $key) {
+                $this->settings->forget(MetaConfiguration::GROUP.'.'.$key);
+            }
 
             $account->forceFill([
                 'user_token' => null,

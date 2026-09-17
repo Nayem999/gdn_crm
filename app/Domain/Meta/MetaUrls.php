@@ -3,6 +3,7 @@
 namespace App\Domain\Meta;
 
 use App\Domain\Meta\Enums\MetaChannel;
+use Illuminate\Http\Request;
 
 /**
  * The addresses Meta is given, built the one way Meta will accept them.
@@ -29,18 +30,49 @@ final class MetaUrls
 {
     /**
      * Where this installation lives, as Meta must see it.
+     *
+     * **The address being browsed wins over the configured one.** That is the
+     * reverse of the obvious choice, and it is what deployments actually look
+     * like: an installation is uploaded with the `.env` it was developed
+     * against, so `APP_URL` says `http://localhost:8080` on a site somebody is
+     * reading at `https://crm.example.net`. The configured value is a claim;
+     * the host in the request is a fact — the administrator reached this screen
+     * through it.
+     *
+     * The configured address is still the fallback, for a queue worker or a
+     * console command generating these outside a request.
      */
     public static function base(): string
     {
-        $base = self::configured();
+        $base = self::browsed() ?? self::configured();
 
         // Forced only where it could matter. On a development address the
         // scheme is left alone: "https://localhost:8080" is not a better answer
         // than the http one — it is an address that serves nothing, printed as
         // though it were real — and Meta cannot use either.
-        return $base !== '' && self::isReachable()
+        return $base !== '' && self::isReachableAddress($base)
             ? (string) preg_replace('#^http://#i', 'https://', $base)
             : $base;
+    }
+
+    /**
+     * The address this request arrived on, when there is one worth trusting.
+     *
+     * Null outside a request, and null for a host that is not publicly
+     * reachable — so browsing a development copy does not overwrite a correctly
+     * configured production address in the one place it matters.
+     */
+    private static function browsed(): ?string
+    {
+        // No guard for "is this the console": `runningInConsole()` is true
+        // inside the test suite as well, which would switch this off exactly
+        // where it is being proved. None is needed — a queue worker or an
+        // artisan command builds its request from APP_URL, so the host it
+        // reports is either the configured one (same answer) or a private one,
+        // and a private one fails the check below like any other.
+        $host = request()->getSchemeAndHttpHost();
+
+        return self::isReachableAddress($host) ? rtrim($host, '/') : null;
     }
 
     /**
@@ -69,7 +101,15 @@ final class MetaUrls
      */
     public static function isReachable(): bool
     {
-        $host = (string) parse_url(self::configured(), PHP_URL_HOST);
+        return self::isReachableAddress(self::browsed() ?? self::configured());
+    }
+
+    /**
+     * Whether Meta could call this particular address.
+     */
+    private static function isReachableAddress(string $address): bool
+    {
+        $host = (string) parse_url($address, PHP_URL_HOST);
 
         if ($host === '') {
             return false;
@@ -104,6 +144,10 @@ final class MetaUrls
      */
     public static function looksMisconfigured(): bool
     {
+        // Only about the configured value: the browsed address is used in
+        // preference for Meta, but everything generated outside a request —
+        // a password reset email, a queued notification — still comes from
+        // APP_URL, so an http one is still worth reporting.
         return self::isReachable() && str_starts_with(strtolower(self::configured()), 'http://');
     }
 }

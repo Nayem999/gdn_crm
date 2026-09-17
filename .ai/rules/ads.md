@@ -95,3 +95,28 @@ numbers keep their rows — every lead attributed to a form on one of those page
 points at them. So every setup step below the connection is gated on
 `$account?->isUsable()`: without it the checklist goes on ticking "sending from
 +880…" for a number that can no longer send anything.
+
+## The browsed host beats the configured one, for Meta's addresses
+A deployment is uploaded with the `.env` it was developed against, so `APP_URL`
+routinely says `http://localhost:8080` on a site somebody is reading at its real
+address — and the webhook panel and the OAuth `redirect_uri` were built from it.
+`MetaUrls::base()` therefore prefers the host of the current request and falls
+back to `APP_URL` only outside one. A private host is rejected on either side,
+so browsing a development copy cannot overwrite a correct production address.
+
+Do **not** guard that with `runningInConsole()`: it is true inside the test
+suite, which switches the behaviour off exactly where it is being proved. A
+console request reports APP_URL's own host, which the reachability check already
+handles.
+
+## Lead Ads is not in the default scopes
+Meta refuses the entire consent screen over one permission the app has not been
+approved for, so `leads_retrieval` — which needs App Review — is left out of
+`MetaConfiguration::DEFAULT_SCOPES`. Including it locks a new installation out
+of Messenger, WhatsApp and advertising as well. `meta.scopes` adds it back.
+
+## The verify token is minted, not asked for
+`ensureVerifyToken()` generates one on first use and never changes it: the value
+is copied into Meta's webhook configuration, so a token that rotated on its own
+would break every subscription already made with it. Disconnecting forgets it,
+along with the app ID and secret.

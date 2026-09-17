@@ -92,7 +92,7 @@
                                 type="button"
                                 variant="destructive"
                                 wire:click="disconnect"
-                                wire:confirm="Disconnect Meta? Leads and messages will stop arriving. Everything already in the CRM is kept."
+                                wire:confirm="Disconnect Meta? Leads and messages stop arriving, and the app ID, secret and webhook verify token are forgotten — you will need them again to reconnect. Everything already in the CRM is kept."
                             >
                                 Disconnect
                             </x-button>

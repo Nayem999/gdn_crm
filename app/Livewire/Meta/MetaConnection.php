@@ -251,9 +251,15 @@ class MetaConnection extends Component
      */
     public function verifyToken(): ?string
     {
-        return auth()->user()?->can('meta.manage') === true
-            ? app(MetaConfiguration::class)->verifyToken()
-            : null;
+        if (auth()->user()?->can('meta.manage') !== true) {
+            return null;
+        }
+
+        // Minted here rather than asked for. This screen is the only place the
+        // token is ever needed — it is copied straight into Meta's webhook
+        // configuration from the panel below — so there is no moment at which
+        // making somebody invent one first is useful.
+        return app(MetaConfiguration::class)->ensureVerifyToken();
     }
 
     /**

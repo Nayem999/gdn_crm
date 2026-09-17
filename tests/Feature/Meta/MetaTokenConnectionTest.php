@@ -487,12 +487,18 @@ test('somebody who may only look is not shown the token', function () {
         ->assertDontSee('echoed-back-by-meta-once');
 });
 
-test('with no verify token the screen says the subscription will not save', function () {
+test('a screen without a verify token mints one rather than complaining', function () {
     metaTokenFake();
 
+    // This used to tell an administrator to go and invent one. There is no
+    // moment at which that is useful: the token is ours to choose and this
+    // screen is the only place it is ever read.
     Livewire::actingAs(metaTokenConnector())
         ->test(MetaConnection::class)
-        ->assertSee('No webhook verify token is set');
+        ->assertDontSee('No webhook verify token is set')
+        ->assertSee('Verify token');
+
+    expect(app(MetaConfiguration::class)->verifyToken())->not->toBeNull();
 });
 
 // -- The addresses Meta is given ----------------------------------------------
@@ -657,12 +663,12 @@ test('a scope this application does not use is dropped rather than sent', functi
     expect(app(MetaConfiguration::class)->scopes())->toBe(['ads_read']);
 });
 
-test('clearing the setting asks for everything again', function () {
+test('clearing the setting asks for the default again', function () {
     metaTokenFake();
     app(SettingsManager::class)->set('meta.scopes', '');
 
     expect(app(MetaConfiguration::class)->scopes())
-        ->toBe(MetaAuthService::SCOPES);
+        ->toBe(MetaConfiguration::DEFAULT_SCOPES);
 });
 
 test('a permission nobody asked for is reported as not requested, not as refused', function () {
@@ -735,4 +741,125 @@ test('after disconnecting, nothing in the setup still claims to work', function 
     expect(MetaPage::query()->value('access_token'))->toBeNull()
         ->and(WhatsAppBusinessAccount::query()->value('access_token'))->toBeNull()
         ->and($account->fresh()->user_token)->toBeNull();
+});
+
+// -- A deployment carrying the wrong APP_URL -----------------------------------
+
+test('the address being browsed beats a stale configured one', function () {
+    metaTokenFake();
+
+    // What a deployment actually looks like: uploaded with the .env it was
+    // developed against, so APP_URL still names a laptop while somebody is
+    // reading the screen at the real address.
+    config(['app.url' => 'http://localhost:8080']);
+
+    $html = $this->actingAs(metaTokenConnector())
+        ->get('https://gdncrm.example.net/settings/meta/connect')
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('https://gdncrm.example.net/api/webhooks/meta/whatsapp')
+        ->and($html)->not->toContain('localhost:8080/api/webhooks');
+});
+
+test('browsing a development copy does not overwrite a real configured address', function () {
+    config(['app.url' => 'https://gdncrm.example.net']);
+
+    // The reverse case: the configured address is right and the browsed one is
+    // a laptop, which must not be pasted into Meta.
+    $this->actingAs(metaTokenConnector())
+        ->get('http://localhost:8123/settings/meta/connect')
+        ->assertOk()
+        ->assertSee('https://gdncrm.example.net/api/webhooks/meta/whatsapp', false);
+});
+
+test('outside a request the configured address is all there is', function () {
+    config(['app.url' => 'https://gdncrm.example.net']);
+
+    // A queue worker or a console command has no browser at the other end.
+    expect(MetaUrls::webhook(MetaChannel::WhatsApp))
+        ->toBe('https://gdncrm.example.net/api/webhooks/meta/whatsapp');
+});
+
+// -- The verify token ----------------------------------------------------------
+
+test('the verify token is minted the first time somebody needs it', function () {
+    metaTokenFake();
+
+    expect(app(MetaConfiguration::class)->verifyToken())->toBeNull();
+
+    $component = Livewire::actingAs(metaTokenConnector())->test(MetaConnection::class);
+
+    $minted = $component->instance()->verifyToken();
+
+    expect($minted)->toHaveLength(32)
+        // Stable once made: it is copied into Meta's webhook configuration, so
+        // a value that changed on its own would break every subscription made
+        // with it.
+        ->and(Livewire::actingAs(metaTokenConnector())->test(MetaConnection::class)->instance()->verifyToken())
+        ->toBe($minted);
+});
+
+// -- What is asked for by default ---------------------------------------------
+
+test('Lead Ads is not requested until somebody asks for it', function () {
+    metaTokenFake();
+
+    // Meta refuses the entire consent screen over one permission it has not
+    // approved, and Lead Ads needs App Review — so including it by default
+    // locks a new installation out of Messenger and WhatsApp as well.
+    $scopes = app(MetaConfiguration::class)->scopes();
+
+    expect($scopes)->not->toContain('leads_retrieval')
+        ->and($scopes)->toContain('pages_messaging')
+        ->and($scopes)->toContain('whatsapp_business_messaging');
+
+    $url = app(MetaAuthService::class)->authorizeUrl('state', 'https://crm.test/callback');
+
+    expect($url)->not->toContain('leads_retrieval');
+});
+
+test('adding it back is one setting', function () {
+    metaTokenFake();
+    app(SettingsManager::class)->set('meta.scopes', implode(',', MetaAuthService::SCOPES));
+
+    expect(app(MetaConfiguration::class)->scopes())->toContain('leads_retrieval');
+});
+
+// -- Disconnecting completely --------------------------------------------------
+
+test('disconnecting forgets the application credentials as well', function () {
+    metaTokenFake();
+    app(MetaConfiguration::class)->ensureVerifyToken();
+
+    $account = MetaAccount::factory()->create(['user_token' => 'EAAlivetoken']);
+
+    app(DisconnectMetaAccountAction::class)($account);
+
+    $configuration = app(MetaConfiguration::class);
+
+    // Somebody disconnecting is finished with the app, and a setup screen still
+    // reporting itself half configured is what was reported.
+    expect($configuration->appId())->toBeNull()
+        ->and($configuration->appSecret())->toBeNull()
+        ->and($configuration->verifyToken())->toBeNull()
+        ->and($configuration->isConfigured())->toBeFalse();
+});
+
+test('after disconnecting, every step of the setup reads as undone', function () {
+    metaTokenFake();
+    app(MetaConfiguration::class)->ensureVerifyToken();
+
+    $account = MetaAccount::factory()->create(['user_token' => 'EAAlivetoken']);
+
+    app(DisconnectMetaAccountAction::class)($account);
+
+    $stages = collect(Livewire::actingAs(metaTokenConnector(['meta.view']))
+        ->test(MetaConnection::class)
+        ->instance()
+        ->stages())->keyBy('label');
+
+    expect($stages['Meta app credentials']['done'])->toBeFalse()
+        ->and($stages['Business connected']['done'])->toBeFalse()
+        ->and($stages['Webhooks']['done'])->toBeFalse();
 });

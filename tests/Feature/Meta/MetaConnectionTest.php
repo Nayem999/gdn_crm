@@ -55,9 +55,15 @@ test('the authorisation URL carries the state and asks for what the integration 
         // fragment, which is a credential in the browser's history.
         ->toContain('response_type=code');
 
-    foreach (['leads_retrieval', 'pages_messaging', 'ads_read', 'whatsapp_business_messaging'] as $scope) {
+    foreach (['pages_messaging', 'ads_read', 'whatsapp_business_messaging'] as $scope) {
         expect($url)->toContain($scope);
     }
+
+    // `leads_retrieval` is deliberately absent by default. Meta refuses the
+    // whole consent screen over a permission the app has not been approved for,
+    // and Lead Ads needs App Review — so asking for it as standard locked new
+    // installations out of Messenger and WhatsApp too. It is one setting away.
+    expect($url)->not->toContain('leads_retrieval');
 });
 
 test('an unconfigured app cannot build one', function () {

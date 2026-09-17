@@ -4,6 +4,7 @@ namespace App\Domain\Meta;
 
 use App\Domain\Meta\Auth\MetaAuthService;
 use App\Domain\Settings\SettingsManager;
+use Illuminate\Support\Str;
 
 /**
  * What this installation knows about the Meta app it talks to.
@@ -30,6 +31,31 @@ class MetaConfiguration
      */
     public const GROUP = 'meta';
 
+    /**
+     * What is asked for when nobody has said otherwise.
+     *
+     * Everything except `leads_retrieval`, and that omission is the whole
+     * point: Lead Ads needs App Review before an app may request it at all, and
+     * Meta refuses the **entire** consent screen over one permission it has not
+     * approved — so including it by default locks every new installation out of
+     * Messenger, WhatsApp and advertising as well, for a feature most of them
+     * are not using yet.
+     *
+     * Add it under Settings → Meta the day the review comes back.
+     *
+     * @var array<int, string>
+     */
+    public const DEFAULT_SCOPES = [
+        'business_management',
+        'pages_show_list',
+        'pages_manage_metadata',
+        'pages_read_engagement',
+        'pages_messaging',
+        'ads_read',
+        'whatsapp_business_management',
+        'whatsapp_business_messaging',
+    ];
+
     public function __construct(private readonly SettingsManager $settings) {}
 
     public function appId(): ?string
@@ -49,6 +75,31 @@ class MetaConfiguration
     public function verifyToken(): ?string
     {
         return $this->stored('verify_token');
+    }
+
+    /**
+     * The verify token, minted if there is not one yet.
+     *
+     * Ours to choose — Meta only echoes it back — so asking an administrator to
+     * invent a hard-to-guess string is asking them to do a computer's job, and
+     * the ones people invent under that pressure are the ones worth guessing.
+     * Generated on first use and then stable: it is copied into Meta's webhook
+     * configuration, so a value that changed on its own would silently break
+     * every subscription already made with it.
+     */
+    public function ensureVerifyToken(): string
+    {
+        $existing = $this->verifyToken();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $token = Str::random(32);
+
+        $this->settings->set(self::GROUP.'.verify_token', $token);
+
+        return $token;
     }
 
     /**
@@ -98,7 +149,7 @@ class MetaConfiguration
         $configured = $this->stored('scopes');
 
         if ($configured === null) {
-            return MetaAuthService::SCOPES;
+            return self::DEFAULT_SCOPES;
         }
 
         $asked = array_filter(array_map('trim', explode(',', $configured)));
@@ -106,8 +157,8 @@ class MetaConfiguration
         $known = array_values(array_intersect(MetaAuthService::SCOPES, $asked));
 
         // Everything removed leaves nothing to ask for, which Meta answers with
-        // a different error again. The full set is a better answer than none.
-        return $known === [] ? MetaAuthService::SCOPES : $known;
+        // a different error again. The default is a better answer than none.
+        return $known === [] ? self::DEFAULT_SCOPES : $known;
     }
 
     /**

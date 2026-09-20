@@ -177,6 +177,12 @@ class IntegrationLog extends Component
         return match ($column->key) {
             'received_at' => $this->receivedCell($record),
             'source' => $record->dataSource === null ? $this->blank() : $record->dataSource->name,
+            // Monospaced, because it is a string from somebody else's system
+            // that has to be compared character for character against their
+            // documentation — not a phrase to read.
+            'event' => $record->event === null || $record->event === ''
+                ? $this->blank()
+                : new HtmlString('<span class="font-mono text-xs">'.e($record->event).'</span>'),
             'status' => new HtmlString(ChipPalette::chip($record->status()->label(), $record->status()->color())),
             'outcome' => $record->outcome === null
                 ? $this->blank()

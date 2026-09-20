@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Access\PermissionResolver;
+use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
 use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Auth\MetaAuthService;
@@ -14,6 +15,7 @@ use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppBusinessAccount;
 use App\Domain\Meta\Models\WhatsAppPhoneNumber;
+use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Settings\SettingsManager;
 use App\Livewire\Meta\MetaConnection;
 use App\Models\User;
@@ -1000,4 +1002,30 @@ test('testing an address needs more than being able to look at it', function () 
         ->test(MetaConnection::class)
         ->call('testWebhook', 'whatsapp')
         ->assertForbidden();
+});
+
+test('the webhook list links to what has arrived on each address', function () {
+    metaTokenFake();
+    $source = DataSource::factory()->create([
+        'provider' => MetaSources::PROVIDER,
+        'name' => MetaChannel::WhatsApp->sourceName(),
+    ]);
+
+    Livewire::actingAs(metaTokenConnector(['meta.view', 'meta.manage', 'integrations.view']))
+        ->test(MetaConnection::class)
+        ->assertSee(route('settings.integration-log', ['source' => $source->id]), escape: false);
+});
+
+test('looking at the webhook list provisions nothing', function () {
+    metaTokenFake();
+
+    Livewire::actingAs(metaTokenConnector(['meta.view', 'meta.manage', 'integrations.view']))
+        ->test(MetaConnection::class)
+        ->assertOk()
+        // MetaSources::for() creates the source it cannot find, which would
+        // mean opening a settings screen invented three data sources for an
+        // installation that has never received anything.
+        ->assertSee(route('settings.integration-log'), escape: false);
+
+    expect(DataSource::query()->where('provider', MetaSources::PROVIDER)->count())->toBe(0);
 });

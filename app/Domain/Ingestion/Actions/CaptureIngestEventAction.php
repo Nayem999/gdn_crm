@@ -5,6 +5,7 @@ namespace App\Domain\Ingestion\Actions;
 use App\Domain\Ingestion\IngestSignature;
 use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Ingestion\Models\IntegrationEvent;
+use App\Domain\Ingestion\WebhookEventName;
 use Illuminate\Http\Request;
 
 /**
@@ -32,6 +33,10 @@ class CaptureIngestEventAction
             // not parsed — the signature was computed over these, and a replay
             // has to send the same thing.
             'payload' => $body,
+            // What the sender called it, read here rather than in the pipeline:
+            // a delivery the processor never gets to is exactly the one
+            // somebody needs to identify in the log.
+            'event' => WebhookEventName::for($request, $body),
             'body_hash' => hash('sha256', $body),
             'signature_fingerprint' => IngestSignature::fingerprint($request->header(IngestSignature::HEADER)),
             'headers' => $this->headers($request),

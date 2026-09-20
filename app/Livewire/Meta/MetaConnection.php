@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Meta;
 
+use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
 use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Actions\SyncMetaAssetsAction;
@@ -14,6 +15,7 @@ use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppPhoneNumber;
+use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -228,7 +230,7 @@ class MetaConnection extends Component
      * webhook configuration, and an address they have to assemble from a
      * documentation page is one they will assemble wrongly.
      *
-     * @return array<int, array{channel: string, label: string, url: string, field: string}>
+     * @return array<int, array{channel: string, label: string, url: string, field: string, log: string}>
      */
     public function webhookUrls(): array
     {
@@ -242,7 +244,32 @@ class MetaConnection extends Component
             // the documentation for the one detail that decides whether
             // anything is delivered at all.
             'field' => $channel->field(),
+            // Where to see whether anything has actually arrived. The test
+            // button answers "can this address be called"; this answers "has
+            // Meta called it", and the second question is the one somebody
+            // asks next.
+            'log' => $this->deliveryLog($channel),
         ], MetaChannel::cases());
+    }
+
+    /**
+     * The delivery log, narrowed to this channel when it has ever delivered.
+     *
+     * Deliberately not `MetaSources::for()`, which creates the source it cannot
+     * find: looking at a settings screen would then provision three data
+     * sources for an installation that has never received anything, and the
+     * sources screen would show three rows that mean nothing yet.
+     */
+    private function deliveryLog(MetaChannel $channel): string
+    {
+        $id = DataSource::query()
+            ->where('provider', MetaSources::PROVIDER)
+            ->where('name', $channel->sourceName())
+            ->value('id');
+
+        return $id === null
+            ? route('settings.integration-log')
+            : route('settings.integration-log', ['source' => $id]);
     }
 
     /**

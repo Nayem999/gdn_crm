@@ -591,3 +591,25 @@ test('the form stores an allowlist as a list, however it was pasted', function (
 
     expect(DataSource::query()->firstOrFail()->ip_allowlist)->toBe(['203.0.113.7', '198.51.100.0/24']);
 });
+
+test('the delivery is logged with what the sender called it', function () {
+    [$source, $credentials] = ingestableSource();
+    $body = json_encode(['event' => 'invoice.paid', 'id' => 42]);
+
+    postIngest($source, $body, ingestHeaders($credentials, $body))->assertSuccessful();
+
+    // Written when the bytes are written, not when they are processed: a
+    // delivery the pipeline never gets to is exactly the one somebody has to
+    // find in the log.
+    expect(IntegrationEvent::query()->latest('id')->first()->event)->toBe('invoice.paid');
+});
+
+test('a sender that names its event in a header is logged by that name', function () {
+    [$source, $credentials] = ingestableSource();
+    $body = json_encode(['ref' => 'refs/heads/master']);
+
+    postIngest($source, $body, ingestHeaders($credentials, $body) + ['X-GitHub-Event' => 'push'])
+        ->assertSuccessful();
+
+    expect(IntegrationEvent::query()->latest('id')->first()->event)->toBe('push');
+});

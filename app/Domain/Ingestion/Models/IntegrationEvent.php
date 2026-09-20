@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
  * @property string $uuid
  * @property int $data_source_id
  * @property string $status
+ * @property string|null $event
  * @property string|null $payload
  * @property string|null $body_hash
  * @property string|null $signature_fingerprint
@@ -57,6 +58,7 @@ class IntegrationEvent extends Model
     protected $fillable = [
         'data_source_id',
         'payload',
+        'event',
         'body_hash',
         'signature_fingerprint',
         'headers',

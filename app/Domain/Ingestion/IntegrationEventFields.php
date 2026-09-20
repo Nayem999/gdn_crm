@@ -23,6 +23,9 @@ final class IntegrationEventFields
         return [
             Column::locked('received_at', 'Received'),
             new Column('source', 'Source', sortable: false),
+            // Beside the source, because the pair is the question: which system
+            // sent this, and what did it say it was.
+            Column::make('event', 'Event'),
             Column::make('status', 'Status'),
             Column::make('outcome', 'Outcome'),
             // A morph pair cannot be sorted or joined in one column.
@@ -44,6 +47,10 @@ final class IntegrationEventFields
         $fields = [
             FilterField::select('status', 'Status', IntegrationEventStatus::options()),
             FilterField::select('data_source_id', 'Source', self::sourceOptions()),
+            // Text rather than a select: the values are whatever senders call
+            // their events, so a list built from what has arrived so far would
+            // be missing the one somebody is waiting for.
+            FilterField::text('event', 'Event'),
             FilterField::text('outcome', 'Outcome'),
             FilterField::text('external_id', 'Their id'),
             FilterField::date('received_at', 'Received'),

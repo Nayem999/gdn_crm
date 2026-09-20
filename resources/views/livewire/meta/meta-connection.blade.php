@@ -324,6 +324,15 @@
                                     <span wire:loading wire:target="testWebhook('{{ $webhook['channel'] }}')">Calling&hellip;</span>
                                 </x-button>
 
+                                {{-- The other half of the question: the button
+                                     says whether Meta could call this address,
+                                     the log says whether it has. --}}
+                                @can('integrations.view')
+                                    <a href="{{ $webhook['log'] }}" class="text-xs text-accent hover:underline">
+                                        What has arrived here
+                                    </a>
+                                @endcan
+
                                 @if (isset($webhookTests[$webhook['channel']]))
                                     <span @class([
                                         'text-xs',

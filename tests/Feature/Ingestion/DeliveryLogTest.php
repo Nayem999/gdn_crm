@@ -173,6 +173,39 @@ test('the filter builder narrows by a declared field', function () {
     expect($rows->pluck('external_id')->all())->toBe(['broken']);
 });
 
+test('the log says what kind of delivery each row was', function () {
+    $source = DataSource::factory()->into('leads')->create(['name' => 'Meta WhatsApp']);
+    IntegrationEvent::factory()->forSource($source)->create(['event' => 'messages']);
+
+    Livewire::actingAs(ingestionAdmin())
+        ->test(IntegrationLog::class)
+        ->assertOk()
+        // The sender's own word, not a friendlier one: somebody comparing this
+        // screen against Meta's webhook page has to see the same string.
+        ->assertSee('messages');
+});
+
+test('the log narrows to one kind of delivery', function () {
+    // The reason the column exists. A live WhatsApp number sends mostly
+    // status receipts, and the incoming messages are the few being looked for.
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->create(['event' => 'messages', 'external_id' => 'wanted']);
+    IntegrationEvent::factory()->forSource($source)->create(['event' => 'message_template_status_update', 'external_id' => 'noise']);
+
+    $rows = Livewire::actingAs(ingestionAdmin())
+        ->test(IntegrationLog::class)
+        ->set('filters.conditions', [[
+            'field' => 'event',
+            'operator' => FilterOperator::Equals->value,
+            'value' => 'messages',
+            'value2' => null,
+        ]])
+        ->instance()
+        ->rows();
+
+    expect($rows->pluck('external_id')->all())->toBe(['wanted']);
+});
+
 test('every filter field is a real column', function () {
     $columns = Schema::getColumnListing('integration_events');
 

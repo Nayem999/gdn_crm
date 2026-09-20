@@ -188,16 +188,31 @@ class MetaConnection extends Component
             ],
             [
                 'label' => 'Ad accounts',
-                'done' => $connected && $adAccounts->isNotEmpty(),
+                // Judged on the credential these calls actually use — the ad
+                // account's own token where it has one — rather than on the
+                // connection's. A business given a separate Marketing API
+                // token has working ads and a dead account token, and reading
+                // the wrong one reports the feature as broken when it is not.
+                'done' => $adAccounts->contains(fn (MetaAdAccount $adAccount): bool => $adAccount->isUsable()
+                    && $adAccount->token_error === null),
                 'detail' => match (true) {
                     $adAccounts->isEmpty() => 'None yet, so campaign figures will be empty. Add the ad account ID below.',
-                    ! $connected => $adAccounts->count().' known, but the figures stopped updating when Meta was disconnected.',
+                    $adAccounts->contains(fn (MetaAdAccount $adAccount): bool => $adAccount->token_error !== null) => $adAccounts->count()
+                        .' known, but Meta refuses the token: '
+                        .(string) $adAccounts->first(fn (MetaAdAccount $adAccount): bool => $adAccount->token_error !== null)?->token_error,
+                    $adAccounts->contains(fn (MetaAdAccount $adAccount): bool => ! $adAccount->isUsable()) => $adAccounts->count()
+                        .' known, with no token to read them with. Paste one below, or reconnect.',
                     default => $adAccounts->count().' available.',
                 },
             ],
             [
                 'label' => 'WhatsApp number',
-                'done' => $connected && $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default),
+                // The business account's own token, for the same reason as the
+                // ad account above: WhatsApp is sent with the WABA's
+                // credential, so that is the one that decides whether this
+                // line is true.
+                'done' => $whatsApp->contains(fn ($waba): bool => $waba->token_error === null && $waba->access_token !== null)
+                    && $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default),
                 // **Numbers are never typed here.** They are read from Meta
                 // against the business account, because a phone number ID
                 // entered by hand is one that can be wrong — and the failure
@@ -207,6 +222,9 @@ class MetaConnection extends Component
                 'detail' => match (true) {
                     $whatsApp->isEmpty() => 'None yet. Add the WhatsApp business account ID below; its numbers are read from Meta rather than typed.',
                     $numbers->isEmpty() => 'The connected business account has no numbers. Add one to it in Business Manager, then re-read from Meta.',
+                    $whatsApp->contains(fn ($waba): bool => $waba->token_error !== null) => (string) ($numbers->firstWhere('is_default', true) ?? $numbers->first())->display_number
+                        .' is remembered, but Meta refuses its token: '
+                        .(string) $whatsApp->first(fn ($waba): bool => $waba->token_error !== null)?->token_error,
                     ! $connected => (string) ($numbers->firstWhere('is_default', true) ?? $numbers->first())->display_number
                         .' is remembered, but nothing can be sent until Meta is connected again.',
                     $numbers->contains(fn (WhatsAppPhoneNumber $number): bool => $number->is_default) => 'Sending from '
@@ -393,12 +411,39 @@ class MetaConnection extends Component
      * does not sit in Livewire's state being sent back and forth with every
      * subsequent click on this screen.
      */
+    /**
+     * Whether this screen can act on asset tokens without a connection token.
+     *
+     * Both halves matter: there has to be a connection already — the account
+     * row is what an asset hangs off — and there has to be an asset token with
+     * an id beside it, or there is nothing to do and "required" is the honest
+     * answer about the empty box.
+     */
+    private function canUpdateAssetsAlone(): bool
+    {
+        if ($this->account() === null) {
+            return false;
+        }
+
+        return ($this->pageToken !== '' && $this->pageId !== '')
+            || ($this->wabaToken !== '' && $this->wabaId !== '')
+            || ($this->adsToken !== '' && $this->adAccountId !== '');
+    }
+
     public function connectWithToken(): void
     {
         $this->authorize('create', MetaAccount::class);
 
         $this->validate([
-            'token' => ['required', 'string', 'min:20'],
+            // Required only when there is nothing else to go on. A connection
+            // that already exists can have one asset's token replaced by
+            // itself — which is the only way to fix a single dead credential
+            // without a working account token to hand.
+            'token' => [
+                $this->canUpdateAssetsAlone() ? 'nullable' : 'required',
+                'string',
+                'min:20',
+            ],
             'pageId' => ['nullable', 'string', 'max:64'],
             'adAccountId' => ['nullable', 'string', 'max:64'],
             'wabaId' => ['nullable', 'string', 'max:64'],

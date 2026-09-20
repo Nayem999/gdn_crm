@@ -89,7 +89,11 @@ class SyncMetaInsightsAction
      */
     public function __invoke(MetaAdAccount $account, ?Carbon $since = null, ?Carbon $until = null): array
     {
-        $token = $account->account?->token();
+        // The ad account's own token where it was given one. A business handed
+        // a separate permanent token for the Marketing API has exactly that,
+        // and reaching past it to the connection's token means these calls run
+        // on a credential nobody chose for them.
+        $token = $account->usableToken();
 
         if ($token === null) {
             throw new MetaApiException('That Meta connection has no access token. Reconnect it.');
@@ -116,7 +120,7 @@ class SyncMetaInsightsAction
                 break;
             }
 
-            $rows += $this->level($account, $level, $from, $to, $token->value, $readAt);
+            $rows += $this->level($account, $level, $from, $to, $token, $readAt);
         }
 
         // Only now, and only when the whole window was actually read. A run that

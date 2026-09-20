@@ -1070,3 +1070,114 @@ test('checking the stored tokens needs more than being able to look at them', fu
         ->call('checkTokens')
         ->assertForbidden();
 });
+
+// -- Each feature on its own credential ---------------------------------------
+
+test('the ad account keeps the token it was connected with', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response([
+            'account_id' => '23914816791552795',
+            'name' => 'GIS Ads',
+            'currency' => 'USD',
+        ]),
+    ]);
+
+    app(ConnectMetaWithTokenAction::class)('EAAsystemusertokenvaluehere', [
+        'ad_account_id' => '23914816791552795',
+        'ads_token' => 'EAAmarketingapitokenvalue',
+    ], metaTokenConnector());
+
+    $adAccount = MetaAdAccount::query()->firstOrFail();
+
+    // It used to be read with and then dropped, which left the nightly sync,
+    // the insights sync and the capability test all running on the
+    // connection's token instead of the one pasted for this account.
+    expect($adAccount->access_token)->toBe('EAAmarketingapitokenvalue')
+        ->and($adAccount->usableToken())->toBe('EAAmarketingapitokenvalue');
+});
+
+test('an ad account given no token of its own borrows the connection', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response([
+            'account_id' => '23914816791552795',
+            'name' => 'GIS Ads',
+        ]),
+    ]);
+
+    app(ConnectMetaWithTokenAction::class)('EAAsystemusertokenvaluehere', [
+        'ad_account_id' => '23914816791552795',
+    ], metaTokenConnector());
+
+    // Which is what one system user holding every asset looks like, and what
+    // most installations have.
+    expect(MetaAdAccount::query()->firstOrFail()->usableToken())->toBe('EAAsystemusertokenvaluehere');
+});
+
+test('one asset token can be replaced without a working connection token', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response([
+            'account_id' => '23914816791552795',
+            'name' => 'GIS Ads',
+        ]),
+    ]);
+
+    // The position a revoked system user token leaves an installation in: the
+    // connection is dead, and until now that blocked replacing the credentials
+    // that were not.
+    $account = MetaAccount::factory()->create(['user_token' => 'EAAdeadaccounttoken']);
+
+    $outcome = app(ConnectMetaWithTokenAction::class)('', [
+        'ad_account_id' => '23914816791552795',
+        'ads_token' => 'EAAfreshmarketingtoken',
+    ], metaTokenConnector());
+
+    expect($outcome['results'][0]['ok'])->toBeTrue()
+        ->and(MetaAdAccount::query()->firstOrFail()->access_token)->toBe('EAAfreshmarketingtoken')
+        // The connection is left exactly as it was: this path replaces one
+        // asset's credential and claims nothing about the account's.
+        ->and($account->fresh()->user_token)->toBe('EAAdeadaccounttoken');
+
+    // And the dead token was never sent anywhere.
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'EAAdeadaccounttoken'));
+});
+
+test('an asset token with no id to go with it is refused plainly', function () {
+    metaTokenFake();
+    MetaAccount::factory()->create(['user_token' => 'EAAdeadaccounttoken']);
+
+    expect(fn () => app(ConnectMetaWithTokenAction::class)('', [
+        'ads_token' => 'EAAfreshmarketingtoken',
+    ], metaTokenConnector()))->toThrow(MetaApiException::class);
+});
+
+test('nothing at all still asks for a token', function () {
+    metaTokenFake();
+
+    // No connection to hang an asset off, so "required" is the honest answer
+    // about the empty box rather than a silent no-op.
+    expect(fn () => app(ConnectMetaWithTokenAction::class)('', [
+        'ad_account_id' => '23914816791552795',
+        'ads_token' => 'EAAfreshmarketingtoken',
+    ], metaTokenConnector()))->toThrow(MetaApiException::class);
+});
+
+test('the ads checks call Meta with the ad account own token', function () {
+    metaTokenFake([
+        'graph.facebook.com/*/act_23914816791552795?*' => Http::response(['account_id' => '23914816791552795']),
+    ]);
+
+    $account = MetaAccount::factory()->create(['user_token' => 'EAAaccounttoken']);
+    MetaAdAccount::factory()->for($account, 'account')->create([
+        'ad_account_id' => '23914816791552795',
+        'access_token' => 'EAAmarketingapitokenvalue',
+    ]);
+
+    app(MetaConnectionTester::class)->run($account->fresh());
+
+    // Testing with the connection's token would pass for a credential these
+    // calls never use, and fail for one that works. The token rides in the
+    // Authorization header, not the URL — the URL is what a redirect would
+    // hand to somebody else's server.
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'act_23914816791552795')
+        && $request->hasHeader('Authorization', 'Bearer EAAmarketingapitokenvalue'));
+});

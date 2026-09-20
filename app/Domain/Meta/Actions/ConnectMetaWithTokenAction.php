@@ -56,6 +56,18 @@ class ConnectMetaWithTokenAction
      */
     public function __invoke(string $token, array $assets, User $actor): array
     {
+        $token = trim($token);
+
+        // Nothing in the connection's own box, but a token for an asset. That
+        // is somebody replacing one credential — a new Marketing API token, a
+        // regenerated WhatsApp one — and demanding a valid account token first
+        // would mean the one credential that has died blocks replacing the two
+        // that have not. Which is exactly the position a revoked system user
+        // token leaves an installation in.
+        if ($token === '') {
+            return $this->updateAssets($assets);
+        }
+
         $inspection = $this->auth->inspect($token);
 
         if ($inspection['valid'] !== true) {
@@ -94,13 +106,7 @@ class ConnectMetaWithTokenAction
         // asset. Where no separate token is given the connection's own is used,
         // which is what a single system user token with every asset assigned to
         // it actually looks like.
-        $assetTokens = [
-            'page_id' => ['page', $this->clean($assets['page_token'] ?? null)],
-            'ad_account_id' => ['adAccount', $this->clean($assets['ads_token'] ?? null)],
-            'waba_id' => ['whatsApp', $this->clean($assets['waba_token'] ?? null)],
-        ];
-
-        foreach ($assetTokens as $key => [$method, $assetToken]) {
+        foreach ($this->assetTokens($assets) as $key => [$method, $assetToken]) {
             $id = $this->clean($assets[$key] ?? null);
 
             if ($id !== null) {
@@ -108,6 +114,79 @@ class ConnectMetaWithTokenAction
                 $result = $this->{$method}($account, $id, $assetToken ?? $token);
                 $results[] = $result;
             }
+        }
+
+        $account->forceFill(['last_synced_at' => now()])->save();
+
+        return ['account' => $account->refresh(), 'results' => $results];
+    }
+
+    /**
+     * Each asset, the method that connects it, and the token it was given.
+     *
+     * Meta hands tokens out per asset as often as not — a page token from the
+     * app's own settings, a permanent token for the WhatsApp business account,
+     * another for the ad account — and a screen that took one token would
+     * either refuse credentials that work or quietly store the wrong one
+     * against an asset. Where no separate token is given the connection's own
+     * is used, which is what a single system user holding every asset looks
+     * like.
+     *
+     * @param  array<string, string|null>  $assets
+     * @return array<string, array{0: string, 1: string|null}>
+     */
+    private function assetTokens(array $assets): array
+    {
+        return [
+            'page_id' => ['page', $this->clean($assets['page_token'] ?? null)],
+            'ad_account_id' => ['adAccount', $this->clean($assets['ads_token'] ?? null)],
+            'waba_id' => ['whatsApp', $this->clean($assets['waba_token'] ?? null)],
+        ];
+    }
+
+    /**
+     * Replace the credential on one asset, leaving the connection alone.
+     *
+     * Only assets given **their own** token are touched: without one there is
+     * nothing to update, and falling back to the connection's token here would
+     * quietly re-stamp an asset with the credential this path exists to avoid
+     * depending on.
+     *
+     * @param  array<string, string|null>  $assets
+     * @return array{account: MetaAccount, results: array<int, array{label: string, ok: bool, detail: string}>}
+     *
+     * @throws MetaApiException
+     */
+    private function updateAssets(array $assets): array
+    {
+        $account = MetaAccount::query()->latest('id')->first();
+
+        if ($account === null) {
+            throw new MetaApiException(
+                'Paste an access token to connect first. Once there is a connection, the token for a single asset '
+                .'can be replaced on its own.'
+            );
+        }
+
+        $results = [];
+
+        foreach ($this->assetTokens($assets) as $key => [$method, $assetToken]) {
+            $id = $this->clean($assets[$key] ?? null);
+
+            if ($id === null || $assetToken === null) {
+                continue;
+            }
+
+            /** @var array{label: string, ok: bool, detail: string} $result */
+            $result = $this->{$method}($account, $id, $assetToken);
+            $results[] = $result;
+        }
+
+        if ($results === []) {
+            throw new MetaApiException(
+                'Paste a token for the asset you are updating, with its id beside it — or an access token for the '
+                .'connection itself.'
+            );
         }
 
         $account->forceFill(['last_synced_at' => now()])->save();
@@ -247,6 +326,13 @@ class ConnectMetaWithTokenAction
 
         $adAccount->forceFill([
             'meta_account_id' => $account->id,
+            // Kept, which it was not before: it was used to read the account
+            // here and then dropped, leaving every later call — the test, the
+            // structure sync, the insights sync — on the connection's token.
+            // The effective token, the way the page and the WhatsApp account
+            // already store theirs: reconnecting rewrites all three, so a
+            // rotated credential does not leave a stale copy behind.
+            'access_token' => $token,
             'name' => is_string($row['name'] ?? null) ? $row['name'] : 'Ad account',
             'currency' => is_string($row['currency'] ?? null) ? $row['currency'] : null,
             'timezone' => is_string($row['timezone_name'] ?? null) ? $row['timezone_name'] : null,

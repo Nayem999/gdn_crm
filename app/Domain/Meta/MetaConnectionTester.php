@@ -180,7 +180,10 @@ class MetaConnectionTester
 
         foreach ($adAccounts as $adAccount) {
             try {
-                $this->client->get($adAccount->graphId(), ['fields' => 'account_id'], $token);
+                // The ad account's own token where it has one. Testing with
+                // the connection's token would pass for a credential these
+                // calls never use, and fail for one that works.
+                $this->client->get($adAccount->graphId(), ['fields' => 'account_id'], $adAccount->usableToken() ?? $token);
             } catch (MetaApiException) {
                 $unreachable[] = $adAccount->name;
             }

@@ -50,7 +50,11 @@ class SyncMetaAdStructureAction
      */
     public function __invoke(MetaAdAccount $account): array
     {
-        $token = $account->account?->token();
+        // The ad account's own token where it was given one. A business handed
+        // a separate permanent token for the Marketing API has exactly that,
+        // and reaching past it to the connection's token means these calls run
+        // on a credential nobody chose for them.
+        $token = $account->usableToken();
 
         if ($token === null) {
             throw new MetaApiException('That Meta connection has no access token. Reconnect it.');
@@ -70,9 +74,9 @@ class SyncMetaAdStructureAction
             }
 
             $counts[$level] = match ($level) {
-                'campaigns' => $this->campaigns($account, $token->value),
-                'ad_sets' => $this->adSets($account, $token->value),
-                default => $this->ads($account, $token->value),
+                'campaigns' => $this->campaigns($account, $token),
+                'ad_sets' => $this->adSets($account, $token),
+                default => $this->ads($account, $token),
             };
         }
 

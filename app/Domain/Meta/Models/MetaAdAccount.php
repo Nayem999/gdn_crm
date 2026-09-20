@@ -30,6 +30,11 @@ use Illuminate\Support\Carbon;
  * @property string|null $status
  * @property bool $is_active
  * @property Carbon|null $last_synced_at
+ * @property string|null $access_token
+ * @property string|null $token_type
+ * @property string|null $token_app_id
+ * @property string|null $token_error
+ * @property Carbon|null $token_checked_at
  * @property Carbon|null $insights_synced_through
  */
 class MetaAdAccount extends Model
@@ -70,8 +75,10 @@ class MetaAdAccount extends Model
     protected function casts(): array
     {
         return [
+            'access_token' => 'encrypted',
             'is_active' => 'boolean',
             'last_synced_at' => 'datetime',
+            'token_checked_at' => 'datetime',
             // A date, not a datetime: insights are days, reported in the ad
             // account's own timezone, and an hour-precision mark would make
             // "have we got Tuesday" unanswerable. See 12.7's migration.
@@ -93,6 +100,41 @@ class MetaAdAccount extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(MetaAccount::class, 'meta_account_id');
+    }
+
+    /**
+     * The credential this ad account's calls use.
+     *
+     * Its own where it was given one, the connection's otherwise — which is
+     * what a single system user holding every asset looks like, and what most
+     * installations have.
+     *
+     * Asked here rather than at each call site, because there are three of
+     * them (the capability test, the structure sync, the insights sync) and
+     * one reaching past the asset to the account is the bug this method
+     * exists to end.
+     */
+    public function usableToken(): ?string
+    {
+        $own = $this->access_token;
+
+        if (is_string($own) && $own !== '') {
+            return $own;
+        }
+
+        return $this->account?->token()?->value;
+    }
+
+    /**
+     * Whether there is a credential to call Meta with at all.
+     *
+     * Deliberately not "and Meta still accepts it": that is a fact about the
+     * last check, held in token_error, and a screen conflating the two would
+     * report an ad account as unconfigured when it is configured and revoked.
+     */
+    public function isUsable(): bool
+    {
+        return $this->usableToken() !== null;
     }
 
     public function status(): ?string

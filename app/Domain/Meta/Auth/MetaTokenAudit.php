@@ -5,6 +5,7 @@ namespace App\Domain\Meta\Auth;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConfiguration;
 use App\Domain\Meta\Models\MetaAccount;
+use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppBusinessAccount;
 use Illuminate\Database\Eloquent\Model;
@@ -57,9 +58,9 @@ class MetaTokenAudit
     /**
      * Everything that holds a token of its own, with what to call it.
      *
-     * The ad account is absent on purpose: it has no token, it borrows the
-     * account's, so auditing it would report the same credential twice under
-     * two names and imply a second thing to fix.
+     * An ad account is included only when it holds a token of its own: where
+     * it borrows the connection's, auditing it would report one credential
+     * twice under two names and imply a second thing to fix.
      *
      * @return array<int, array{0: string, 1: Model, 2: string|null}>
      */
@@ -75,6 +76,13 @@ class MetaTokenAudit
         foreach ($account->whatsAppAccounts as $waba) {
             /** @var WhatsAppBusinessAccount $waba */
             $holders[] = ['WhatsApp: '.$waba->name, $waba, $waba->access_token];
+        }
+
+        foreach ($account->adAccounts as $adAccount) {
+            /** @var MetaAdAccount $adAccount */
+            if (is_string($adAccount->access_token) && $adAccount->access_token !== '') {
+                $holders[] = ['Ads: '.$adAccount->name, $adAccount, $adAccount->access_token];
+            }
         }
 
         return $holders;

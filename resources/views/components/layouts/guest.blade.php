@@ -37,6 +37,7 @@
             </div>
         </div>
 
+        <x-form.password-script />
         @stack('scripts')
         @livewireScripts
     </body>

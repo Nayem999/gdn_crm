@@ -1,35 +1,9 @@
 @props(['invalid' => false])
 
-{{-- Deliberately plain JS rather than Alpine: this control has to keep working
-     even if Alpine hasn't booted (bad asset path, blocked script, stale
-     bundle), because a dead Alpine would silently leave the button inert. The
-     handler is inline so it needs no compiled bundle either. --}}
-@once
-    @push('scripts')
-        <script>
-            window.togglePasswordField = function (button) {
-                var input = button.parentElement.querySelector('input');
-                if (!input) {
-                    return;
-                }
-
-                var reveal = input.type === 'password';
-                input.type = reveal ? 'text' : 'password';
-
-                button.setAttribute('aria-pressed', reveal ? 'true' : 'false');
-                button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
-
-                var showIcon = button.querySelector('[data-password-icon="show"]');
-                var hideIcon = button.querySelector('[data-password-icon="hide"]');
-
-                if (showIcon && hideIcon) {
-                    showIcon.style.display = reveal ? 'none' : '';
-                    hideIcon.style.display = reveal ? '' : 'none';
-                }
-            };
-        </script>
-    @endpush
-@endonce
+{{-- The `togglePasswordField` handler is in the layout, not here. It used to
+     be pushed from this file with `@once @push('scripts')`, which silently did
+     nothing for a field that appears after a Livewire update — see
+     components/form/password-script.blade.php. --}}
 
 <div class="relative">
     <x-form.input

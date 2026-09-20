@@ -21,6 +21,29 @@ test('the toggle does not depend on Alpine being booted', function () {
     expect($html)->not->toMatch('/x-(data|show|bind|on|cloak|ref)/');
 });
 
+test('the field does not carry its own copy of the handler', function () {
+    // It used to publish it with `@once @push('scripts')`, which reaches the
+    // page only when the field is in the first render. On a screen that keeps
+    // its password fields behind a button — /settings/meta/connect does — the
+    // markup arrived by Livewire and the handler never did, so the eye button
+    // silently did nothing. The layout ships it instead.
+    $html = (string) $this->blade('<x-form.password id="password" name="password" />');
+
+    expect($html)->not->toContain('<script');
+});
+
+test('a page ships the handler even with no password field in it', function () {
+    $html = (string) $this->actingAs(User::factory()->create())
+        ->get(route('dashboard'))
+        ->assertSuccessful()
+        ->getContent();
+
+    // The regression: a field revealed later by Livewire has no way to bring
+    // its own handler with it, so the page has to have it already.
+    expect($html)->toContain('window.togglePasswordField')
+        ->and(substr_count($html, 'window.togglePasswordField'))->toBe(1);
+});
+
 test('the password field forwards attributes to the underlying input', function () {
     $view = $this->blade(
         '<x-form.password id="password_confirmation" name="password_confirmation" autocomplete="new-password" required />'
@@ -61,7 +84,7 @@ test('both password fields on the registration screen get their own toggle', fun
     $content = $this->get(route('register'))->assertSuccessful()->getContent();
 
     expect(substr_count($content, 'aria-label="Show password"'))->toBe(2)
-        // @once means the shared helper is emitted a single time.
+        // The layout ships the helper once, however many fields use it.
         ->and(substr_count($content, 'window.togglePasswordField'))->toBe(1);
 });
 

@@ -306,6 +306,33 @@
                         <div class="mt-1.5">
                             <x-copy-field :value="$webhook['url']" />
                         </div>
+
+                        @can('meta.manage')
+                            <div class="mt-2 flex flex-wrap items-center gap-3">
+                                {{-- Meta's refusal says "an error occurred" whether
+                                     the address is unreachable or the app simply
+                                     has not been published. This settles which
+                                     half is at fault. --}}
+                                <x-button
+                                    type="button"
+                                    variant="secondary"
+                                    wire:click="testWebhook('{{ $webhook['channel'] }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="testWebhook('{{ $webhook['channel'] }}')"
+                                >
+                                    <span wire:loading.remove wire:target="testWebhook('{{ $webhook['channel'] }}')">Test this address</span>
+                                    <span wire:loading wire:target="testWebhook('{{ $webhook['channel'] }}')">Calling&hellip;</span>
+                                </x-button>
+
+                                @if (isset($webhookTests[$webhook['channel']]))
+                                    <span @class([
+                                        'text-xs',
+                                        'text-emerald-600 dark:text-emerald-400' => $webhookTests[$webhook['channel']]['ok'],
+                                        'text-destructive' => ! $webhookTests[$webhook['channel']]['ok'],
+                                    ])>{{ $webhookTests[$webhook['channel']]['detail'] }}</span>
+                                @endif
+                            </div>
+                        @endcan
                     </li>
                 @endforeach
             </ul>

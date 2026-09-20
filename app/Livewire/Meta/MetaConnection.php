@@ -14,11 +14,14 @@ use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaAdAccount;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppPhoneNumber;
+use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Throwable;
 
 /**
  * The connection screen: what is connected, what it can do, and what to fix.
@@ -82,6 +85,13 @@ class MetaConnection extends Component
     public string $wabaToken = '';
 
     public string $adsToken = '';
+
+    /**
+     * What calling our own webhook address proved, per channel.
+     *
+     * @var array<string, array{ok: bool, detail: string}>
+     */
+    public array $webhookTests = [];
 
     /**
      * What each pasted identifier turned out to be, one line each.
@@ -218,13 +228,14 @@ class MetaConnection extends Component
      * webhook configuration, and an address they have to assemble from a
      * documentation page is one they will assemble wrongly.
      *
-     * @return array<int, array{label: string, url: string}>
+     * @return array<int, array{channel: string, label: string, url: string, field: string}>
      */
     public function webhookUrls(): array
     {
         // Built on the **configured** address rather than the one this request
         // arrived on, and always over https — see MetaUrls for why both matter.
         return array_map(fn (MetaChannel $channel): array => [
+            'channel' => $channel->value,
             'label' => $channel->label(),
             'url' => MetaUrls::webhook($channel),
             // What to subscribe on Meta's side. Naming it here saves a trip to
@@ -402,6 +413,99 @@ class MetaConnection extends Component
         $this->tokenResults = $outcome['results'];
         $this->testResults = null;
         $this->notice = 'Connected to '.$outcome['account']->name.'.';
+    }
+
+    /**
+     * Call this installation's own webhook address, as Meta would.
+     *
+     * Worth having because Meta's refusal says nothing useful — "An error
+     * occurred (#1004)" is returned both when the address is unreachable and
+     * when the app simply has not been published — and the first question is
+     * always whether the endpoint itself answers. This settles that half in a
+     * second, so what remains is known to be at Meta's end.
+     *
+     * **It proves the endpoint, not the route to it.** The request leaves this
+     * server and comes back to this server, which a firewall that only blocks
+     * outsiders would still allow. The wording says as much rather than
+     * claiming more than the test can show.
+     */
+    public function testWebhook(string $channel): void
+    {
+        $this->authorize('update', MetaAccount::query()->latest('id')->first() ?? new MetaAccount);
+
+        $case = MetaChannel::tryFrom($channel);
+
+        if ($case === null) {
+            return;
+        }
+
+        $url = MetaUrls::webhook($case);
+
+        // Not the full outbound guard. A server very often resolves its own
+        // domain to an address inside its own network, so `refuse()` answers
+        // "gdncrm.example.net resolves to an address inside this network" about
+        // the site's own public domain and the test never runs. `refuseSelfCall`
+        // is the same check with that one allowance made.
+        $refusal = WebhookTarget::refuseSelfCall($url);
+
+        if ($refusal !== null) {
+            $this->webhookTests[$channel] = ['ok' => false, 'detail' => $refusal];
+
+            return;
+        }
+
+        // Whether the request is about to stay on this machine. Asked before it
+        // is sent, because it changes what a pass is allowed to claim.
+        $stayedLocal = ! WebhookTarget::allows($url);
+
+        $challenge = (string) random_int(1000000000, 9999999999);
+
+        try {
+            $response = Http::timeout(10)->get($url, [
+                'hub.mode' => 'subscribe',
+                'hub.challenge' => $challenge,
+                'hub.verify_token' => (string) app(MetaConfiguration::class)->ensureVerifyToken(),
+            ]);
+        } catch (Throwable $exception) {
+            $this->webhookTests[$channel] = [
+                'ok' => false,
+                'detail' => 'This address could not be reached from this server: '.$exception->getMessage(),
+            ];
+
+            return;
+        }
+
+        $body = trim($response->body());
+
+        $this->webhookTests[$channel] = match (true) {
+            $response->status() === 403 => [
+                'ok' => false,
+                'detail' => 'The address answered, but refused the verify token. Something between here and there is '
+                    .'rewriting the request, or another installation is answering on this address.',
+            ],
+            ! $response->successful() => [
+                'ok' => false,
+                'detail' => 'The address answered '.$response->status().'. Meta needs a 200 with the challenge.',
+            ],
+            $body !== $challenge => [
+                'ok' => false,
+                'detail' => 'The address answered 200 but did not echo the challenge, so Meta would refuse it. '
+                    .'It replied: '.mb_substr($body, 0, 120),
+            ],
+            default => [
+                'ok' => true,
+                'detail' => 'Answered correctly — 200, with the challenge echoed. If Meta still refuses this address, '
+                    .'the fault is between Meta and here: most often an app that has not been published, or a '
+                    .'firewall that lets this server through and not Meta.'
+                    // Said plainly rather than left for somebody to work out
+                    // after Meta refuses an address this screen called good.
+                    .($stayedLocal
+                        ? ' Note that this server resolves the address to itself, so the request never left the '
+                            .'machine: this proves the route, the token and the certificate, but not that anything '
+                            .'on the internet can reach it.'
+                        : ''),
+            ],
+        };
     }
 
     public function test(): void

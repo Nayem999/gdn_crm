@@ -85,6 +85,57 @@ final class WebhookTarget
     }
 
     /**
+     * Why this application may not call **its own** published address, or null.
+     *
+     * A deliberately weaker guard than {@see self::refuse()}, and the weakness
+     * is the point. That one judges an address somebody chose, so anything
+     * inside the network is refused. This one judges the address this
+     * installation publishes and then calls itself to check — and a server
+     * routinely resolves its own domain to a loopback or LAN address.
+     * Split-horizon DNS, or a line in `/etc/hosts`, is the ordinary shape of
+     * shared hosting. Applying the full guard there refuses the self-test on
+     * exactly the deployments that need it, reporting "resolves to an address
+     * inside this network" about the site's own public domain.
+     *
+     * Still refused: a scheme that is not http, a name that does not resolve,
+     * and the link-local range — 169.254.169.254 is the cloud metadata service,
+     * and no site's own domain points at it.
+     *
+     * What that leaves reachable is the private network, from a screen that
+     * already requires `meta.manage`, disclosing a status code and whether a
+     * random number came back. Use it only for an address this application
+     * generated for itself; anything a person typed goes through
+     * {@see self::refuse()}.
+     */
+    public static function refuseSelfCall(string $url): ?string
+    {
+        $parts = parse_url($url);
+
+        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
+            return 'That is not a URL this application can call.';
+        }
+
+        if (! in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
+            return 'A webhook must be http or https.';
+        }
+
+        $host = $parts['host'];
+        $addresses = self::resolve($host);
+
+        if ($addresses === []) {
+            return $host.' does not resolve from this server.';
+        }
+
+        foreach ($addresses as $address) {
+            if (self::inRange($address, '169.254.0.0/16')) {
+                return $host.' resolves to the link-local range, which is not a web server.';
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * A stand-in for the system resolver.
      *
      * The guard has to resolve a name to decide whether it points inside the

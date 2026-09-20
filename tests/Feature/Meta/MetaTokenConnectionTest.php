@@ -17,6 +17,7 @@ use App\Domain\Meta\Models\WhatsAppPhoneNumber;
 use App\Domain\Settings\SettingsManager;
 use App\Livewire\Meta\MetaConnection;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
@@ -862,4 +863,141 @@ test('after disconnecting, every step of the setup reads as undone', function ()
     expect($stages['Meta app credentials']['done'])->toBeFalse()
         ->and($stages['Business connected']['done'])->toBeFalse()
         ->and($stages['Webhooks']['done'])->toBeFalse();
+});
+
+// -- Testing the webhook address itself ---------------------------------------
+
+test('a correctly answering address reports itself as correct', function () {
+    metaTokenFake();
+    // example.com is one of the hosts the suite's resolver stub knows: the
+    // SSRF guard resolves before calling, and an unknown host is refused
+    // before a request is made.
+    config(['app.url' => 'https://example.com']);
+
+    // What the real endpoint does: echo the challenge back as plain text.
+    // parse_str turns "hub.challenge" into "hub_challenge", exactly as PHP does
+    // for the real request.
+    Http::fake(['example.com/api/webhooks/meta/*' => function ($request) {
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return Http::response((string) ($query['hub_challenge'] ?? ''), 200);
+    }]);
+
+    $component = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp');
+
+    $result = $component->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeTrue()
+        // And it says where what is left of the problem must be.
+        ->and($result['detail'])->toContain('between Meta and here')
+        // This host resolves to a public address, so the request really did
+        // leave the server: no caveat belongs on the answer.
+        ->and($result['detail'])->not->toContain('never left the machine');
+});
+
+test('an address that answers without the challenge is reported as it would be refused', function () {
+    metaTokenFake();
+    config(['app.url' => 'https://example.com']);
+
+    // A 200 from a holding page, a cache, or somebody else's application.
+    Http::fake(['example.com/api/webhooks/meta/*' => Http::response('<html>Coming soon</html>', 200)]);
+
+    $result = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeFalse()
+        ->and($result['detail'])->toContain('did not echo the challenge');
+});
+
+test('an address that cannot be reached says so rather than failing silently', function () {
+    metaTokenFake();
+    config(['app.url' => 'https://example.com']);
+
+    Http::fake(['example.com/*' => fn () => throw new ConnectionException('Connection timed out')]);
+
+    $result = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeFalse()
+        ->and($result['detail'])->toContain('could not be reached');
+});
+
+test('an address this server resolves to itself is still tested, and the pass says so', function () {
+    metaTokenFake();
+    // The shape of a real deployment: the site's own domain resolves, from the
+    // site's own server, to an address inside the network. The full SSRF guard
+    // refuses that, which would leave the test unusable exactly where the
+    // problem is.
+    config(['app.url' => 'http://localhost:8080']);
+
+    Http::fake(['localhost:8080/api/webhooks/meta/*' => function ($request) {
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return Http::response((string) ($query['hub_challenge'] ?? ''), 200);
+    }]);
+
+    $result = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeTrue()
+        // A pass here proves the endpoint answers, and nothing about whether
+        // Meta could reach it. Claiming otherwise would send somebody looking
+        // at their Meta app when their firewall is the problem.
+        ->and($result['detail'])->toContain('never left the machine');
+});
+
+test('the test refuses an address that is not a web server at all', function () {
+    metaTokenFake();
+    // 169.254.169.254 is the cloud metadata service. No site's own domain
+    // points there, and a request carrying this installation's verify token
+    // certainly should not.
+    config(['app.url' => 'https://link-local.example.com']);
+
+    Http::fake();
+
+    $result = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeFalse()
+        ->and($result['detail'])->toContain('link-local');
+
+    Http::assertNothingSent();
+});
+
+test('the test refuses an address that does not resolve', function () {
+    metaTokenFake();
+    config(['app.url' => 'https://nowhere.example.org']);
+
+    Http::fake();
+
+    $result = Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->get('webhookTests')['whatsapp'];
+
+    expect($result['ok'])->toBeFalse()
+        ->and($result['detail'])->toContain('does not resolve');
+
+    Http::assertNothingSent();
+});
+
+test('testing an address needs more than being able to look at it', function () {
+    metaTokenFake();
+    config(['app.url' => 'https://example.com']);
+    Http::fake();
+
+    Livewire::actingAs(metaTokenConnector(['meta.view']))
+        ->test(MetaConnection::class)
+        ->call('testWebhook', 'whatsapp')
+        ->assertForbidden();
 });

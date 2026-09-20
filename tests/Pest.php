@@ -34,6 +34,10 @@ pest()->extend(TestCase::class)
             'their-system.test' => ['93.184.216.34'],
             'broken.test' => ['93.184.216.34'],
             'localhost' => ['127.0.0.1'],
+            // A host that resolves to the cloud metadata service. Nothing may
+            // call it, including the one check allowed to call an address
+            // inside this network (WebhookTarget::refuseSelfCall()).
+            'link-local.example.com' => ['169.254.169.254'],
             default => [],
         });
     })

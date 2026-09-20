@@ -43,6 +43,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Social/**, app/Livewire/Social/**, resources/views/livewire/social/** | .ai/rules/social.md |
 | app/Domain/Support/**, app/Livewire/Support/**, resources/views/livewire/support/** | .ai/rules/support.md |
 | app/Domain/Teams/** | .ai/rules/teams.md |
+| app/Domain/Tenancy/** | .ai/rules/tenancy.md |
 | tests/** | .ai/rules/tests.md |
 | app/Domain/Timeline/**, app/Livewire/Timeline/**, app/Http/Controllers/DownloadDocument.php, resources/views/livewire/timeline/**, resources/views/components/timeline-entry.blade.php | .ai/rules/timeline.md |
 | resources/views/livewire/** | .ai/rules/views-livewire.md |

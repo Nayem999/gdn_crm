@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -25,6 +26,11 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            // Users carry a workspace but are deliberately not globally
+            // scoped: authentication looks somebody up by email before any
+            // workspace is known, and a scope here would make logging in
+            // impossible. See BelongsToTenant for why everything else is.
+            'tenant_id' => app(Tenancy::class)->id(),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

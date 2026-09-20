@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetTenantFromUser;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -41,6 +42,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // password (or logging out other devices) invalidates sibling sessions.
         $middleware->web(append: [
             AuthenticateSession::class,
+            // Which workspace this request acts for. After authentication,
+            // because it reads the signed-in user; before anything touches
+            // data, because a scoped query with no workspace set matches
+            // nothing on purpose.
+            SetTenantFromUser::class,
         ]);
 
         // The headers a browser needs to defend the page. Appended to every

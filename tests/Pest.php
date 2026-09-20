@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Tenancy\Models\Tenant;
+use App\Domain\Tenancy\Tenancy;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,6 +20,18 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
+        // Every test acts for a workspace, because every real request does.
+        // Without this the global tenant scope narrows each query to nothing
+        // — which is the right behaviour for an unidentified request and a
+        // baffling one for a test that just created the row it cannot find.
+        //
+        // The workspace the tenants migration created, not a fresh one: it is
+        // the one the seeded data and the migrated rows belong to.
+        $tenant = Tenant::query()->orderBy('id')->first()
+            ?? Tenant::factory()->create(['slug' => 'default']);
+
+        app(Tenancy::class)->set($tenant);
+
         // The SSRF guard resolves a hostname to decide whether it points inside
         // the network. Left alone, that is a real DNS lookup in every test that
         // touches a webhook — which makes the suite depend on the network being

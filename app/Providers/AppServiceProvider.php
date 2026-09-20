@@ -92,6 +92,7 @@ use App\Domain\Support\Policies\SlaPolicyPolicy;
 use App\Domain\Support\Policies\TicketCommentPolicy;
 use App\Domain\Support\Policies\TicketPolicy;
 use App\Domain\Teams\Policies\TeamPolicy;
+use App\Domain\Tenancy\Tenancy;
 use App\Domain\Timeline\Models\Document;
 use App\Domain\Timeline\Models\Note;
 use App\Domain\Timeline\Policies\DocumentPolicy;
@@ -129,6 +130,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Which workspace this process is acting for. A singleton is not an
+        // optimisation here: the middleware sets it and the global scope reads
+        // it, and two instances would mean every query scoped to nothing while
+        // the request believed it had a workspace.
+        $this->app->singleton(Tenancy::class);
+
         // One memo per container: per web request, per queued job, per test.
         // Anything that resolves it mid-request shares the same instance,
         // which is the whole point.

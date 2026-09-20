@@ -20,6 +20,11 @@
             </template>
         </div>
 
+        {{-- Above the per-source panels, because a stopped worker is not a fact
+             about any one source: when nothing is processing, every source
+             reads as quiet. --}}
+        <x-stalled-deliveries :stalled="$this->stalled" />
+
         {{-- Health, per source. "Is it broken" is the question somebody opens
              this screen with, and a run of recent failures is the honest
              answer — a source that has delivered ten thousand records and

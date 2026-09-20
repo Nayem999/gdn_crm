@@ -2,6 +2,9 @@
 
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Ingestion\Enums\IntegrationEventStatus;
+use App\Domain\Ingestion\Models\DataSource;
+use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Social\Enums\ConversationStatus;
@@ -265,4 +268,26 @@ test('somebody without the permission cannot open the inbox', function () {
     Livewire::actingAs(User::factory()->create())
         ->test(SocialInbox::class)
         ->assertForbidden();
+});
+
+test('an inbox that is empty because nothing is processing says so', function () {
+    // Two causes look identical from the inbox: nobody messaged, or what they
+    // sent is sitting in a queue nothing is draining. This is the second, and
+    // it is the one worth a sentence.
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->count(2)->create([
+        'status' => IntegrationEventStatus::Received->value,
+        'received_at' => now()->subHour(),
+    ]);
+
+    Livewire::actingAs(socialAgent())
+        ->test(SocialInbox::class)
+        ->assertSee('2 deliveries')
+        ->assertSee('waiting to be processed');
+});
+
+test('a working inbox is not told about the queue', function () {
+    Livewire::actingAs(socialAgent())
+        ->test(SocialInbox::class)
+        ->assertDontSee('waiting to be processed');
 });

@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -334,6 +335,20 @@ class IntegrationLog extends Component
     public function alertThreshold(): int
     {
         return IntegrationHealth::ALERT_AFTER;
+    }
+
+    /**
+     * Deliveries that arrived and are still waiting to be processed.
+     *
+     * Its own line above the per-source health, because it is not a fact about
+     * any one source: when the worker stops, every source reads as quiet.
+     *
+     * @return array{count: int, oldest: Carbon|null}
+     */
+    #[Computed]
+    public function stalled(): array
+    {
+        return IntegrationHealth::stalled();
     }
 
     // -- Quick filters -------------------------------------------------------

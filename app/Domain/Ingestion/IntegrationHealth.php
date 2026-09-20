@@ -90,6 +90,57 @@ final class IntegrationHealth
     }
 
     /**
+     * How long a delivery may sit unprocessed before something is wrong.
+     *
+     * Generous, because it is measuring a queue and not a request: a worker
+     * that restarts, a burst of a thousand leads, a slow third-party lookup in
+     * a job ahead of this one. Five minutes is long past all of those and
+     * still short enough to notice within a working day.
+     */
+    public const STALLED_AFTER_MINUTES = 5;
+
+    /**
+     * Deliveries that arrived and were never processed.
+     *
+     * The failure this exists to name has no error message and no failed row:
+     * nothing is *running*. Every delivery is captured, answered, queued — and
+     * then sits, while the inbox stays empty in a way indistinguishable from
+     * nobody having messaged. The only trace is a `received` row that never
+     * became anything, which is precisely what this counts.
+     *
+     * Both statuses, because both are "not finished": `processing` that never
+     * advanced means a worker took the job and died holding it.
+     *
+     * @return array{count: int, oldest: Carbon|null}
+     */
+    public static function stalled(): array
+    {
+        $cutoff = now()->subMinutes(self::STALLED_AFTER_MINUTES);
+
+        $query = IntegrationEvent::query()
+            ->whereIn('status', [
+                IntegrationEventStatus::Received->value,
+                IntegrationEventStatus::Processing->value,
+            ])
+            ->where('received_at', '<=', $cutoff);
+
+        $count = (clone $query)->count();
+
+        if ($count === 0) {
+            return ['count' => 0, 'oldest' => null];
+        }
+
+        $oldest = $query->min('received_at');
+
+        return [
+            'count' => $count,
+            // How long it has been stuck is the part that says whether this is
+            // a worker catching up or a worker that was never started.
+            'oldest' => $oldest === null ? null : Carbon::parse((string) $oldest),
+        ];
+    }
+
+    /**
      * Whether this failure is the one worth telling somebody about.
      *
      * True **only when the run reaches the threshold**, never past it. A source

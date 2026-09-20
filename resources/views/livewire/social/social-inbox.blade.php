@@ -1,4 +1,7 @@
 <div class="space-y-4">
+    {{-- Why the inbox is empty, when the reason is on our side. --}}
+    <x-stalled-deliveries :stalled="$stalled" />
+
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-foreground">{{ $this->heading() }}</h1>

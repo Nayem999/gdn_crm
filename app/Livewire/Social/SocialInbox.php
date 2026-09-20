@@ -5,6 +5,7 @@ namespace App\Livewire\Social;
 use App\Domain\Activities\Actions\CreateActivityAction;
 use App\Domain\Activities\DTOs\ActivityData;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Ingestion\IntegrationHealth;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaAd;
 use App\Domain\Social\Actions\AssignConversationAction;
@@ -401,6 +402,11 @@ class SocialInbox extends Component
                 ? $this->templateOptions()
                 : [],
             'chosenTemplate' => $this->chosenTemplate(),
+            // An empty inbox has two causes that look identical from here:
+            // nobody messaged, or nothing is processing what they sent. Only
+            // one of them is worth telling somebody about, so it is asked
+            // rather than assumed.
+            'stalled' => IntegrationHealth::stalled(),
         ]);
     }
 

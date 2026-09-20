@@ -206,6 +206,62 @@ test('the log narrows to one kind of delivery', function () {
     expect($rows->pluck('external_id')->all())->toBe(['wanted']);
 });
 
+test('the log says when deliveries are arriving and nothing is processing them', function () {
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->count(3)->create([
+        'status' => IntegrationEventStatus::Received->value,
+        'received_at' => now()->subHours(2),
+    ]);
+
+    Livewire::actingAs(ingestionAdmin())
+        ->test(IntegrationLog::class)
+        ->assertSee('3 deliveries')
+        // The failure has no error and no failed row — nothing is running — so
+        // the screen has to name the cause rather than show a count and leave
+        // somebody to guess.
+        ->assertSee('queue worker is not running');
+});
+
+test('a delivery that has only just arrived is not called stuck', function () {
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->create([
+        'status' => IntegrationEventStatus::Received->value,
+        'received_at' => now(),
+    ]);
+
+    // A queue a few seconds behind is a queue, not an outage. Warning here
+    // would put an amber box on the screen every time anything arrived.
+    Livewire::actingAs(ingestionAdmin())
+        ->test(IntegrationLog::class)
+        ->assertDontSee('queue worker is not running');
+});
+
+test('a processed delivery is not waiting for anything', function () {
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->count(3)->create([
+        'status' => IntegrationEventStatus::Processed->value,
+        'received_at' => now()->subDay(),
+        'processed_at' => now()->subDay(),
+    ]);
+
+    expect(IntegrationHealth::stalled()['count'])->toBe(0);
+});
+
+test('a job a worker took and died holding still counts as stuck', function () {
+    $source = DataSource::factory()->into('leads')->create();
+    IntegrationEvent::factory()->forSource($source)->create([
+        'status' => IntegrationEventStatus::Processing->value,
+        'received_at' => now()->subHour(),
+    ]);
+
+    $stalled = IntegrationHealth::stalled();
+
+    expect($stalled['count'])->toBe(1)
+        // How long it has been stuck is what separates a worker catching up
+        // from one that was never started.
+        ->and($stalled['oldest']?->diffInMinutes())->toBeGreaterThanOrEqual(59);
+});
+
 test('every filter field is a real column', function () {
     $columns = Schema::getColumnListing('integration_events');
 

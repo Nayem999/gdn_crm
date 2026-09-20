@@ -1,6 +1,8 @@
 <?php
 
 use App\Domain\Access\PermissionResolver;
+use App\Domain\Attribution\MarketingAttribution;
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Actions\ConnectMetaAccountAction;
 use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Actions\SyncMetaAssetsAction;
@@ -11,6 +13,7 @@ use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConnectionTester;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\MetaAdAccount;
+use App\Domain\Meta\Models\MetaCampaign;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppBusinessAccount;
 use App\Domain\Meta\Models\WhatsAppPhoneNumber;
@@ -329,20 +332,61 @@ test('disconnecting revokes at Meta and clears every stored token', function () 
 
     expect($account->fresh()->user_token)->toBeNull()
         ->and($account->fresh()->status())->toBe(MetaConnectionStatus::Disconnected)
-        ->and($page->fresh()->access_token)->toBeNull()
-        ->and($page->fresh()->is_subscribed)->toBeFalse()
-        ->and($waba->fresh()->access_token)->toBeNull();
+        // The assets go with the connection rather than staying behind
+        // tokenless, which is a state every screen would have to special-case.
+        ->and($page->fresh())->toBeNull()
+        ->and($waba->fresh())->toBeNull();
 });
 
-test('disconnecting keeps the rows, because leads point at them', function () {
+test('disconnecting removes the assets, rather than remembering them', function () {
     $account = MetaAccount::factory()->create();
     MetaPage::factory()->count(2)->create(['meta_account_id' => $account->id]);
+    $waba = WhatsAppBusinessAccount::factory()->create(['meta_account_id' => $account->id]);
+    WhatsAppPhoneNumber::factory()->create(['whatsapp_business_account_id' => $waba->id]);
+    MetaAdAccount::factory()->create(['meta_account_id' => $account->id]);
 
     Http::fake(['graph.facebook.com/*' => Http::response(['success' => true])]);
 
     app(DisconnectMetaAccountAction::class)($account);
 
-    expect(MetaPage::query()->where('meta_account_id', $account->id)->count())->toBe(2);
+    // A disconnected installation still listing a number it cannot send from
+    // is lying about its own state.
+    expect(MetaPage::query()->where('meta_account_id', $account->id)->count())->toBe(0)
+        ->and(WhatsAppBusinessAccount::query()->where('meta_account_id', $account->id)->count())->toBe(0)
+        // By cascade, with the business account they hang off.
+        ->and(WhatsAppPhoneNumber::query()->count())->toBe(0)
+        ->and(MetaAdAccount::query()->where('meta_account_id', $account->id)->count())->toBe(0)
+        // The account row stays: it carries whether Meta confirmed the revoke,
+        // which is the reason somebody comes back to this screen.
+        ->and(MetaAccount::query()->whereKey($account->id)->exists())->toBeTrue();
+});
+
+test('disconnecting keeps every figure and every attributed lead', function () {
+    $account = MetaAccount::factory()->create();
+    MetaPage::factory()->create(['meta_account_id' => $account->id, 'page_id' => '106069340959538']);
+    MetaAdAccount::factory()->create(['meta_account_id' => $account->id, 'ad_account_id' => '23914816791552795']);
+
+    // This is why deleting the assets is safe, and it is worth pinning:
+    // attribution stores Meta's ids as strings and meta_campaigns keys on the
+    // ad account's Meta id rather than on the row. Nothing here has a foreign
+    // key to what the disconnect removes.
+    $lead = Lead::factory()->create();
+    $lead->recordAttribution(new MarketingAttribution(
+        source: 'facebook',
+        pageId: '106069340959538',
+        metaCampaignId: '120000000000001',
+        metaCampaignName: 'Spring hiring',
+    ));
+
+    $campaign = MetaCampaign::factory()->create(['ad_account_id' => '23914816791552795']);
+
+    Http::fake(['graph.facebook.com/*' => Http::response(['success' => true])]);
+
+    app(DisconnectMetaAccountAction::class)($account);
+
+    expect(MetaCampaign::query()->whereKey($campaign->id)->exists())->toBeTrue()
+        ->and($lead->fresh()->attribution()?->pageId)->toBe('106069340959538')
+        ->and($lead->fresh()->attribution()?->metaCampaignName)->toBe('Spring hiring');
 });
 
 test('a revoke Meta refuses still disconnects, and says so', function () {

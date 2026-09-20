@@ -731,18 +731,23 @@ test('after disconnecting, nothing in the setup still claims to work', function 
         ->instance()
         ->stages())->keyBy('label');
 
-    // The rows stay — every lead attributed to a form on that page still points
-    // at it — but nothing may still read as working.
+    // Not "remembered", and not "connected, but": the setup reads exactly as it
+    // does on an installation that has never connected anything, because that
+    // is what this installation now is.
     expect($stages['Business connected']['done'])->toBeFalse()
         ->and($stages['Facebook Pages']['done'])->toBeFalse()
         ->and($stages['Ad accounts']['done'])->toBeFalse()
         ->and($stages['WhatsApp number']['done'])->toBeFalse()
-        ->and($stages['WhatsApp number']['detail'])->toContain('nothing can be sent')
-        ->and($stages['Facebook Pages']['detail'])->toContain('none usable');
+        ->and($stages['WhatsApp number']['detail'])->toContain('None yet')
+        // The number in particular: a disconnected CRM still showing the
+        // number it cannot send from is the thing that prompted this.
+        ->and($stages['WhatsApp number']['detail'])->not->toContain('+880 1895-657039')
+        ->and($stages['Facebook Pages']['detail'])->toContain('None yet');
 
-    // And every token is gone, which is what "disconnect" has to mean.
-    expect(MetaPage::query()->value('access_token'))->toBeNull()
-        ->and(WhatsAppBusinessAccount::query()->value('access_token'))->toBeNull()
+    // And nothing is left behind to be listed anywhere else either.
+    expect(MetaPage::query()->count())->toBe(0)
+        ->and(WhatsAppBusinessAccount::query()->count())->toBe(0)
+        ->and(WhatsAppPhoneNumber::query()->count())->toBe(0)
         ->and($account->fresh()->user_token)->toBeNull();
 });
 

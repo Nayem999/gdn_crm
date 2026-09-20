@@ -29,10 +29,25 @@ use Throwable;
  *    behind means the setup screen goes on reporting itself half configured,
  *    and a verify token nobody knows is still live is a subscription somebody
  *    else's deployment could satisfy.
- * 4. **The rows stay.** The pages, the ad accounts and the numbers keep their
- *    ids and their names, because every lead in the CRM attributed to a form on
- *    one of those pages still points here. Deleting them to look tidy would turn
- *    a year of marketing history into orphaned ids.
+ * 4. **The assets go.** The pages, the WhatsApp business accounts and their
+ *    numbers, and the ad accounts are deleted, because a disconnected
+ *    installation that still lists a number it cannot send from is lying about
+ *    its own state — and a checklist reporting "+880 1895-657039 is
+ *    remembered" is not a feature, it is a stale row with a sentence wrapped
+ *    round it.
+ *
+ *    This used to keep them, on the grounds that leads attributed to a form on
+ *    one of those pages pointed at them. They do not. `marketing_attributions`
+ *    stores the page id, form id, campaign, ad set and ad as **strings**, and
+ *    `meta_campaigns.ad_account_id` is Meta's own id rather than a foreign key
+ *    — which is the point of denormalising attribution in the first place. So
+ *    every figure and every attributed lead survives this: spend history,
+ *    conversations (threaded on a string too), and meta_leads, whose form
+ *    reference is already nullOnDelete.
+ *
+ *    The account row itself stays. It carries the one thing worth reading
+ *    afterwards — that Meta did not confirm the revoke — which deleting it
+ *    would throw away along with the reason somebody came back to this screen.
  *
  * A revoke that fails does not stop the disconnection. Meta being unreachable is
  * not a reason to leave an administrator connected to something they have said
@@ -51,8 +66,16 @@ class DisconnectMetaAccountAction
         $revokeError = $this->revoke($account);
 
         DB::transaction(function () use ($account, $revokeError): void {
-            $account->pages()->update(['access_token' => null, 'is_subscribed' => false, 'subscribed_at' => null]);
-            $account->whatsAppAccounts()->update(['access_token' => null, 'is_subscribed' => false]);
+            // Deleted rather than emptied. A tokenless page is not a page
+            // this CRM has; leaving the row means every screen has to carry a
+            // special case for "connected, but not really".
+            //
+            // WhatsApp numbers go with their business account by cascade, and
+            // nothing else points at any of these rows: attribution, spend
+            // history and conversations all key on Meta's own string ids.
+            $account->pages()->delete();
+            $account->whatsAppAccounts()->delete();
+            $account->adAccounts()->delete();
 
             // The application's own credentials, not this connection's. See the
             // class comment: a disconnect that leaves them behind reports a

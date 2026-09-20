@@ -198,7 +198,11 @@ class MetaConnection extends Component
                 'detail' => match (true) {
                     $adAccounts->isEmpty() => 'None yet, so campaign figures will be empty. Add the ad account ID below.',
                     $adAccounts->contains(fn (MetaAdAccount $adAccount): bool => $adAccount->token_error !== null) => $adAccounts->count()
-                        .' known, but Meta refuses the token: '
+                        // Not "Meta refuses the token": the recorded reason is
+                        // sometimes that there is no token at all, and
+                        // "Meta refuses its token: no token is stored" is a
+                        // sentence that answers nothing.
+                        .' known, but they cannot be read: '
                         .(string) $adAccounts->first(fn (MetaAdAccount $adAccount): bool => $adAccount->token_error !== null)?->token_error,
                     $adAccounts->contains(fn (MetaAdAccount $adAccount): bool => ! $adAccount->isUsable()) => $adAccounts->count()
                         .' known, with no token to read them with. Paste one below, or reconnect.',
@@ -223,7 +227,7 @@ class MetaConnection extends Component
                     $whatsApp->isEmpty() => 'None yet. Add the WhatsApp business account ID below; its numbers are read from Meta rather than typed.',
                     $numbers->isEmpty() => 'The connected business account has no numbers. Add one to it in Business Manager, then re-read from Meta.',
                     $whatsApp->contains(fn ($waba): bool => $waba->token_error !== null) => (string) ($numbers->firstWhere('is_default', true) ?? $numbers->first())->display_number
-                        .' is remembered, but Meta refuses its token: '
+                        .' cannot send: '
                         .(string) $whatsApp->first(fn ($waba): bool => $waba->token_error !== null)?->token_error,
                     ! $connected => (string) ($numbers->firstWhere('is_default', true) ?? $numbers->first())->display_number
                         .' is remembered, but nothing can be sent until Meta is connected again.',

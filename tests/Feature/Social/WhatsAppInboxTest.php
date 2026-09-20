@@ -680,3 +680,53 @@ function socialAgentFor(array $permissions): User
 
     return $user->fresh();
 }
+
+test('a revoked token is reported as revoked, not in the words Meta chose', function () {
+    $number = waNumber();
+
+    $conversation = SocialConversation::factory()->onChannel(SocialChannel::WhatsApp)->create([
+        'channel_account_id' => $number->phone_number_id,
+        'external_conversation_id' => '447700900123',
+    ]);
+
+    // Exactly what Meta answers for a system user token whose authorisation
+    // has been withdrawn. Its wording names an app id and reads as though the
+    // wrong app were configured, which is not what happened and not what fixes
+    // it — it sent somebody looking for a second Meta app that did not exist.
+    Http::fake(['graph.facebook.com/*' => Http::response([
+        'error' => [
+            'message' => 'Error validating access token: The user has not authorized application 1772978827247269.',
+            'type' => 'OAuthException',
+            'code' => 190,
+            'error_subcode' => 458,
+        ],
+    ], 400)]);
+
+    expect(fn () => app(SendSocialMessageAction::class)($conversation, 'Are you still there?', User::factory()->create()))
+        ->toThrow(RuntimeException::class, 'no longer authorised');
+
+    expect(fn () => app(SendSocialMessageAction::class)($conversation, 'Are you still there?', User::factory()->create()))
+        ->not->toThrow(RuntimeException::class, 'has not authorized application');
+});
+
+test('a refusal about the message itself keeps the words Meta chose', function () {
+    $number = waNumber();
+
+    $conversation = SocialConversation::factory()->onChannel(SocialChannel::WhatsApp)->create([
+        'channel_account_id' => $number->phone_number_id,
+        'external_conversation_id' => '447700900123',
+    ]);
+
+    // Here Meta's prose is the useful part, and replacing it with ours would
+    // throw away the only sentence that says what to change.
+    Http::fake(['graph.facebook.com/*' => Http::response([
+        'error' => [
+            'message' => 'Template name does not exist in the translation',
+            'type' => 'OAuthException',
+            'code' => 132001,
+        ],
+    ], 400)]);
+
+    expect(fn () => app(SendSocialMessageAction::class)($conversation, 'Hello', User::factory()->create()))
+        ->toThrow(RuntimeException::class, 'Template name does not exist');
+});

@@ -153,7 +153,7 @@ class MetaAuthService
      * first call that needed one — weeks later, as a capability that mysteriously
      * stopped working.
      *
-     * @return array{valid: bool, expires_at: Carbon|null, scopes: array<int, string>}
+     * @return array{valid: bool, expires_at: Carbon|null, scopes: array<int, string>, app_id: string|null, type: string|null, error: string|null}
      *
      * @throws MetaApiException
      */
@@ -172,6 +172,19 @@ class MetaAuthService
             // does. Null rather than 1970.
             'expires_at' => $expires > 0 ? Carbon::createFromTimestamp($expires) : null,
             'scopes' => $scopes,
+            // Which app issued it and what kind of credential it is, taken from
+            // Meta rather than from the box somebody pasted it into. A page
+            // token in the WhatsApp field is the commonest way this is set up
+            // wrongly, and asking is the only way to know.
+            'app_id' => isset($data['app_id']) ? (string) $data['app_id'] : null,
+            'type' => isset($data['type']) ? (string) $data['type'] : null,
+            // debug_token answers 200 for a token it is refusing and puts the
+            // reason inside the envelope. Without reading it, a revoked token
+            // is "valid: false" and no explanation — which is how a dead
+            // system user token gets mistaken for an app misconfiguration.
+            'error' => is_array($data['error'] ?? null) && isset($data['error']['message'])
+                ? (string) $data['error']['message']
+                : null,
         ];
     }
 

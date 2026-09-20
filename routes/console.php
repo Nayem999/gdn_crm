@@ -81,6 +81,15 @@ Schedule::command('meta:sync-ads')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+// Whether Meta still accepts the tokens we hold. Daily and early, because the
+// failure is silent: a token revoked in Business Settings breaks nothing until
+// somebody tries to send a message, and what comes back then names an app id
+// and reads like a misconfiguration rather than a dead credential. Asking on a
+// schedule means the connection screen already says so when they go looking.
+Schedule::command('meta:check-tokens')
+    ->dailyAt('06:10')
+    ->withoutOverlapping();
+
 // The database, nightly, before anybody arrives. Kept on the private disk for
 // a fortnight; see BackupDatabase for why it is not on the public one.
 Schedule::command('backup:database')

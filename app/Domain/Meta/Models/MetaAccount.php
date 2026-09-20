@@ -36,6 +36,10 @@ use Illuminate\Support\Carbon;
  * @property int|null $connected_by_id
  * @property Carbon|null $connected_at
  * @property Carbon|null $last_synced_at
+ * @property string|null $token_type
+ * @property string|null $token_app_id
+ * @property string|null $token_error
+ * @property Carbon|null $token_checked_at
  */
 class MetaAccount extends Model
 {
@@ -91,6 +95,7 @@ class MetaAccount extends Model
             'token_expires_at' => 'datetime',
             'connected_at' => 'datetime',
             'last_synced_at' => 'datetime',
+            'token_checked_at' => 'datetime',
         ];
     }
 

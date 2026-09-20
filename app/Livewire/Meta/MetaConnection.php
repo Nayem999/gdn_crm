@@ -6,6 +6,7 @@ use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Meta\Actions\ConnectMetaWithTokenAction;
 use App\Domain\Meta\Actions\DisconnectMetaAccountAction;
 use App\Domain\Meta\Actions\SyncMetaAssetsAction;
+use App\Domain\Meta\Auth\MetaTokenAudit;
 use App\Domain\Meta\Enums\MetaChannel;
 use App\Domain\Meta\Graph\MetaApiException;
 use App\Domain\Meta\MetaConfiguration;
@@ -19,6 +20,7 @@ use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Livewire\Attributes\Title;
@@ -546,6 +548,70 @@ class MetaConnection extends Component
         $this->authorize('view', $account);
 
         $this->testResults = app(MetaConnectionTester::class)->run($account);
+    }
+
+    /**
+     * Every token this installation holds, and what Meta last said about it.
+     *
+     * Read from what the daily check wrote rather than asked here: rendering a
+     * screen should not make four calls to Meta, and a token that died an hour
+     * ago is not more interesting than one that died yesterday — both need the
+     * same thing doing.
+     *
+     * @return array<int, array{label: string, type: string|null, app: string|null, error: string|null, checked: Carbon|null}>
+     */
+    public function storedTokens(): array
+    {
+        $account = $this->account();
+
+        if ($account === null) {
+            return [];
+        }
+
+        $rows = [['Meta account', $account]];
+
+        foreach ($account->pages as $page) {
+            $rows[] = ['Page: '.$page->name, $page];
+        }
+
+        foreach ($account->whatsAppAccounts as $waba) {
+            $rows[] = ['WhatsApp: '.$waba->name, $waba];
+        }
+
+        return array_map(fn (array $row): array => [
+            'label' => $row[0],
+            'type' => $row[1]->token_type,
+            'app' => $row[1]->token_app_id,
+            'error' => $row[1]->token_error,
+            'checked' => $row[1]->token_checked_at,
+        ], $rows);
+    }
+
+    /**
+     * Ask Meta about every stored token now, rather than waiting for the daily
+     * check.
+     *
+     * The button exists because the answer changes for reasons that happen
+     * outside this application — somebody regenerating a token, a system user
+     * losing access to an asset — so "it was fine this morning" is not an
+     * answer anybody should have to accept while they are mid-fix.
+     */
+    public function checkTokens(): void
+    {
+        $account = $this->account();
+
+        if ($account === null) {
+            return;
+        }
+
+        $this->authorize('update', $account);
+
+        $results = app(MetaTokenAudit::class)->run($account);
+        $refused = count(array_filter($results, fn (array $result): bool => $result['valid'] !== true));
+
+        $this->notice = $refused === 0
+            ? 'Meta accepts every stored token.'
+            : $refused.' of '.count($results).' stored tokens are not accepted. The detail is below.';
     }
 
     public function disconnect(): void

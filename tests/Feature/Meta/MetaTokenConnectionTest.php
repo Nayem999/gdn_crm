@@ -1029,3 +1029,44 @@ test('looking at the webhook list provisions nothing', function () {
 
     expect(DataSource::query()->where('provider', MetaSources::PROVIDER)->count())->toBe(0);
 });
+
+test('the screen says what each stored token is and whether Meta still takes it', function () {
+    metaTokenFake();
+
+    $account = MetaAccount::factory()->create([
+        'user_token' => 'EAAaccounttoken',
+        'token_type' => 'SYSTEM_USER',
+        'token_app_id' => '1772978827247269',
+        'token_error' => 'Meta no longer accepts this token: the user has not authorized this application.',
+        'token_checked_at' => now()->subHours(3),
+    ]);
+
+    MetaPage::factory()->for($account, 'account')->create([
+        'name' => 'Golden Info Systems Ltd.',
+        'access_token' => 'EAApagetoken',
+        'token_type' => 'PAGE',
+        'token_app_id' => '1772978827247269',
+        'token_checked_at' => now()->subHours(3),
+    ]);
+
+    Livewire::actingAs(metaTokenConnector())
+        ->test(MetaConnection::class)
+        // Meta's own vocabulary for the kind of credential: a page token
+        // pasted into the WhatsApp box is only visible if this is shown.
+        ->assertSee('system user token')
+        ->assertSee('page token')
+        // Two tokens, one app. Seeing the same id twice is the answer to "why
+        // does it show the same app for both", rather than a thing to fix.
+        ->assertSee('1772978827247269')
+        ->assertSee('no longer accepts this token');
+});
+
+test('checking the stored tokens needs more than being able to look at them', function () {
+    metaTokenFake();
+    MetaAccount::factory()->create(['user_token' => 'EAAaccounttoken']);
+
+    Livewire::actingAs(metaTokenConnector(['meta.view']))
+        ->test(MetaConnection::class)
+        ->call('checkTokens')
+        ->assertForbidden();
+});

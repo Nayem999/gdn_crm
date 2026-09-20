@@ -26,6 +26,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $access_token
  * @property bool $is_subscribed
  * @property Carbon|null $last_synced_at
+ * @property string|null $token_type
+ * @property string|null $token_app_id
+ * @property string|null $token_error
+ * @property Carbon|null $token_checked_at
  */
 class WhatsAppBusinessAccount extends Model
 {
@@ -64,6 +68,7 @@ class WhatsAppBusinessAccount extends Model
             'access_token' => 'encrypted',
             'is_subscribed' => 'boolean',
             'last_synced_at' => 'datetime',
+            'token_checked_at' => 'datetime',
         ];
     }
 

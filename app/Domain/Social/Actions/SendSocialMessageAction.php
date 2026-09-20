@@ -83,13 +83,37 @@ class SendSocialMessageAction
                 'error' => mb_substr($exception->getMessage(), 0, 1000),
             ])->save();
 
-            throw new RuntimeException('Meta refused the message: '.$exception->getMessage(), previous: $exception);
+            throw new RuntimeException($this->refusal($exception), previous: $exception);
         }
 
         $this->sent($message, $response);
         $this->settle($conversation);
 
         return $message->refresh();
+    }
+
+    /**
+     * What to tell the agent whose message did not send.
+     *
+     * Meta's own wording is relayed for most refusals, because it is usually
+     * the useful part — a template that was never approved, a number that is
+     * not on WhatsApp, a media file too large.
+     *
+     * It is **not** relayed for a dead or under-permissioned credential, where
+     * it actively misleads. A revoked system user token comes back as "Error
+     * validating access token: The user has not authorized application
+     * 1772978827247269", which names an app and reads as though somebody had
+     * configured the wrong one. It sent the last person who saw it looking for
+     * a second Meta app that did not exist. The fact is simpler and the fix is
+     * different: the stored token no longer works and has to be replaced.
+     */
+    private function refusal(MetaApiException $exception): string
+    {
+        if ($exception->isTokenProblem() || $exception->isPermissionProblem()) {
+            return $exception->userMessage();
+        }
+
+        return 'Meta refused the message: '.$exception->getMessage();
     }
 
     /**

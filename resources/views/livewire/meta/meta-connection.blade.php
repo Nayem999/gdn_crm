@@ -375,6 +375,74 @@
             </div>
         </section>
 
+        {{-- What Meta thinks of each credential we hold.
+
+             Its own section rather than a line in the checklist, because the
+             question it answers is one people get wrong: three tokens from one
+             app look like three apps, and a token that was accepted in March
+             looks identical to one revoked yesterday. --}}
+        @php($storedTokens = $this->storedTokens())
+        @if ($storedTokens !== [])
+            <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-foreground">Stored tokens</h2>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            Checked daily. A token is a credential Meta can withdraw without telling us.
+                        </p>
+                    </div>
+
+                    @can('meta.manage')
+                        <x-button type="button" variant="secondary" wire:click="checkTokens" wire:loading.attr="disabled" wire:target="checkTokens">
+                            <span wire:loading.remove wire:target="checkTokens">Check now</span>
+                            <span wire:loading wire:target="checkTokens">Asking Meta&hellip;</span>
+                        </x-button>
+                    @endcan
+                </div>
+
+                <ul class="mt-4 divide-y divide-border">
+                    @foreach ($storedTokens as $stored)
+                        <li class="flex items-start gap-3 py-3">
+                            <span @class([
+                                'mt-0.5 text-xs font-semibold uppercase tracking-wide',
+                                'text-emerald-600 dark:text-emerald-400' => $stored['error'] === null && $stored['checked'] !== null,
+                                'text-destructive' => $stored['error'] !== null,
+                                'text-muted-foreground' => $stored['error'] === null && $stored['checked'] === null,
+                            ])>
+                                {{ $stored['error'] !== null ? 'Dead' : ($stored['checked'] === null ? '—' : 'Live') }}
+                            </span>
+
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-foreground">{{ $stored['label'] }}</p>
+
+                                <p class="text-xs text-muted-foreground">
+                                    @if ($stored['type'] !== null)
+                                        {{-- Meta's own vocabulary, so a page token pasted into the
+                                             WhatsApp box is visible for what it is. --}}
+                                        {{ str_replace('_', ' ', Str::lower($stored['type'])) }} token
+                                    @else
+                                        Not checked yet
+                                    @endif
+
+                                    @if ($stored['app'] !== null)
+                                        &middot; app {{ $stored['app'] }}
+                                    @endif
+
+                                    @if ($stored['checked'] !== null)
+                                        &middot; checked {{ $stored['checked']->diffForHumans() }}
+                                    @endif
+                                </p>
+
+                                @if ($stored['error'] !== null)
+                                    <p class="mt-0.5 text-sm text-destructive">{{ $stored['error'] }}</p>
+                                @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
         @if ($testResults !== null)
             <section class="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
                 <h2 class="text-sm font-semibold text-foreground">Test results</h2>

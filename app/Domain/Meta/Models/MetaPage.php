@@ -31,6 +31,10 @@ use Illuminate\Support\Carbon;
  * @property bool $is_subscribed
  * @property Carbon|null $subscribed_at
  * @property Carbon|null $last_synced_at
+ * @property string|null $token_type
+ * @property string|null $token_app_id
+ * @property string|null $token_error
+ * @property Carbon|null $token_checked_at
  */
 class MetaPage extends Model
 {
@@ -68,6 +72,7 @@ class MetaPage extends Model
             'is_subscribed' => 'boolean',
             'subscribed_at' => 'datetime',
             'last_synced_at' => 'datetime',
+            'token_checked_at' => 'datetime',
         ];
     }
 

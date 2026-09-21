@@ -1,6 +1,8 @@
 @props(['heading', 'description' => null, 'active' => null, 'activeParams' => []])
 
 @php
+    use App\Domain\Shared\UI\NavIconPalette;
+
     $sections = \App\Domain\Settings\SettingsNavigation::for(auth()->user());
 
     // The active item comes from the caller, not the request: during a Livewire
@@ -40,7 +42,15 @@
                                     ])
                                     @if ($isActive) aria-current="page" @endif
                                 >
-                                    <x-icon :name="'lucide-' . $item['icon']" class="h-4 w-4 shrink-0" />
+                                    {{-- The same colour the icon wears in the
+                                         main sidebar, from the same map, so
+                                         Company under here and Accounts up
+                                         there are recognisably the same
+                                         building. --}}
+                                    <x-icon
+                                        :name="'lucide-' . $item['icon']"
+                                        @class(['h-4 w-4 shrink-0', NavIconPalette::onPage($item['icon'])])
+                                    />
                                     {{ $item['label'] }}
                                 </a>
                             </li>

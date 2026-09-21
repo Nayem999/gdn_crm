@@ -36,6 +36,12 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- Deliveries go through the queue under test, not after the response.
+             Laravel runs terminating callbacks again on a second terminate() in
+             the same test, so a test making two requests would process the
+             first delivery twice. The after-response path has its own test in
+             MetaWebhookTest, which sets this per test. -->
+        <env name="INGESTION_PROCESS" value="queue"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

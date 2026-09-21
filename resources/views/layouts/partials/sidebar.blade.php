@@ -1,4 +1,5 @@
 @php
+    use App\Domain\Shared\UI\NavIconPalette;
     use Illuminate\Support\Str;
 
     // Modules gain a route as their phase lands; the rest stay inert
@@ -168,7 +169,15 @@
                 @if ($url === null) aria-disabled="true" title="Coming in a later phase" @endif
                 @if ($active) aria-current="page" @endif
             >
-                <x-dynamic-component :component="'lucide-' . $item['icon']" class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
+                {{-- Its own colour, and it keeps it on hover and while active:
+                     the colour is how a row is recognised before the label is
+                     read, so washing it to white under the pointer would take
+                     the landmark away exactly when it is being used. --}}
+                <x-dynamic-component
+                    :component="'lucide-' . $item['icon']"
+                    @class(['h-5 w-5 shrink-0', NavIconPalette::onDark($item['icon'])])
+                    aria-hidden="true"
+                />
                 {{ $item['label'] }}
             </a>
         @endforeach
@@ -190,7 +199,7 @@
                     'text-sidebar-foreground' => ! request()->routeIs('settings.*'),
                 ])
             >
-                <x-lucide-settings class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
+                <x-lucide-settings @class(['h-5 w-5 shrink-0', NavIconPalette::onDark('settings')]) aria-hidden="true" />
                 Settings
             </a>
         @endif
@@ -211,7 +220,7 @@
         >
             {{-- Not book-open: the Knowledge module above already wears it,
                  and two identical icons in one sidebar is two wrong guesses. --}}
-            <x-lucide-circle-help class="h-5 w-5 shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true" />
+            <x-lucide-circle-help @class(['h-5 w-5 shrink-0', NavIconPalette::onDark('circle-help')]) aria-hidden="true" />
             Guide
             <x-lucide-external-link class="ml-auto h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden="true" />
             <span class="sr-only">(opens in a new tab)</span>

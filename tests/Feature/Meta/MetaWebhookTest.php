@@ -4,12 +4,17 @@ use App\Domain\Ingestion\Enums\IntegrationEventStatus;
 use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Meta\Enums\MetaChannel;
+use App\Domain\Meta\Models\WhatsAppBusinessAccount;
+use App\Domain\Meta\Models\WhatsAppPhoneNumber;
 use App\Domain\Meta\Webhooks\Handlers\MetaChannelHandler;
+use App\Domain\Meta\Webhooks\Handlers\WhatsAppHandler;
 use App\Domain\Meta\Webhooks\MetaEventKey;
 use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Meta\Webhooks\MetaWebhookSignature;
 use App\Domain\Settings\SettingsManager;
+use App\Domain\Social\Models\SocialConversation;
+use App\Domain\Social\Models\SocialMessage;
 use App\Jobs\ProcessIntegrationEvent;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
@@ -331,3 +336,65 @@ class MetaThrowingTestHandler implements MetaChannelHandler
         throw new RuntimeException('Meta was unreachable');
     }
 }
+
+// -- Arriving without a worker -------------------------------------------------
+
+test('a message becomes a conversation with no queue worker running', function () {
+    // The failure this replaces was silent and happened three times on one
+    // installation: the delivery log filled up, the inbox stayed empty, and
+    // nothing said the queue had nobody running it.
+    config(['ingestion.process' => 'after_response']);
+
+    // The beforeEach above clears the handler registry so tests can bind their
+    // own. This one is about the real path, end to end, so the real handler
+    // goes back.
+    MetaEventProcessor::handle(MetaChannel::WhatsApp, WhatsAppHandler::class);
+
+    $waba = WhatsAppBusinessAccount::factory()->create(['waba_id' => '1405962320928347']);
+    WhatsAppPhoneNumber::factory()->create([
+        'whatsapp_business_account_id' => $waba->id,
+        'phone_number_id' => '1310844125447923',
+        'display_number' => '+880 1895-657039',
+        'is_default' => true,
+    ]);
+
+    metaPost(MetaChannel::WhatsApp, [
+        'object' => 'whatsapp_business_account',
+        'entry' => [[
+            'id' => '1405962320928347',
+            'changes' => [[
+                'field' => 'messages',
+                'value' => [
+                    'messaging_product' => 'whatsapp',
+                    'metadata' => ['display_phone_number' => '8801895657039', 'phone_number_id' => '1310844125447923'],
+                    'contacts' => [['profile' => ['name' => 'Nayem'], 'wa_id' => '8801684191999']],
+                    'messages' => [[
+                        'from' => '8801684191999',
+                        'id' => 'wamid.NOWORKER',
+                        'timestamp' => (string) now()->timestamp,
+                        'text' => ['body' => 'Is anyone there?'],
+                        'type' => 'text',
+                    ]],
+                ],
+            ]],
+        ]],
+    ])->assertOk();
+
+    // Both tables, which is the whole point: the log records the delivery
+    // inside the request, and the conversation is threaded once the response
+    // has gone — with nothing else running.
+    expect(IntegrationEvent::query()->latest('id')->first()->status())->toBe(IntegrationEventStatus::Processed)
+        ->and(SocialMessage::query()->where('external_message_id', 'wamid.NOWORKER')->exists())->toBeTrue()
+        ->and(SocialConversation::query()->where('participant_external_id', '8801684191999')->exists())->toBeTrue();
+});
+
+test('an installation with a worker can still hand deliveries to the queue', function () {
+    config(['ingestion.process' => 'queue']);
+    Queue::fake();
+
+    metaPost(MetaChannel::WhatsApp, metaLeadGenPayload())->assertOk();
+
+    // Retries, backoff and work off the web tier are better where there is
+    // something to do the work — so the choice stays available.
+    Queue::assertPushed(ProcessIntegrationEvent::class);
+});

@@ -46,6 +46,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Domain/Tenancy/** | .ai/rules/tenancy.md |
 | tests/** | .ai/rules/tests.md |
 | app/Domain/Timeline/**, app/Livewire/Timeline/**, app/Http/Controllers/DownloadDocument.php, resources/views/livewire/timeline/**, resources/views/components/timeline-entry.blade.php | .ai/rules/timeline.md |
+| app/Domain/Shared/UI/NavIconPalette.php, resources/views/layouts/partials/sidebar.blade.php, resources/views/components/settings-shell.blade.php | .ai/rules/views-components.md |
 | resources/views/livewire/** | .ai/rules/views-livewire.md |
 | resources/views/** | .ai/rules/views.md |
 | app/Domain/Workflows/Webhooks/** | .ai/rules/webhooks.md |

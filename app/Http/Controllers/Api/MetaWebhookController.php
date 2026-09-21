@@ -119,7 +119,7 @@ class MetaWebhookController
             $event->forceFill(['external_id' => $key])->save();
         }
 
-        ProcessIntegrationEvent::dispatch($event->id);
+        ProcessIntegrationEvent::start($event->id);
 
         // 200, promptly. Meta reads anything else as a failure and queues a
         // retry, and its retry schedule outlives most outages.

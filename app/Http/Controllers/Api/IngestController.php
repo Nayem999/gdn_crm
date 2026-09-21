@@ -57,7 +57,7 @@ class IngestController
         // Queued, not run here. Everything after capture — mapping,
         // validating, deduping, persisting — happens where nobody is waiting
         // on it.
-        ProcessIntegrationEvent::dispatch($event->id);
+        ProcessIntegrationEvent::start($event->id);
 
         // 202, not 201: nothing has been created yet, and saying otherwise
         // would be a promise this request has not kept. The event id is

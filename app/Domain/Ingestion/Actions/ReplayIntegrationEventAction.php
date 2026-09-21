@@ -40,7 +40,7 @@ class ReplayIntegrationEventAction
             // is one of those times.
         ])->save();
 
-        ProcessIntegrationEvent::dispatch($event->id);
+        ProcessIntegrationEvent::start($event->id);
 
         return $event->refresh();
     }

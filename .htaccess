@@ -1,20 +1,33 @@
-# The app is served by its own virtual host, whose DocumentRoot is public/.
-# This file only exists because the project folder still sits inside htdocs and
-# is therefore reachable at http://localhost/gdn_crm/ as well.
+# The app is served by its own vhost on :8080, whose DocumentRoot is
+# public/ — genuinely rooted, not a subdirectory, which is what Livewire
+# needs: its update endpoint and script tag are built by hand as
+# root-relative strings rather than through Laravel's URL generator, so
+# if this app ever perceived /gdn_crm as its own base path, both would
+# resolve to the wrong origin and every interactive screen would silently
+# stop working (see AppServiceProvider::boot() for the matching fix that
+# puts the /gdn_crm prefix back on the URLs the browser actually needs).
 #
-# That path used to serve the app, and could again, but Livewire builds its
-# endpoints relative to the domain root — a page mounted under /gdn_crm/ asks
-# for /livewire/update and misses the app entirely, so every screen renders and
-# nothing works. One URL, and it is the vhost.
+# So the browser is kept at https://localhost/gdn_crm/ throughout, and
+# this file transparently proxies every request through to :8080 instead
+# of redirecting to it — [P], not [R] — so the address bar never changes
+# and nothing here is fetchable as a raw file (.env, composer.json,
+# vendor/, app/, storage/ all live in this same directory).
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    RewriteRule ^(.*)$ http://localhost:8080/$1 [R=302,L]
+    # Apache's own directory-index handling (looking for index.html, then
+    # index.php, ...) probes each candidate via an internal *subrequest*
+    # against this same directory — which would otherwise re-enter the rule
+    # below and proxy the probe itself, so mod_dir ends up believing
+    # whatever /index.html returns on the backend (its own 404 page) *is*
+    # this directory's index. Excluding subrequests is what stops that.
+    RewriteCond %{IS_SUBREQ} false
+    RewriteRule ^(.*)$ http://localhost:8080/$1 [P,L]
 </IfModule>
 
-# Belt and braces for a server with mod_rewrite off, where the redirect above
-# is skipped and this directory would be served exactly as it stands — .env,
-# composer.json, app/, vendor/ and storage/ are all in here.
+# Belt and braces for a server with mod_rewrite or mod_proxy off, where the
+# proxy above is skipped and this directory would be served exactly as it
+# stands.
 <IfModule mod_autoindex.c>
     Options -Indexes
 </IfModule>

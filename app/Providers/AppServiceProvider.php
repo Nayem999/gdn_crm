@@ -119,6 +119,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity as AuditEntry;
 use Spatie\Permission\Models\Role;
@@ -185,6 +186,32 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Local dev only: htdocs/gdn_crm/.htaccess reverse-proxies this app's
+        // own vhost (see httpd-vhosts.conf) onto https://localhost/gdn_crm/,
+        // so the browser never sees anything but that address. From this
+        // vhost's own point of view, though, every request is genuinely
+        // rooted at "/" — that's the whole point, and it's what keeps
+        // Livewire's hand-built root-relative URLs (its update endpoint and
+        // its script tag, neither of which goes through Laravel's URL
+        // generator) resolving at all. Forcing the root here is what puts
+        // /gdn_crm back onto everything Laravel *does* generate through
+        // that generator — url(), asset(), route(), redirects — so it
+        // matches the address the browser is actually at.
+        //
+        // The scheme needs forcing too, separately: the proxy talks to this
+        // vhost over plain http (it has no certificate of its own), so
+        // request()->isSecure() reads false here no matter what the browser
+        // used, and formatRoot() would otherwise swap the forced root's own
+        // https:// back out for that — this is what stops it.
+        URL::forceRootUrl(config('app.url'));
+        URL::forceScheme((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
+
+        // Livewire's <script> tag is a plain string it builds by hand, never
+        // through the URL generator forceRootUrl() above corrects, so it
+        // needs its own prefix — taken from APP_URL's own path rather than
+        // hardcoded, so this keeps working if the folder is ever renamed.
+        config(['livewire.asset_url' => rtrim((string) parse_url((string) config('app.url'), PHP_URL_PATH), '/').'/livewire/livewire.js']);
+
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);

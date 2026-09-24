@@ -61,7 +61,10 @@ class LeadConvert extends Component
         $this->accountName = (string) ($lead->company_name ?? $lead->fullName());
         $this->dealName = $this->accountName.' opportunity';
         $this->dealValue = $lead->estimated_value;
-        $this->ownerId = (string) $lead->owner_id;
+        // Defaults to whoever is on the lead already, since conversion still
+        // creates single-owner Account, Contact and Deal records — priority()
+        // is already ordered, so this is simply the first of them.
+        $this->ownerId = (string) $lead->primaryAssignee()?->id;
     }
 
     public function lead(): Lead

@@ -98,3 +98,11 @@ Schedule::command('backup:database')
     // A backup that fails silently is no backup. This puts the failure in the
     // log where the monitoring picks it up.
     ->onFailure(fn () => logger()->error('The nightly database backup failed.'));
+
+// Every hour is finer-grained than the setting's own coarsest option (a
+// week), and coarser than its finest (4 hours) would ask for exactly the
+// hourly cadence this gives — an escalation window measured in hours does
+// not need to be checked every minute.
+Schedule::command('leads:escalate-assignments')
+    ->hourly()
+    ->withoutOverlapping();

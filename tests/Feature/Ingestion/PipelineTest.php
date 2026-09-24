@@ -353,7 +353,7 @@ test('the configured owner owns what the source creates', function () {
 
     ingestionDeliver($source, ingestionTaskPayload());
 
-    expect(Lead::query()->firstOrFail()->owner_id)->toBe($owner->id);
+    expect(leadOwnerId(Lead::query()->firstOrFail()))->toBe($owner->id);
 });
 
 test('with no configured owner it falls back to whoever set the source up', function () {
@@ -362,7 +362,7 @@ test('with no configured owner it falls back to whoever set the source up', func
 
     ingestionDeliver($source, ingestionTaskPayload());
 
-    expect(Lead::query()->firstOrFail()->owner_id)->toBe($creator->id);
+    expect(leadOwnerId(Lead::query()->firstOrFail()))->toBe($creator->id);
 });
 
 test('a source with nobody to own its records fails rather than creating an orphan', function () {

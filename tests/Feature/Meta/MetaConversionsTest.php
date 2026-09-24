@@ -60,7 +60,19 @@ function capiRefuses(array $messages): void
  */
 function capiLead(array $attributes = []): Lead
 {
-    $lead = Lead::factory()->create([
+    // owner_id is not a real column any more — pulled out here rather than
+    // passed straight through, so the one call site that names an owner
+    // still reads the same way it always has.
+    $ownerId = $attributes['owner_id'] ?? null;
+    unset($attributes['owner_id']);
+
+    $factory = Lead::factory();
+
+    if ($ownerId !== null) {
+        $factory = $factory->ownedBy(User::query()->findOrFail($ownerId));
+    }
+
+    $lead = $factory->create([
         'email' => 'Dara@Example.COM',
         'mobile' => '+44 7700 900123',
         ...$attributes,
@@ -292,7 +304,7 @@ test('converting a Meta lead reports the opportunity', function () {
     app(ConvertLeadAction::class)(
         $lead,
         new LeadConversionData(dealValue: '9000'),
-        $lead->owner ?? capiAdmin(),
+        $lead->primaryAssignee() ?? capiAdmin(),
     );
 
     $event = MetaConversionEvent::query()->where('event_name', 'Opportunity')->firstOrFail();

@@ -122,7 +122,7 @@
         </section>
 
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
-            <h2 class="text-base font-semibold text-foreground">Qualification &amp; ownership</h2>
+            <h2 class="text-base font-semibold text-foreground">Qualification</h2>
 
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <x-select
@@ -142,18 +142,6 @@
                     <p class="mt-1.5 text-xs text-muted-foreground">Totalled per column on the pipeline board.</p>
                 </div>
 
-                <x-select
-                    name="owner_id"
-                    label="Owner"
-                    :options="$owners"
-                    :selected="$owner_id"
-                    placeholder="Choose an owner…"
-                    :error="$errors->first('owner_id')"
-                    required
-                    hint="Who will work this lead. Record visibility follows the owner."
-                    wire:model="owner_id"
-                />
-
                 <div class="sm:col-span-2">
                     <x-form.label for="description">Notes</x-form.label>
                     <textarea
@@ -168,6 +156,61 @@
                     ></textarea>
                     <x-form.error for="description" />
                 </div>
+            </div>
+        </section>
+
+        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+            <h2 class="text-base font-semibold text-foreground">Assignment</h2>
+            <p class="mt-1 text-sm text-muted-foreground">
+                Everybody listed here can see and work this lead at once — priority only decides who the
+                escalation sweep notifies next if nobody has, and is optional.
+            </p>
+
+            <div class="mt-4 space-y-3">
+                @foreach ($assignees as $index => $row)
+                    <div class="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
+                        <div class="min-w-56 flex-1">
+                            <x-select
+                                :name="'assignees-user-'.$index"
+                                label="Person"
+                                :options="$users"
+                                :selected="$row['user_id']"
+                                placeholder="Choose somebody…"
+                                :error="$errors->first('assignees.'.$index.'.user_id')"
+                                wire:model="assignees.{{ $index }}.user_id"
+                            />
+                        </div>
+
+                        <div class="w-32">
+                            <x-form.label :for="'assignees-priority-'.$index">Priority</x-form.label>
+                            <x-form.input
+                                :id="'assignees-priority-'.$index"
+                                type="number"
+                                min="1"
+                                placeholder="None"
+                                wire:model="assignees.{{ $index }}.priority"
+                                :invalid="$errors->has('assignees.'.$index.'.priority')"
+                            />
+                            <x-form.error :for="'assignees.'.$index.'.priority'" />
+                        </div>
+
+                        @if (count($assignees) > 1)
+                            <button
+                                type="button"
+                                wire:click="removeAssigneeRow({{ $index }})"
+                                class="mt-6 text-sm text-destructive underline underline-offset-4"
+                            >
+                                Remove
+                            </button>
+                        @endif
+                    </div>
+                @endforeach
+
+                <x-form.error for="assignees" />
+
+                <x-button type="button" variant="secondary" wire:click="addAssigneeRow">
+                    Add another person
+                </x-button>
             </div>
         </section>
 

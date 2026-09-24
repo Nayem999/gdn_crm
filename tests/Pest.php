@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Tenancy;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
@@ -83,7 +84,26 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A lead's one owner, standing in for the `owner_id` column removed when
+ * leads moved to multiple, priority-ordered assignees. Reads the same thing
+ * `Lead::primaryAssignee()` does — the lowest priority (nulls last), ties
+ * broken by whoever was assigned first — so a test written against "the
+ * owner" before that change still asks the same question afterwards.
+ */
+function leadOwnerId(Lead $lead): ?int
 {
-    // ..
+    return $lead->primaryAssignee()?->id;
+}
+
+/**
+ * Every user id currently assigned to a lead, in escalation order — for a
+ * test asserting on the whole set rather than just the one name a compact
+ * display would show.
+ *
+ * @return array<int, int>
+ */
+function leadAssigneeIds(Lead $lead): array
+{
+    return $lead->assignees()->pluck('user_id')->all();
 }

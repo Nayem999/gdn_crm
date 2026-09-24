@@ -67,7 +67,7 @@ it('makes a lead as soon as the visitor leaves an address', function () {
         ->and($lead->last_name)->toBe('Ramanathan')
         ->and($lead->email)->toBe('priya@example.com')
         // From the widget, never the payload.
-        ->and($lead->owner_id)->toBe($owner->id)
+        ->and(leadOwnerId($lead))->toBe($owner->id)
         ->and($lead->source())->toBe(LeadSource::WebForm)
         // The whole conversation, including what was said before they gave
         // their name.

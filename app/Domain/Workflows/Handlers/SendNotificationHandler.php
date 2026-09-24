@@ -2,6 +2,7 @@
 
 namespace App\Domain\Workflows\Handlers;
 
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Notifications\Actions\DispatchNotificationAction;
 use App\Domain\Notifications\Enums\RecipientType;
 use App\Domain\Notifications\Recipient;
@@ -72,7 +73,16 @@ class SendNotificationHandler implements WorkflowActionHandler
 
     private function owner(WorkflowContext $context): ?User
     {
-        $ownerId = $context->subject?->getAttribute('owner_id');
+        $subject = $context->subject;
+
+        // Leads have no owner_id column: several people can be assigned at
+        // once, so "the record owner" is the highest-priority one — the same
+        // stand-in AssignmentResolver's own RecordOwner strategy uses.
+        if ($subject instanceof Lead) {
+            return $subject->primaryAssignee();
+        }
+
+        $ownerId = $subject?->getAttribute('owner_id');
 
         return $ownerId === null ? null : User::query()->whereKey((int) $ownerId)->first();
     }

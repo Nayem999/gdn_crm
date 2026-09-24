@@ -381,7 +381,7 @@ test('a workflow is not scoped to whoever triggered it', function () {
     $mine = User::factory()->create();
     $theirs = User::factory()->create();
 
-    $lead = Lead::factory()->create(['owner_id' => $theirs->id, 'estimated_value' => 9000]);
+    $lead = Lead::factory()->ownedBy($theirs)->create(['estimated_value' => 9000]);
 
     $workflow = Workflow::factory()->create([
         'module' => 'leads',

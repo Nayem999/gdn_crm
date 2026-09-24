@@ -198,7 +198,16 @@ test('every table a list screen sorts by has an index on its owner column', func
     // Every list is scoped by owner before anything else, so this is the first
     // column every one of those queries touches.
     expect(hasIndexOn($table, 'owner_id'))->toBeTrue("{$table}.owner_id is not indexed");
-})->with(['leads', 'contacts', 'accounts', 'deals', 'activities', 'tickets']);
+})->with(['contacts', 'accounts', 'deals', 'activities', 'tickets']);
+
+test("leads' own visibility-scoping columns are indexed", function () {
+    // leads has no owner_id of its own any more — visibleTo() scopes it
+    // through lead_assignees instead, so that is where the equivalent
+    // leading columns need to live.
+    expect(hasIndexOn('lead_assignees', 'user_id'))->toBeTrue('lead_assignees.user_id is not indexed')
+        ->and(hasIndexOn('lead_assignees', 'tenant_id'))->toBeTrue('lead_assignees.tenant_id is not indexed')
+        ->and(hasIndexOn('lead_assignees', 'lead_id'))->toBeTrue('lead_assignees.lead_id is not indexed');
+});
 
 test('the columns the sweeps and schedules scan are indexed', function (string $table, string $column) {
     expect(hasIndexOn($table, $column))->toBeTrue("{$table}.{$column} is not indexed");

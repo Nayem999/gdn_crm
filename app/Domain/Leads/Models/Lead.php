@@ -15,6 +15,7 @@ use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
+use App\Domain\Shared\Enums\DataAccessLevel;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
@@ -23,6 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -52,7 +55,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $scored_at
  * @property string|null $description
  * @property Carbon|null $status_changed_at
- * @property int $owner_id
  * @property int|null $campaign_id
  * @property Carbon|null $converted_at
  * @property int|null $converted_account_id
@@ -64,11 +66,11 @@ use Illuminate\Support\Carbon;
 class Lead extends Model
 {
     use BelongsToTenant;
-
     use HasCustomFields;
 
     /** @use HasFactory<LeadFactory> */
     use HasFactory;
+
     use HasMarketingAttribution;
     use HasTimeline;
     use MergesWithDuplicates;
@@ -99,7 +101,6 @@ class Lead extends Model
         'estimated_value',
         'description',
         'status_changed_at',
-        'owner_id',
         'campaign_id',
     ];
 
@@ -145,18 +146,55 @@ class Lead extends Model
     {
         return [
             'first_name', 'last_name', 'company_name', 'email',
-            'status', 'source', 'estimated_value', 'owner_id',
+            'status', 'source', 'estimated_value',
         ];
     }
 
     // -- Relations ----------------------------------------------------------
 
     /**
-     * @return BelongsTo<User, $this>
+     * Everybody currently responsible for this lead, in escalation order —
+     * a null priority sorts after every numbered one, and ties break on
+     * whoever was assigned first.
+     *
+     * @return HasMany<LeadAssignee, $this>
      */
-    public function owner(): BelongsTo
+    public function assignees(): HasMany
     {
-        return $this->belongsTo(User::class, 'owner_id');
+        return $this->hasMany(LeadAssignee::class)
+            ->orderByRaw('priority is null, priority')
+            ->orderBy('assigned_at');
+    }
+
+    /**
+     * The same set, as the actual User rows — for a screen that only ever
+     * wants to show or search on who, not the pivot's own priority and
+     * timestamps.
+     *
+     * @return BelongsToMany<User, $this, LeadAssignee>
+     */
+    public function assignedUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'lead_assignees')
+            ->using(LeadAssignee::class)
+            ->withPivot(['priority', 'assigned_at', 'escalated_at']);
+    }
+
+    /**
+     * The one assignee conversion, export and a compact list row show when
+     * there is only room for one name — the highest priority (lowest number),
+     * falling back to whoever was assigned first when nobody set one.
+     * `assignees()` is already ordered exactly this way, so this is just its
+     * first row.
+     *
+     * Never stored, never authoritative: a lead is visible and workable
+     * through the whole `assignees()` set regardless of who this returns.
+     */
+    public function primaryAssignee(): ?User
+    {
+        return $this->relationLoaded('assignees')
+            ? $this->assignees->first()?->user
+            : $this->assignees()->with('user')->first()?->user;
     }
 
     /**
@@ -301,6 +339,42 @@ class Lead extends Model
     public function isConverted(): bool
     {
         return $this->status() === LeadStatus::Converted;
+    }
+
+    /**
+     * Own/team/all, now read off `lead_assignees` instead of a flat owner
+     * column — "own" is any lead I am on, "team" is any lead somebody on my
+     * team is on. Overrides ScopesByAccessLevel's column-comparison version
+     * entirely rather than pointing `accessLevelOwnerColumn()` somewhere
+     * else, because there is no single column left to point it at.
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return match (static::resolveAccessLevelFor($user)) {
+            DataAccessLevel::All => $query,
+            DataAccessLevel::Own => $query->whereHas(
+                'assignedUsers',
+                fn (Builder $assignees) => $assignees->where('users.id', $user->id)
+            ),
+            DataAccessLevel::Team => $query->where(function (Builder $scoped) use ($user) {
+                if ($user->current_team_id === null) {
+                    $scoped->whereHas(
+                        'assignedUsers',
+                        fn (Builder $assignees) => $assignees->where('users.id', $user->id)
+                    );
+
+                    return;
+                }
+
+                $scoped->whereHas('assignedUsers', fn (Builder $assignees) => $assignees->whereIn(
+                    'users.id',
+                    User::query()->where('current_team_id', $user->current_team_id)->select('id')
+                ));
+            }),
+        };
     }
 
     // -- Queries -------------------------------------------------------------

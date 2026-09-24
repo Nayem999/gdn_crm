@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -36,13 +37,66 @@ class LeadFactory extends Factory
             'estimated_value' => fake()->randomFloat(2, 500, 250000),
             'description' => fake()->sentence(),
             'status_changed_at' => now(),
-            'owner_id' => User::factory(),
         ];
     }
 
+    /**
+     * A fresh assignee whenever nothing else in the chain provided one —
+     * `assignees` is no longer a plain column, so `definition()` cannot fill
+     * it, and a lead with none is invisible below `all` access, which would
+     * make an ordinary factory-built lead invisible in most visibility tests
+     * for no reason the test itself states.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Lead $lead) {
+            if ($lead->assignees()->doesntExist()) {
+                LeadAssignee::create([
+                    'lead_id' => $lead->id,
+                    'user_id' => User::factory()->create()->id,
+                    'priority' => null,
+                    'assigned_at' => now(),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * The lead's one and only assignee, unprioritised — what `owner_id` used
+     * to mean. Wipes any other assignee this chain already produced (or that
+     * `configure()`'s own default is about to, whichever runs first), so
+     * `Lead::factory()->ownedBy($user)->create()` always ends with exactly
+     * $user on it, regardless of callback order.
+     */
     public function ownedBy(User $user): static
     {
-        return $this->state(fn () => ['owner_id' => $user->id]);
+        return $this->afterCreating(function (Lead $lead) use ($user) {
+            $lead->assignees()->delete();
+
+            LeadAssignee::create([
+                'lead_id' => $lead->id,
+                'user_id' => $user->id,
+                'priority' => null,
+                'assigned_at' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * One more assignee alongside whoever else is already on the lead — for
+     * tests of the multi-assign concept itself, where `ownedBy()`'s
+     * single-assignee replacement is the wrong shape.
+     */
+    public function assignedTo(User $user, ?int $priority = null): static
+    {
+        return $this->afterCreating(function (Lead $lead) use ($user, $priority) {
+            LeadAssignee::create([
+                'lead_id' => $lead->id,
+                'user_id' => $user->id,
+                'priority' => $priority,
+                'assigned_at' => now(),
+            ]);
+        });
     }
 
     public function status(LeadStatus $status): static

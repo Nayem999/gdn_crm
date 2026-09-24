@@ -80,10 +80,10 @@ test('somebody on own-records-only cannot read another person record by id', fun
     $model = $spec['model'];
 
     $stranger = User::factory()->create();
-    $theirs = $model::factory()->create(['owner_id' => $stranger->id]);
+    $theirs = $model::factory()->ownedBy($stranger)->create();
 
     $snooper = ownOnlyUser([$spec['permission'], $spec['permission']]);
-    $mine = $model::factory()->create(['owner_id' => $snooper->id]);
+    $mine = $model::factory()->ownedBy($snooper)->create();
 
     // The scope is the thing under test: a guessed id must not come back.
     $visible = $model::query()->visibleTo($snooper)->pluck('id')->all();
@@ -99,7 +99,7 @@ test('the scope holds however the id is guessed', function () {
     $stranger = User::factory()->create();
     $snooper = ownOnlyUser(['deals.view']);
 
-    $theirs = Deal::factory()->create(['owner_id' => $stranger->id]);
+    $theirs = Deal::factory()->ownedBy($stranger)->create();
 
     // Every shape a request might take to reach a record: a key, a list of
     // keys, and an id that does not exist at all.
@@ -124,8 +124,8 @@ test('a team-level role sees the team and no further', function () {
     $colleague = User::factory()->create(['current_team_id' => $team->id]);
     $outsider = User::factory()->create();
 
-    $ours = Deal::factory()->create(['owner_id' => $colleague->id]);
-    $theirs = Deal::factory()->create(['owner_id' => $outsider->id]);
+    $ours = Deal::factory()->ownedBy($colleague)->create();
+    $theirs = Deal::factory()->ownedBy($outsider)->create();
 
     $visible = Deal::query()->visibleTo($member->fresh())->pluck('id')->all();
 
@@ -187,7 +187,7 @@ test('documents are stored on a disk nothing serves', function () {
 
 test('a document upload refuses a file that runs in a browser', function (string $name, string $mime) {
     $owner = ownOnlyUser(['leads.view', 'timeline.view', 'timeline.create']);
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
 
     Livewire::actingAs($owner)
         ->test(RecordTimeline::class, ['module' => 'leads', 'record' => $lead->id])
@@ -204,7 +204,7 @@ test('a document upload refuses a file that runs in a browser', function (string
 
 test('a document upload accepts the things a customer actually sends', function () {
     $owner = ownOnlyUser(['leads.view', 'timeline.view', 'timeline.create']);
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
 
     Livewire::actingAs($owner)
         ->test(RecordTimeline::class, ['module' => 'leads', 'record' => $lead->id])

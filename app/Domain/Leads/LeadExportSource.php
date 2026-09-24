@@ -3,6 +3,7 @@
 namespace App\Domain\Leads;
 
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -26,7 +27,7 @@ class LeadExportSource implements DataViewExportSource
     {
         $user = User::query()->findOrFail($request->userId);
 
-        $query = Lead::query()->visibleTo($user)->with('owner');
+        $query = Lead::query()->visibleTo($user)->with('assignees.user:id,name');
 
         if ($request->onlySelected) {
             $query->whereKey($request->selectedIds);
@@ -59,7 +60,11 @@ class LeadExportSource implements DataViewExportSource
             'name' => $record->fullName(),
             'status' => $record->status()->label(),
             'source' => $record->source()?->label(),
-            'owner' => $record->owner?->name,
+            'assignees' => $record->assignees->map(
+                fn (LeadAssignee $assignee) => $assignee->priority === null
+                    ? $assignee->user->name
+                    : $assignee->user->name.' ('.$assignee->priority.')'
+            )->implode(', '),
             'days_in_status' => $record->daysInStatus(),
             // The number on its own says little outside the app.
             'score' => $record->score.' ('.$record->grade()->label().')',

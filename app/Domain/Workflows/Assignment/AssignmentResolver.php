@@ -4,6 +4,7 @@ namespace App\Domain\Workflows\Assignment;
 
 use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\PipelineModules;
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Workflows\Models\WorkflowAction;
 use App\Domain\Workflows\Runtime\WorkflowContext;
 use App\Domain\Workflows\WorkflowModules;
@@ -61,7 +62,16 @@ class AssignmentResolver
 
     private function recordOwner(WorkflowContext $context): ?User
     {
-        $ownerId = $context->subject?->getAttribute('owner_id');
+        $subject = $context->subject;
+
+        // Leads have no owner_id column: several people can be assigned at
+        // once, so "the record owner" is the highest-priority one — the same
+        // stand-in conversion, export and a compact list row already use.
+        if ($subject instanceof Lead) {
+            return $subject->primaryAssignee();
+        }
+
+        $ownerId = $subject?->getAttribute('owner_id');
 
         return $ownerId === null ? null : User::query()->whereKey((int) $ownerId)->first();
     }
@@ -162,7 +172,7 @@ class AssignmentResolver
             return [];
         }
 
-        $query = $model::query()->whereIn('owner_id', $userIds);
+        $query = $model::query();
 
         // A generated module keeps every module's records in one table.
         $custom = WorkflowModules::customModule($module);
@@ -172,6 +182,26 @@ class AssignmentResolver
         }
 
         $this->excludeClosed($query, $module);
+
+        // Leads have no owner_id column: a load count for them means how many
+        // open leads someone is assigned to, through however many of them —
+        // a person on three leads at priority 2 is still carrying three, not
+        // zero because none of them names them first.
+        if ($model === Lead::class) {
+            /** @var array<int, int> $counts */
+            $counts = $query
+                ->join('lead_assignees', 'lead_assignees.lead_id', '=', 'leads.id')
+                ->whereIn('lead_assignees.user_id', $userIds)
+                ->selectRaw('lead_assignees.user_id as owner_id, count(*) as aggregate')
+                ->groupBy('lead_assignees.user_id')
+                ->pluck('aggregate', 'owner_id')
+                ->map(fn (mixed $count): int => (int) $count)
+                ->all();
+
+            return $counts;
+        }
+
+        $query->whereIn('owner_id', $userIds);
 
         // Counted through the Eloquent builder, not `getQuery()`: dropping to
         // the base builder discards the global scopes, and every module here

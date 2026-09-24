@@ -172,6 +172,22 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'leads.assignment_escalated',
+                label: 'Lead assignment escalated',
+                group: 'Leads',
+                description: 'Nobody on the current priority tier has acted within the configured window, so the next tier was told.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: [
+                    'lead.name' => "The lead's name",
+                    'lead.hours' => 'How long it had gone unactioned',
+                ],
+                defaultSubject: 'A lead needs attention: {{lead.name}}',
+                defaultTemplates: [
+                    '*' => '{{lead.name}} has had no action for {{lead.hours}} hours. It is now your turn to work it.',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'activity.assigned',
                 label: 'Activity assigned',
                 group: 'Activities',

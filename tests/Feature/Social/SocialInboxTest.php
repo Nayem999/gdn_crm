@@ -221,7 +221,7 @@ test('an unknown sender becomes a lead, attributed to the channel', function () 
     expect($lead->source)->toBe(LeadSource::FacebookMessenger->value)
         // Owned by whoever connected Meta: a lead owned by nobody is how the
         // visibility scope springs a leak.
-        ->and($lead->owner_id)->toBe($page->account->connected_by_id)
+        ->and(leadOwnerId($lead))->toBe($page->account->connected_by_id)
         ->and($lead->attribution()->source)->toBe(LeadSource::FacebookMessenger->value)
         ->and(SocialConversation::query()->value('lead_id'))->toBe($lead->id);
 });

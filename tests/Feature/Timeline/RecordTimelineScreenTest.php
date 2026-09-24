@@ -70,7 +70,7 @@ test('a record the viewer cannot see is refused', function () {
     $owner = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
     $peer = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
 
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
 
     Livewire::actingAs($peer)
         ->test(RecordTimeline::class, ['module' => 'leads', 'record' => $lead->id])

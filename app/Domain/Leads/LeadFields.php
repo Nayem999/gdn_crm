@@ -40,7 +40,7 @@ final class LeadFields
             new Column('score', 'Score', numeric: true),
             Column::make('email', 'Email'),
             Column::make('phone', 'Phone'),
-            new Column('owner', 'Owner', sortable: false),
+            new Column('assignees', 'Assignees', sortable: false),
             new Column('days_in_status', 'Days in status', sortColumn: 'status_changed_at', numeric: true),
             Column::optional('job_title', 'Job title'),
             Column::optional('city', 'City'),

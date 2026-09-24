@@ -102,7 +102,7 @@
                                 <a href="{{ route('leads.show', $lead) }}" wire:navigate class="font-medium text-foreground hover:text-accent hover:underline">
                                     {{ $lead->displayName() }}
                                 </a>
-                                <span class="text-xs text-muted-foreground">{{ $lead->owner?->name }}</span>
+                                <span class="text-xs text-muted-foreground">{{ $lead->primaryAssignee()?->name }}</span>
                             </li>
                         @endforeach
                     </ul>

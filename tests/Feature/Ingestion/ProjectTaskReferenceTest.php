@@ -93,7 +93,7 @@ test('a task posted by their system becomes a lead with the right values', funct
         // Their vocabulary translated into ours.
         ->and($lead->source()->value)->toBe('web_form')
         // Assigned, because a record with no owner is how visibility leaks.
-        ->and($lead->owner_id)->toBe($rep->id);
+        ->and(leadOwnerId($lead))->toBe($rep->id);
 });
 
 test('the delivery is recorded against the lead it made', function () {

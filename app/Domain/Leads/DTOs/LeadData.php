@@ -7,6 +7,16 @@ namespace App\Domain\Leads\DTOs;
  */
 readonly class LeadData
 {
+    /**
+     * @param  array<int, array{user_id: int, priority: ?int}>|null  $assignees
+     *                                                                           Null means "leave the assignee set alone" —
+     *                                                                           what an ingested update carries, which has no
+     *                                                                           opinion on who is working the lead. An empty
+     *                                                                           array is refused by SyncLeadAssigneesAction
+     *                                                                           rather than treated as "unassign everybody";
+     *                                                                           removing the last assignee is its own,
+     *                                                                           deliberate action.
+     */
     public function __construct(
         public string $firstName,
         public string $lastName,
@@ -25,7 +35,7 @@ readonly class LeadData
         public ?string $source = null,
         public ?string $estimatedValue = null,
         public ?string $description = null,
-        public ?int $ownerId = null,
+        public ?array $assignees = null,
     ) {}
 
     /**
@@ -57,9 +67,7 @@ readonly class LeadData
             source: $value('source'),
             estimatedValue: $value('estimated_value'),
             description: $value('description'),
-            ownerId: isset($attributes['owner_id']) && $attributes['owner_id'] !== ''
-                ? (int) $attributes['owner_id']
-                : null,
+            assignees: $attributes['assignees'] ?? null,
         );
     }
 
@@ -67,6 +75,8 @@ readonly class LeadData
      * The stored columns, keeping nulls so an update clears a field the user
      * emptied. Status is absent on purpose: it belongs to
      * ChangeLeadStatusAction, which is the only thing that may move it.
+     * Assignees are absent too: they live in their own table, written by
+     * SyncLeadAssigneesAction rather than a column on this one.
      *
      * @return array<string, mixed>
      */

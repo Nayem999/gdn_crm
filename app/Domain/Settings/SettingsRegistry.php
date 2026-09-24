@@ -70,6 +70,27 @@ final class SettingsRegistry
                     ], 'dot'),
                 ],
             ],
+            'leads' => [
+                'label' => 'Leads',
+                'icon' => 'user-plus',
+                'description' => 'How long an assignee has to act before a lead escalates to whoever is next in line.',
+                'fields' => [
+                    // Every assignee is fully able to work a lead the moment
+                    // they are added; this only decides when the *next*
+                    // priority tier gets told nobody has yet. 0 turns the
+                    // sweep off entirely — a lead with several assignees and
+                    // no priorities set has nothing for it to escalate.
+                    SettingField::numberSelect('escalation_hours', 'Escalate an unactioned lead after', [
+                        0 => 'Never',
+                        4 => '4 hours',
+                        8 => '8 hours',
+                        24 => '24 hours',
+                        48 => '2 days',
+                        72 => '3 days',
+                        168 => '1 week',
+                    ], 24, 'Measured from whichever is later: when the current priority tier was assigned, or when the sweep last escalated past it.'),
+                ],
+            ],
             'sales' => [
                 'label' => 'Sales',
                 'icon' => 'file-text',

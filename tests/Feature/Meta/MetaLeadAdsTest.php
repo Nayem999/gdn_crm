@@ -390,7 +390,7 @@ test('the owner comes from the rule, not from the payload', function () {
 
     $lead = Lead::query()->firstOrFail();
 
-    expect($lead->owner_id)->toBe($owner->id)
+    expect(leadOwnerId($lead))->toBe($owner->id)
         ->and($lead->status)->toBe(LeadStatus::New->value)
         ->and($lead->source)->toBe(LeadSource::FacebookLeadAds->value);
 });
@@ -401,7 +401,7 @@ test('with no owner configured the lead belongs to whoever connected Meta', func
 
     metaAdsDeliver()->assertOk();
 
-    expect(Lead::query()->value('owner_id'))->toBe($page->account->connected_by_id);
+    expect(leadOwnerId(Lead::query()->firstOrFail()))->toBe($page->account->connected_by_id);
 });
 
 // -- When it cannot be done -----------------------------------------------------

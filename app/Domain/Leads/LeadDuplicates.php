@@ -4,6 +4,7 @@ namespace App\Domain\Leads;
 
 use App\Domain\Activities\ActivityRelations;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Domain\Shared\Duplicates\FormatsMergeValues;
 use App\Domain\Shared\Duplicates\MatchRule;
@@ -70,7 +71,6 @@ class LeadDuplicates implements DuplicateSource
             'source' => 'Source',
             'estimated_value' => 'Estimated value',
             'description' => 'Notes',
-            'owner_id' => 'Owner',
         ];
     }
 
@@ -91,6 +91,14 @@ class LeadDuplicates implements DuplicateSource
             // A task about a duplicate is about the same customer, so it
             // follows the survivor the way notes and documents do.
             ...ActivityRelations::inboundRelations($morphClass),
+            // lead_assignees is deliberately NOT here. The generic move is a
+            // bulk UPDATE ... SET lead_id = survivor, and the unique index on
+            // (lead_id, user_id) means it throws outright the moment the
+            // survivor and the loser share an assignee — which two duplicates
+            // of the same prospect very often do. afterMerge() below unions
+            // the two sets by hand instead, where a shared assignee is
+            // something to notice rather than a constraint violation that
+            // aborts the whole merge.
         ];
     }
 
@@ -117,7 +125,6 @@ class LeadDuplicates implements DuplicateSource
     {
         /** @var Lead $record */
         return match ($field) {
-            'owner_id' => $this->ownerName($record->owner_id),
             'estimated_value' => $this->money($record->estimated_value),
             'source' => $record->source()?->label() ?? self::BLANK,
             default => $this->blankOr($record->getAttribute($field)),
@@ -131,6 +138,32 @@ class LeadDuplicates implements DuplicateSource
         // wholesale would throw away half of what the pair had between them.
         if ($survivor instanceof Lead && $loser instanceof Lead) {
             $survivor->absorbAttributionFrom($loser);
+        }
+
+        if ($survivor instanceof Lead && $loser instanceof Lead) {
+            // Whoever was working the duplicate is presumably still supposed
+            // to be working whichever of the pair survives, so the union of
+            // both assignee sets carries over — not a bulk move, because the
+            // survivor and the loser sharing an assignee (the commonest case:
+            // the same rep captured the same prospect twice) is something to
+            // reconcile, not a row for a generic engine to overwrite blind.
+            $existing = $survivor->assignees()->pluck('user_id')->all();
+
+            foreach ($loser->assignees as $assignee) {
+                if (in_array($assignee->user_id, $existing, true)) {
+                    // Present on both: the survivor's own priority stands,
+                    // matching how every ordinary mergeable field behaves —
+                    // its own answer first, the duplicate filling only a gap.
+                    continue;
+                }
+
+                LeadAssignee::create([
+                    'lead_id' => $survivor->id,
+                    'user_id' => $assignee->user_id,
+                    'priority' => $assignee->priority,
+                    'assigned_at' => $assignee->assigned_at,
+                ]);
+            }
         }
 
         // A lead's status is not a mergeable field, so nothing here can have

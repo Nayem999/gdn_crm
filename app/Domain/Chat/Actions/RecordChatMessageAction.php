@@ -115,11 +115,13 @@ class RecordChatMessageAction
                 // The transcript grows with the conversation; the rest is only
                 // filled in, never overwritten, because a rep may have
                 // corrected it since.
+                // No 'assignees' key: that leaves the lead's existing
+                // assignees exactly as they are, the same way the fields this
+                // update does not carry are left alone.
                 $this->updateLead->__invoke($lead, LeadData::fromArray([
                     ...$lead->only(['first_name', 'last_name', 'email', 'phone', 'company_name', 'job_title']),
                     ...array_filter($attributes, fn ($value): bool => $value !== null && $value !== ''),
                     'source' => $widget->source()->value,
-                    'owner_id' => $lead->owner_id,
                 ]));
 
                 return;
@@ -128,9 +130,11 @@ class RecordChatMessageAction
 
         $lead = $this->createLead->__invoke(LeadData::fromArray([
             ...$attributes,
-            // From the widget, never the payload.
+            // From the widget, never the payload. The widget's one owner
+            // becomes the new lead's sole assignee, unprioritised — the same
+            // seed an embedded capture form gives.
             'source' => $widget->source()->value,
-            'owner_id' => $widget->owner_id,
+            'assignees' => [['user_id' => $widget->owner_id, 'priority' => null]],
         ]), $owner);
 
         $conversation->forceFill(['lead_id' => $lead->id])->save();

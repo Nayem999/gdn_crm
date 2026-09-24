@@ -230,7 +230,21 @@ final class ReportSources
                 new Measure('converted', 'Converted', Aggregate::Count, 'leads.converted_at', 'number'),
             ]),
             joins: self::joins([
-                new ReportJoin('owner', 'users', 'owner_id', alias: 'lead_owner'),
+                // Not a plain "leads.owner_id = users.id" any more — leads
+                // have no such column, and several people can be assigned at
+                // once. This derived table picks the same one primaryAssignee()
+                // would: the lowest priority (nulls last), ties broken by
+                // whoever was assigned first — so "Owner" in a report reads the
+                // same person the app shows everywhere else it only has room
+                // for one name.
+                //
+                // No explicit tenant filter inside the subquery, and none is
+                // needed: it only ever gets asked about lead ids the OUTER
+                // query already returned, which are already scoped to the
+                // viewer's own tenant and access level — a lead_assignees row
+                // cannot belong to a different tenant's lead than the id it is
+                // matched against.
+                new ReportJoin('owner', self::leadOwnerSubquery(), 'id', 'lead_id', alias: 'lead_owner'),
                 // A morph table, so the type is part of the join: on the id
                 // alone it would match a deal or a contact holding the same
                 // number and report one module's campaign against another's.
@@ -471,6 +485,26 @@ final class ReportSources
         }
 
         return $keyed;
+    }
+
+    /**
+     * A lead's primary assignee, as a one-row-per-lead derived table a plain
+     * ReportJoin can point at — the reporting engine only ever joins one
+     * column to one column, and "the owner" is no longer that on the leads
+     * table itself.
+     */
+    private static function leadOwnerSubquery(): string
+    {
+        return <<<'SQL'
+        (SELECT ranked.lead_id, users.name FROM (
+            SELECT lead_id, user_id, ROW_NUMBER() OVER (
+                PARTITION BY lead_id ORDER BY priority IS NULL, priority, assigned_at
+            ) AS rn
+            FROM lead_assignees
+        ) ranked
+        INNER JOIN users ON users.id = ranked.user_id
+        WHERE ranked.rn = 1)
+        SQL;
     }
 
     /**

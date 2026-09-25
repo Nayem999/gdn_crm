@@ -20,9 +20,9 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    # The suite passed 4,800 tests and takes over 25 minutes with coverage on
-    # a hosted runner; 30 cut it off before it could finish, reporting a
-    # "cancelled" run that said nothing about the code.
+    # About 15 minutes with coverage on a hosted runner. 60 is headroom, not a
+    # target: 30 once cut the suite off mid-run, reporting a "cancelled" run
+    # that said nothing about the code.
     timeout-minutes: 60
 
     services:

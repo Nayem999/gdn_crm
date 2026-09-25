@@ -20,7 +20,7 @@ Consequences to keep in mind:
 ## The suite's memory limit is pinned in phpunit.xml
 The whole suite runs in one process, so peak memory is the sum of everything it touches. PHP's 128M default stopped being enough during phase 4 and failed as a *fatal mid-run* — not as a test failure — which looks like a broken test rather than a broken limit.
 
-`phpunit.xml` now pins `<ini name="memory_limit" value="1G"/>`. It was 512M until CI's coverage run passed every test and then died writing the coverage report (php-code-coverage's Report/PHP.php), just past the limit — the report holds per-line data for the whole codebase and grows with it. If `php artisan test` ever dies with "Allowed memory size exhausted" again, raise that rather than reaching for `-d memory_limit` at the call site, which does not reach the pest subprocess anyway.
+`phpunit.xml` now pins `<ini name="memory_limit" value="4G"/>`. CI's coverage run passed every test and then died writing the coverage report (php-code-coverage's Report/PHP.php): at 512M, and again at 1G while allocating another 400MB. The report records which of ~4,900 tests covered each line of app/, so it grows with tests × lines, not with any one test; 4G is headroom on a 16GB runner, still a cap on a runaway test. If `php artisan test` ever dies with "Allowed memory size exhausted" again, raise that rather than reaching for `-d memory_limit` at the call site, which does not reach the pest subprocess anyway.
 
 ## One test process at a time — the `testing` database is shared
 `phpunit.xml` names a single database, so **every** suite on this machine

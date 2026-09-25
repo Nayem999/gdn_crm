@@ -97,7 +97,10 @@ test('what was mapped is written down, so a failure can be read afterwards', fun
 
     $event = ingestionDeliver($source, ingestionTaskPayload());
 
-    expect($event->mapped_output)->toBe([
+    // toEqual, not toBe: a JSON column comes back with its keys in the
+    // engine's own order — MySQL 8 sorts them, MariaDB keeps them — and the
+    // mapping is read by key, never by position.
+    expect($event->mapped_output)->toEqual([
         'first_name' => 'Dara',
         'last_name' => 'Okafor',
         'email' => 'dara@acme.test',
@@ -353,7 +356,7 @@ test('the configured owner owns what the source creates', function () {
 
     ingestionDeliver($source, ingestionTaskPayload());
 
-    expect(Lead::query()->firstOrFail()->owner_id)->toBe($owner->id);
+    expect(leadOwnerId(Lead::query()->firstOrFail()))->toBe($owner->id);
 });
 
 test('with no configured owner it falls back to whoever set the source up', function () {
@@ -362,7 +365,7 @@ test('with no configured owner it falls back to whoever set the source up', func
 
     ingestionDeliver($source, ingestionTaskPayload());
 
-    expect(Lead::query()->firstOrFail()->owner_id)->toBe($creator->id);
+    expect(leadOwnerId(Lead::query()->firstOrFail()))->toBe($creator->id);
 });
 
 test('a source with nobody to own its records fails rather than creating an orphan', function () {

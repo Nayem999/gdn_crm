@@ -148,6 +148,7 @@ Each group of settings has its own page, reached from the settings sidebar.
 | Page | What it holds |
 | --- | --- |
 | `/settings/localisation` | Date and time formats, the first day of the week, number and currency formatting. |
+| `/settings/leads` | How long an assignee has to act before a lead escalates to whoever is next in priority order. "Never" turns the sweep off. |
 | `/settings/sales` | Quote validity, numbering, default tax mode and discount limits. |
 | `/settings/scheduling` | Reminder lead times and working hours. |
 | `/settings/notifications` | Quiet hours and per-channel limits. |
@@ -356,6 +357,7 @@ It drives:
 | `php artisan activities:send-reminders` | every minute | Queues reminders whose lead time has arrived. |
 | `php artisan workflows:run-triggers` | every minute | Fires date-based and scheduled workflows, and escalates unanswered approvals. |
 | `php artisan support:sweep-sla` | every minute | Warns on and records SLA breaches. |
+| `php artisan leads:escalate-assignments` | hourly | Notifies a lead's next priority tier once the current one has gone quiet past `/settings/leads`'s threshold. |
 | `php artisan mail:sync-inbound` | every 5 minutes | Reads replies from the inbound mailbox. |
 | `php artisan ingest:sync` | every 15 minutes | Fetches from the inbound sources that pull. |
 | `php artisan reports:send-scheduled` | hourly | Queues the scheduled reports that have come due. |

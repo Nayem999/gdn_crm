@@ -287,19 +287,45 @@
             <x-marketing-attribution :record="$lead" />
 
             <section class="rounded-xl border border-border bg-card p-5">
-                <h2 class="text-sm font-semibold text-foreground">Ownership</h2>
+                <h2 class="text-sm font-semibold text-foreground">Assigned to</h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Everybody here can work this lead at once. Priority only orders who the escalation sweep
+                    notifies next if nobody has.
+                </p>
 
-                <dl class="mt-3 space-y-3">
+                <ul class="mt-3 space-y-2">
+                    @foreach ($lead->assignees as $assignee)
+                        <li class="flex items-center justify-between gap-2 text-sm text-foreground">
+                            <span class="flex items-center gap-2">
+                                <x-avatar :user="$assignee->user" size="sm" />
+                                {{ $assignee->user->name }}
+                                @if ($assignee->priority !== null)
+                                    <span class="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                        Priority {{ $assignee->priority }}
+                                    </span>
+                                @endif
+                            </span>
+
+                            @can('assign', $lead)
+                                @if ($lead->assignees->count() > 1)
+                                    <button
+                                        type="button"
+                                        wire:click="removeAssignee({{ $assignee->user_id }})"
+                                        wire:confirm="Take {{ $assignee->user->name }} off this lead?"
+                                        class="text-xs text-destructive underline underline-offset-4"
+                                    >
+                                        Remove
+                                    </button>
+                                @endif
+                            @endcan
+                        </li>
+                    @endforeach
+                </ul>
+
+                <dl class="mt-4 space-y-3 border-t border-border pt-4">
                     <div>
-                        <dt class="text-xs uppercase tracking-wide text-muted-foreground">Owner</dt>
-                        <dd class="mt-1 flex items-center gap-2 text-sm text-foreground">
-                            @if ($lead->owner)
-                                <x-avatar :user="$lead->owner" size="sm" />
-                                {{ $lead->owner->name }}
-                            @else
-                                —
-                            @endif
-                        </dd>
+                        <dt class="text-xs uppercase tracking-wide text-muted-foreground">Lead owner</dt>
+                        <dd class="mt-1 text-sm text-foreground">{{ $lead->leadOwner?->name ?? '—' }}</dd>
                     </div>
 
                     <div>
@@ -318,18 +344,31 @@
                 @can('assign', $lead)
                     <div class="mt-4 border-t border-border pt-4">
                         <x-select
-                            name="reassignTo"
-                            label="Hand to"
-                            :options="$owners"
-                            :selected="$reassignTo"
+                            name="newAssigneeId"
+                            label="Add somebody"
+                            :options="$assignableUsers"
+                            :selected="$newAssigneeId"
                             placeholder="Choose somebody…"
-                            :error="$errors->first('reassignTo')"
-                            wire:model="reassignTo"
+                            :error="$errors->first('newAssigneeId')"
+                            wire:model="newAssigneeId"
                         />
 
-                        <x-button type="button" variant="secondary" class="mt-2 w-full" wire:click="reassign" wire:loading.attr="disabled">
+                        <div class="mt-2">
+                            <x-form.label for="newAssigneePriority">Priority (optional)</x-form.label>
+                            <x-form.input
+                                id="newAssigneePriority"
+                                type="number"
+                                min="1"
+                                placeholder="None"
+                                wire:model="newAssigneePriority"
+                                :invalid="$errors->has('newAssigneePriority')"
+                            />
+                            <x-form.error for="newAssigneePriority" />
+                        </div>
+
+                        <x-button type="button" variant="secondary" class="mt-2 w-full" wire:click="addAssignee" wire:loading.attr="disabled">
                             <x-icon name="lucide-user-round-check" />
-                            Reassign
+                            Add
                         </x-button>
                     </div>
                 @endcan

@@ -139,7 +139,7 @@ test('an authenticated request acts for the workspace of the user signed in', fu
     // and this test is about the workspace boundary rather than that one.
     $theirLead = app(Tenancy::class)->for(
         $other,
-        fn (): Lead => Lead::factory()->create(['owner_id' => $theirUser->id, 'last_name' => 'Okonkwo']),
+        fn (): Lead => Lead::factory()->ownedBy($theirUser)->create(['last_name' => 'Okonkwo']),
     );
 
     $ourLead = Lead::factory()->create(['last_name' => 'Fairweather']);

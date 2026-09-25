@@ -59,6 +59,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => 'InnoDB',
+            // backup:database runs this binary. XAMPP and similar bundles keep
+            // theirs outside the PATH, so the full path can be given here.
+            'dump_binary' => env('DB_DUMP_BINARY', 'mysqldump'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -79,6 +82,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'dump_binary' => env('DB_DUMP_BINARY', 'mysqldump'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

@@ -4,6 +4,7 @@ namespace App\Domain\Workflows\Handlers;
 
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Workflows\Models\WorkflowAction;
 use App\Domain\Workflows\Runtime\WorkflowContext;
 use App\Domain\Workflows\Runtime\WorkflowStepOutcome;
@@ -155,7 +156,16 @@ class CreateRecordHandler implements WorkflowActionHandler
             return User::query()->whereKey((int) str($rule)->after('user:')->toString())->first();
         }
 
-        $ownerId = $context->subject?->getAttribute('owner_id');
+        $subject = $context->subject;
+
+        // Leads have no owner_id column: several people can be assigned at
+        // once, so "the record owner" is the highest-priority one — the same
+        // stand-in AssignmentResolver's own RecordOwner strategy uses.
+        if ($subject instanceof Lead) {
+            return $subject->primaryAssignee();
+        }
+
+        $ownerId = $subject?->getAttribute('owner_id');
 
         return $ownerId === null ? null : User::query()->whereKey((int) $ownerId)->first();
     }

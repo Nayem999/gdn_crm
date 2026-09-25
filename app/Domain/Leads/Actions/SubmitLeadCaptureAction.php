@@ -81,7 +81,10 @@ class SubmitLeadCaptureAction
                 ...$attributes,
                 // From the form, never the payload.
                 'source' => $form->source()->value,
-                'owner_id' => $form->owner_id,
+                // The form names one person; that person becomes the new
+                // lead's sole assignee, unprioritised. An admin adds more
+                // from the lead itself once it exists.
+                'assignees' => [['user_id' => $form->owner_id, 'priority' => null]],
             ]),
             $form->owner,
         );

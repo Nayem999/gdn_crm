@@ -6,10 +6,14 @@ use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class CreateLeadAction
 {
-    public function __construct(private readonly ScoreLeadAction $scoreLead) {}
+    public function __construct(
+        private readonly ScoreLeadAction $scoreLead,
+        private readonly SyncLeadAssigneesAction $syncAssignees,
+    ) {}
 
     /**
      * Capture a lead.
@@ -24,12 +28,23 @@ class CreateLeadAction
 
         $attributes['status'] = LeadStatus::New->value;
         $attributes['status_changed_at'] = now();
-        // A lead always has an owner; unassigned records are how visibility
-        // scoping springs a leak.
-        $attributes['owner_id'] = $data->ownerId ?? $actor->id;
 
-        $lead = Lead::create($attributes);
+        // Wrapped together: a "record created" workflow's dispatch waits for
+        // this transaction to commit (WorkflowObserver), so reading "the
+        // record owner" from a rule like record_owner or a notification
+        // recipient sees the assignees below rather than a lead that, for one
+        // instant, has none.
+        $lead = DB::transaction(function () use ($attributes, $data, $actor): Lead {
+            $lead = Lead::create($attributes);
 
-        return ($this->scoreLead)($lead);
+            // A lead always has at least one assignee; unassigned records are
+            // how visibility scoping springs a leak. Falling back to the
+            // acting user mirrors what owner_id used to do.
+            $this->syncAssignees->handle($lead, $data->assignees ?? [['user_id' => $actor->id, 'priority' => null]]);
+
+            return $lead;
+        });
+
+        return ($this->scoreLead)($lead->refresh());
     }
 }

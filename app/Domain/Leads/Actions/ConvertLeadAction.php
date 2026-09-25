@@ -54,7 +54,7 @@ class ConvertLeadAction
 
         $this->guard($lead);
 
-        $ownerId = $data->ownerId ?? $lead->owner_id;
+        $ownerId = $data->ownerId ?? $lead->primaryAssignee()?->id;
 
         $result = DB::transaction(function () use ($lead, $data, $actor, $ownerId) {
             $account = $this->account($lead, $data, $actor, $ownerId);
@@ -237,7 +237,7 @@ class ConvertLeadAction
             'pipeline_id' => $pipeline?->getKey(),
             'value' => $data->dealValue ?? $lead->estimated_value,
             'expected_close_date' => $data->dealCloseDate,
-            'owner_id' => $ownerId ?? $lead->owner_id,
+            'owner_id' => $ownerId ?? $lead->primaryAssignee()?->id,
         ]);
 
         $opening = $pipeline?->openingStage();

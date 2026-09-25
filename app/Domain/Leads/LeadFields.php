@@ -7,6 +7,8 @@ use App\Domain\Deals\PipelineModules;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Filters\FilterField;
+use App\Domain\Shared\RequestMemo;
+use App\Models\User;
 
 /**
  * One place that says what the leads list can show, sort and filter by.
@@ -40,7 +42,8 @@ final class LeadFields
             new Column('score', 'Score', numeric: true),
             Column::make('email', 'Email'),
             Column::make('phone', 'Phone'),
-            new Column('owner', 'Owner', sortable: false),
+            new Column('assignees', 'Assignees', sortable: false),
+            new Column('lead_owner', 'Lead owner', sortable: false),
             new Column('days_in_status', 'Days in status', sortColumn: 'status_changed_at', numeric: true),
             Column::optional('job_title', 'Job title'),
             Column::optional('city', 'City'),
@@ -67,6 +70,7 @@ final class LeadFields
             FilterField::text('job_title', 'Job title'),
             FilterField::text('city', 'City'),
             FilterField::text('country', 'Country'),
+            FilterField::select('lead_owner_id', 'Lead owner', self::ownerOptions()),
             FilterField::date('status_changed_at', 'Status changed'),
             FilterField::date('created_at', 'Captured'),
         ];
@@ -82,6 +86,21 @@ final class LeadFields
         // both read — merging them anywhere else is how a field becomes
         // filterable on screen and absent from a queued export.
         return CustomFieldColumns::mergeFilters('leads', $keyed);
+    }
+
+    /**
+     * Everybody a lead could be owned by, looked up once per request: the
+     * filter list is rebuilt by the screen, the filter builder, exports,
+     * reports and the scoring sweep alike.
+     *
+     * @return array<int, string>
+     */
+    private static function ownerOptions(): array
+    {
+        return app(RequestMemo::class)->remember(
+            'lead-fields.owner-options',
+            fn (): array => User::query()->orderBy('name')->pluck('name', 'id')->all(),
+        );
     }
 
     /**

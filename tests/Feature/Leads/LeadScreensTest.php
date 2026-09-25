@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Access\PermissionResolver;
+use App\Domain\Leads\Actions\SyncLeadAssigneesAction;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\LeadExportSource;
@@ -159,7 +160,6 @@ test('a lead can be captured', function () {
         ->set('email', 'dana@acme.test')
         ->set('source', LeadSource::Referral->value)
         ->set('estimated_value', '25000.00')
-        ->set('owner_id', (string) $user->id)
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect();
@@ -358,54 +358,79 @@ test('a converted lead is shown as immovable', function () {
 
 // -- Assignment ----------------------------------------------------------------
 
-test('a lead can be handed to somebody else', function () {
+test('a lead can gain another assignee', function () {
     $user = leadAdmin();
     $lead = Lead::factory()->ownedBy($user)->create();
     $colleague = User::factory()->create();
 
     Livewire::actingAs($user)
         ->test(LeadShow::class, ['lead' => $lead])
-        ->set('reassignTo', (string) $colleague->id)
-        ->call('reassign')
+        ->set('newAssigneeId', (string) $colleague->id)
+        ->call('addAssignee')
         ->assertDispatched('lead-updated');
 
-    expect($lead->fresh()->owner_id)->toBe($colleague->id);
+    expect(leadAssigneeIds($lead->fresh()))->toContain($user->id, $colleague->id);
 });
 
-test('reassigning needs its own permission, separate from editing', function () {
+test('assigning needs its own permission, separate from editing', function () {
     $user = leadUser(['leads.view', 'leads.update']);
     $lead = Lead::factory()->ownedBy($user)->create();
     $colleague = User::factory()->create();
 
     Livewire::actingAs($user)
         ->test(LeadShow::class, ['lead' => $lead])
-        ->set('reassignTo', (string) $colleague->id)
-        ->call('reassign')
+        ->set('newAssigneeId', (string) $colleague->id)
+        ->call('addAssignee')
         ->assertForbidden();
 
-    expect($lead->fresh()->owner_id)->toBe($user->id);
+    expect(leadAssigneeIds($lead->fresh()))->toBe([$user->id]);
 });
 
-test('reassigning to the current owner says nothing changed', function () {
+test('somebody already on the lead does not appear in the add list', function () {
+    $user = leadAdmin();
+    $lead = Lead::factory()->ownedBy($user)->create();
+
+    $component = Livewire::actingAs($user)->test(LeadShow::class, ['lead' => $lead]);
+
+    expect(array_keys($component->instance()->assignableOptions()))->not->toContain($user->id);
+});
+
+test('adding somebody who does not exist is refused', function () {
     $user = leadAdmin();
     $lead = Lead::factory()->ownedBy($user)->create();
 
     Livewire::actingAs($user)
         ->test(LeadShow::class, ['lead' => $lead])
-        ->set('reassignTo', (string) $user->id)
-        ->call('reassign')
+        ->set('newAssigneeId', '999999')
+        ->call('addAssignee')
+        ->assertHasErrors(['newAssigneeId']);
+});
+
+test('the last assignee cannot be removed', function () {
+    $user = leadAdmin();
+    $lead = Lead::factory()->ownedBy($user)->create();
+
+    Livewire::actingAs($user)
+        ->test(LeadShow::class, ['lead' => $lead])
+        ->call('removeAssignee', $user->id)
         ->assertDispatched('notify');
+
+    expect(leadAssigneeIds($lead->fresh()))->toBe([$user->id]);
 });
 
-test('reassigning to nobody is refused', function () {
+test('an assignee can be removed when somebody else is still on the lead', function () {
     $user = leadAdmin();
     $lead = Lead::factory()->ownedBy($user)->create();
+    $colleague = User::factory()->create();
+
+    app(SyncLeadAssigneesAction::class)->add($lead, $colleague);
 
     Livewire::actingAs($user)
         ->test(LeadShow::class, ['lead' => $lead])
-        ->set('reassignTo', '999999')
-        ->call('reassign')
-        ->assertHasErrors(['reassignTo']);
+        ->call('removeAssignee', $colleague->id)
+        ->assertDispatched('lead-updated');
+
+    expect(leadAssigneeIds($lead->fresh()))->toBe([$user->id]);
 });
 
 // -- Views ---------------------------------------------------------------------
@@ -749,7 +774,7 @@ test('the export writes readable values rather than stored ones', function () {
 test('every select on the capture form uses the shared component', function () {
     $rendered = Livewire::actingAs(leadAdmin())->test(LeadForm::class)->html();
 
-    // Two dropdowns: source and owner.
-    expect(substr_count($rendered, 'tomSelectField('))->toBe(2)
-        ->and(substr_count($rendered, '<select'))->toBe(2);
+    // Four dropdowns: source, campaign, lead owner and the first assignee.
+    expect(substr_count($rendered, 'tomSelectField('))->toBe(4)
+        ->and(substr_count($rendered, '<select'))->toBe(4);
 });

@@ -154,6 +154,16 @@
                     wire:model="owner_id"
                 />
 
+                <x-select
+                    name="campaign_id"
+                    label="Campaign"
+                    :options="$campaigns"
+                    :selected="$campaign_id"
+                    placeholder="Not from a campaign"
+                    :error="$errors->first('campaign_id')"
+                    wire:model="campaign_id"
+                />
+
                 <div class="sm:col-span-2">
                     <label class="flex items-start gap-3 rounded-lg border border-border px-4 py-3">
                         <input

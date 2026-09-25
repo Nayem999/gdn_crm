@@ -9,6 +9,7 @@ use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -34,7 +35,7 @@ class LeadApi implements ApiModule
 
     public function query(User $user): Builder
     {
-        return Lead::query()->visibleTo($user);
+        return Lead::query()->visibleTo($user)->with(['assignees.user:id,name', 'leadOwner:id,name']);
     }
 
     public function toArray(Model $record): array
@@ -50,7 +51,12 @@ class LeadApi implements ApiModule
             'status' => $record->status()->value,
             'source' => $record->source()?->value,
             'score' => $record->score,
-            'owner_id' => $record->owner_id,
+            'assignees' => $record->assignees->map(fn (LeadAssignee $assignee): array => [
+                'user_id' => $assignee->user_id,
+                'name' => $assignee->user->name,
+                'priority' => $assignee->priority,
+            ])->all(),
+            'lead_owner_id' => $record->lead_owner_id,
             'created_at' => $record->created_at?->toIso8601String(),
             'updated_at' => $record->updated_at?->toIso8601String(),
         ];
@@ -67,8 +73,12 @@ class LeadApi implements ApiModule
             'email' => ['nullable', 'email:rfc', 'max:255'],
             'phone' => ['nullable', 'string', 'max:32'],
             'source' => ['nullable', Rule::in(array_keys(LeadSource::options()))],
-            'owner_id' => ['nullable', 'integer', 'exists:users,id'],
             'description' => ['nullable', 'string'],
+            'lead_owner_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            // Deliberately no owner_id/assignees field: several people can be
+            // assigned to a lead at once, with an optional priority between
+            // them, and that does not fit this endpoint's flat validation-rule
+            // shape. Managing who is assigned still goes through the app.
         ];
     }
 
@@ -81,7 +91,7 @@ class LeadApi implements ApiModule
     {
         /** @var Lead $record */
         return $this->updater->__invoke($record, LeadData::fromArray([
-            ...$record->only(['first_name', 'last_name', 'company_name', 'email', 'phone', 'source', 'owner_id', 'description']),
+            ...$record->only(['first_name', 'last_name', 'company_name', 'email', 'phone', 'source', 'description']),
             ...$validated,
         ]));
     }
@@ -107,7 +117,8 @@ class LeadApi implements ApiModule
             'status' => 'string',
             'source' => 'string',
             'score' => 'integer',
-            'owner_id' => 'integer',
+            'assignees' => 'array',
+            'lead_owner_id' => 'integer',
             'created_at' => 'date-time',
             'updated_at' => 'date-time',
         ];

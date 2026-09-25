@@ -50,7 +50,7 @@ function converter(): User
 
 function convertLead(Lead $lead, ?LeadConversionData $data = null, ?User $actor = null): LeadConversionResult
 {
-    $actor ??= $lead->owner ?? converter();
+    $actor ??= $lead->primaryAssignee() ?? converter();
 
     return app(ConvertLeadAction::class)($lead, $data ?? new LeadConversionData, $actor);
 }
@@ -131,7 +131,7 @@ test('the account is built from what the lead knew about the organisation', func
         ->and($account->address_line_1)->toBe('1 Acme Way')
         ->and($account->city)->toBe('Bristol')
         ->and($account->postal_code)->toBe('BS1 1AA')
-        ->and($account->owner_id)->toBe($lead->owner_id);
+        ->and($account->owner_id)->toBe(leadOwnerId($lead));
 });
 
 test('the contact is built from what the lead knew about the person', function () {
@@ -160,7 +160,7 @@ test('the deal carries the estimated value and points back at where it came from
         ->and($result->deal->lead_id)->toBe($lead->id)
         ->and($result->deal->stage())->toBe(DealStage::New)
         ->and($result->deal->name)->toBe('Acme Industries opportunity')
-        ->and($result->deal->owner_id)->toBe($lead->owner_id);
+        ->and($result->deal->owner_id)->toBe(leadOwnerId($lead));
 });
 
 test('the lead is closed and knows what it became', function () {

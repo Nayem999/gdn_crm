@@ -348,7 +348,7 @@ test('an imported record obeys the same rules a typed-in one does', function () 
     $lead = Lead::query()->firstOrFail();
 
     expect($lead->status())->toBe(LeadStatus::New)
-        ->and($lead->owner_id)->toBe($user->id)
+        ->and(leadOwnerId($lead))->toBe($user->id)
         ->and($lead->source()?->value)->toBe('referral')
         // The create action ran, so the duplicate fingerprints exist too.
         ->and(DuplicateKey::query()->where('keyable_id', $lead->id)->count())->toBeGreaterThan(0);

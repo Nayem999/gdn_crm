@@ -142,7 +142,7 @@ test('a new number creates a lead and a conversation', function () {
     expect($lead->first_name)->toBe('Dara')
         ->and($lead->source)->toBe(LeadSource::WhatsApp->value)
         ->and($conversation->lead_id)->toBe($lead->id)
-        ->and($lead->owner_id)->toBe($number->businessAccount->account->connected_by_id);
+        ->and(leadOwnerId($lead))->toBe($number->businessAccount->account->connected_by_id);
 });
 
 test('a known number attaches to the existing contact rather than making a lead', function () {

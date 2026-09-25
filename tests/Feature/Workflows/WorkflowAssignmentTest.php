@@ -4,6 +4,7 @@ use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Workflows\Assignment\AssignmentPointer;
 use App\Domain\Workflows\Assignment\AssignmentStrategy;
 use App\Domain\Workflows\Enums\WorkflowActionType;
@@ -56,11 +57,11 @@ test('round robin shares nine records evenly between three people', function () 
         Lead::factory()->create();
     }
 
-    $counts = Lead::query()
-        ->whereIn('owner_id', $pool->pluck('id'))
-        ->selectRaw('owner_id, count(*) as total')
-        ->groupBy('owner_id')
-        ->pluck('total', 'owner_id');
+    $counts = LeadAssignee::query()
+        ->whereIn('user_id', $pool->pluck('id'))
+        ->selectRaw('user_id, count(*) as total')
+        ->groupBy('user_id')
+        ->pluck('total', 'user_id');
 
     expect($counts)->toHaveCount(3);
 
@@ -84,7 +85,7 @@ test('round robin goes round in the order the pool is written', function () {
     $owners = [];
 
     for ($i = 0; $i < 4; $i++) {
-        $owners[] = Lead::factory()->create()->fresh()->owner_id;
+        $owners[] = leadOwnerId(Lead::factory()->create()->fresh());
     }
 
     expect($owners)->toBe([$third->id, $first->id, $second->id, $third->id]);
@@ -103,10 +104,10 @@ test('a remainder is spread rather than piled on the first person', function () 
         Lead::factory()->create();
     }
 
-    $counts = Lead::query()
-        ->whereIn('owner_id', $pool->pluck('id'))
-        ->selectRaw('owner_id, count(*) as total')
-        ->groupBy('owner_id')
+    $counts = LeadAssignee::query()
+        ->whereIn('user_id', $pool->pluck('id'))
+        ->selectRaw('user_id, count(*) as total')
+        ->groupBy('user_id')
         ->pluck('total')
         ->map(fn (mixed $count): int => (int) $count)
         ->sort()
@@ -135,7 +136,7 @@ test('two workflows taking turns through the same team do not share a turn', fun
     $contact = Contact::factory()->create();
 
     // Each workflow starts its own turn at the top of the pool.
-    expect($lead->fresh()->owner_id)->toBe($pool[0]->id)
+    expect(leadOwnerId($lead->fresh()))->toBe($pool[0]->id)
         ->and($contact->fresh()->owner_id)->toBe($pool[0]->id)
         ->and(AssignmentPointer::query()->count())->toBe(2);
 });
@@ -150,7 +151,7 @@ test('a pool member who no longer exists is skipped, not given records', functio
 
     $lead = Lead::factory()->create();
 
-    expect($lead->fresh()->owner_id)->toBe($present->id);
+    expect(leadOwnerId($lead->fresh()))->toBe($present->id);
 });
 
 test('a round robin with an empty pool assigns nobody and is not a failure', function () {
@@ -160,9 +161,9 @@ test('a round robin with an empty pool assigns nobody and is not a failure', fun
     ]);
 
     $owner = User::factory()->create();
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
 
-    expect($lead->fresh()->owner_id)->toBe($owner->id)
+    expect(leadOwnerId($lead->fresh()))->toBe($owner->id)
         ->and(WorkflowRun::query()->sole()->status())
         ->toBe(WorkflowRunStatus::Success);
 });
@@ -173,22 +174,22 @@ test('load-based gives the record to whoever is carrying the least', function ()
     $busy = User::factory()->create();
     $quiet = User::factory()->create();
 
-    Lead::factory()->count(5)->create(['owner_id' => $busy->id]);
-    Lead::factory()->count(1)->create(['owner_id' => $quiet->id]);
+    Lead::factory()->count(5)->ownedBy($busy)->create();
+    Lead::factory()->count(1)->ownedBy($quiet)->create();
 
     assigningWorkflow([
         'assign_to_strategy' => AssignmentStrategy::LoadBased->value,
         'pool' => ['user:'.$busy->id, 'user:'.$quiet->id],
     ]);
 
-    expect(Lead::factory()->create()->fresh()->owner_id)->toBe($quiet->id);
+    expect(leadOwnerId(Lead::factory()->create()->fresh()))->toBe($quiet->id);
 });
 
 test('load-based levels an uneven team out over several records', function () {
     $busy = User::factory()->create();
     $quiet = User::factory()->create();
 
-    Lead::factory()->count(4)->create(['owner_id' => $busy->id]);
+    Lead::factory()->count(4)->ownedBy($busy)->create();
 
     assigningWorkflow([
         'assign_to_strategy' => AssignmentStrategy::LoadBased->value,
@@ -201,10 +202,10 @@ test('load-based levels an uneven team out over several records', function () {
         Lead::factory()->create();
     }
 
-    $counts = Lead::query()
-        ->selectRaw('owner_id, count(*) as total')
-        ->groupBy('owner_id')
-        ->pluck('total', 'owner_id');
+    $counts = LeadAssignee::query()
+        ->selectRaw('user_id, count(*) as total')
+        ->groupBy('user_id')
+        ->pluck('total', 'user_id');
 
     expect((int) $counts[$busy->id])->toBe(4)
         ->and((int) $counts[$quiet->id])->toBe(4);
@@ -233,8 +234,8 @@ test('a removed record is not a load either', function () {
     $busy = User::factory()->create();
     $quiet = User::factory()->create();
 
-    Lead::factory()->count(4)->create(['owner_id' => $quiet->id])->each->delete();
-    Lead::factory()->count(1)->create(['owner_id' => $busy->id]);
+    Lead::factory()->count(4)->ownedBy($quiet)->create()->each->delete();
+    Lead::factory()->count(1)->ownedBy($busy)->create();
 
     assigningWorkflow([
         'assign_to_strategy' => AssignmentStrategy::LoadBased->value,
@@ -243,7 +244,7 @@ test('a removed record is not a load either', function () {
 
     // The quiet one has four deleted leads and no live ones, so they are the
     // lighter of the two.
-    expect(Lead::factory()->create()->fresh()->owner_id)->toBe($quiet->id);
+    expect(leadOwnerId(Lead::factory()->create()->fresh()))->toBe($quiet->id);
 });
 
 test('a tie breaks the same way every time', function () {
@@ -256,7 +257,7 @@ test('a tie breaks the same way every time', function () {
     ]);
 
     // Both start with nothing; the pool's own order settles it.
-    expect(Lead::factory()->create()->fresh()->owner_id)->toBe($first->id);
+    expect(leadOwnerId(Lead::factory()->create()->fresh()))->toBe($first->id);
 });
 
 // -- Territory -------------------------------------------------------------------------
@@ -280,11 +281,11 @@ test('territory routes each record by what its field says', function () {
     $london = Lead::factory()->create(['country' => 'United Kingdom']);
     $elsewhere = Lead::factory()->create(['country' => 'Peru']);
 
-    expect($dhaka->fresh()->owner_id)->toBe($bd->id)
-        ->and($london->fresh()->owner_id)->toBe($uk->id)
+    expect(leadOwnerId($dhaka->fresh()))->toBe($bd->id)
+        ->and(leadOwnerId($london->fresh()))->toBe($uk->id)
         // Nothing matched, so the fallback caught it rather than the record
         // going nowhere.
-        ->and($elsewhere->fresh()->owner_id)->toBe($rest->id);
+        ->and(leadOwnerId($elsewhere->fresh()))->toBe($rest->id);
 });
 
 test('a territory matches however the value was typed', function () {
@@ -297,7 +298,7 @@ test('a territory matches however the value was typed', function () {
         'territories' => [['value' => 'Bangladesh', 'user' => 'user:'.$bd->id]],
     ]);
 
-    expect(Lead::factory()->create(['country' => '  bangladesh '])->fresh()->owner_id)->toBe($bd->id);
+    expect(leadOwnerId(Lead::factory()->create(['country' => '  bangladesh '])->fresh()))->toBe($bd->id);
 });
 
 test('a territory step with no fallback leaves an unmatched record alone', function () {
@@ -310,9 +311,9 @@ test('a territory step with no fallback leaves an unmatched record alone', funct
         'territories' => [['value' => 'Bangladesh', 'user' => 'user:'.$bd->id]],
     ]);
 
-    $lead = Lead::factory()->create(['country' => 'Peru', 'owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create(['country' => 'Peru']);
 
-    expect($lead->fresh()->owner_id)->toBe($owner->id);
+    expect(leadOwnerId($lead->fresh()))->toBe($owner->id);
 });
 
 test('a territory cannot match on a field the module does not have', function () {
@@ -325,9 +326,9 @@ test('a territory cannot match on a field the module does not have', function ()
         'territories' => [['value' => 'anything', 'user' => 'user:'.$anybody->id]],
     ]);
 
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
 
-    expect($lead->fresh()->owner_id)->toBe($owner->id);
+    expect(leadOwnerId($lead->fresh()))->toBe($owner->id);
 });
 
 // -- The plain cases still work -----------------------------------------------------------
@@ -340,7 +341,7 @@ test('a step written before the strategies still names one person', function () 
 
     assigningWorkflow(['assign_to' => 'user:'.$target->id]);
 
-    expect(Lead::factory()->create()->fresh()->owner_id)->toBe($target->id);
+    expect(leadOwnerId(Lead::factory()->create()->fresh()))->toBe($target->id);
 });
 
 test('every strategy has a label and a description', function (string $value) {

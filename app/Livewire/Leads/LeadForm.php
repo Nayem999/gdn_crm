@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leads;
 
+use App\Domain\Campaigns\Concerns\WithCampaignAttribution;
 use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\Actions\UpdateLeadAction;
@@ -9,6 +10,7 @@ use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\LeadDuplicates;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
 use App\Domain\Shared\Duplicates\DuplicateSource;
 use App\Models\User;
@@ -29,6 +31,7 @@ class LeadForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCampaignAttribution;
     use WithCustomFieldForm;
 
     #[Locked]
@@ -68,7 +71,14 @@ class LeadForm extends Component
 
     public ?string $description = null;
 
-    public ?string $owner_id = null;
+    public ?string $lead_owner_id = null;
+
+    /**
+     * One row per person the lead is being handed to.
+     *
+     * @var array<int, array{user_id: string, priority: string}>
+     */
+    public array $assignees = [];
 
     /**
      * The module whose custom fields this form shows.
@@ -92,8 +102,26 @@ class LeadForm extends Component
 
         $this->authorize('create', Lead::class);
 
-        $this->owner_id = (string) auth()->id();
+        $this->assignees = [['user_id' => (string) auth()->id(), 'priority' => '']];
         $this->loadCustomFields();
+    }
+
+    public function addAssigneeRow(): void
+    {
+        $this->assignees[] = ['user_id' => '', 'priority' => ''];
+    }
+
+    public function removeAssigneeRow(int $index): void
+    {
+        // A lead needs at least one assignee, so the last row is never
+        // removable — SyncLeadAssigneesAction would only refuse it anyway,
+        // and doing that here means the button simply is not there to press.
+        if (count($this->assignees) <= 1) {
+            return;
+        }
+
+        unset($this->assignees[$index]);
+        $this->assignees = array_values($this->assignees);
     }
 
     public function lead(): ?Lead
@@ -132,7 +160,11 @@ class LeadForm extends Component
             // rather than being silently truncated by MySQL.
             'estimated_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'owner_id' => ['required', 'integer', 'exists:users,id'],
+            'lead_owner_id' => ['nullable', 'integer', 'exists:users,id'],
+            'assignees' => ['required', 'array', 'min:1'],
+            'assignees.*.user_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
+            'assignees.*.priority' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            ...$this->campaignRules(),
         ];
     }
 
@@ -150,7 +182,10 @@ class LeadForm extends Component
             'address_line_2' => 'address line 2',
             'postal_code' => 'postal code',
             'estimated_value' => 'estimated value',
-            'owner_id' => 'owner',
+            'campaign_id' => 'campaign',
+            'lead_owner_id' => 'lead owner',
+            'assignees.*.user_id' => 'assignee',
+            'assignees.*.priority' => 'priority',
         ];
     }
 
@@ -162,6 +197,7 @@ class LeadForm extends Component
         return [
             'email.required_without' => 'Give an email address or a phone number.',
             'phone.required_without' => 'Give a phone number or an email address.',
+            'assignees.*.user_id.distinct' => 'The same person is on this list twice.',
         ];
     }
 
@@ -175,6 +211,10 @@ class LeadForm extends Component
 
         $this->validate();
         $this->validateCustomFields($this->customFieldViewer());
+
+        if (! $this->guardCampaign()) {
+            return;
+        }
 
         $data = LeadData::fromArray($this->formFields());
 
@@ -200,7 +240,7 @@ class LeadForm extends Component
     /**
      * @return array<int, string>
      */
-    public function ownerOptions(): array
+    public function assigneeOptions(): array
     {
         $options = [];
 
@@ -209,6 +249,11 @@ class LeadForm extends Component
         }
 
         return $options;
+    }
+
+    protected function attributedRecord(): ?Lead
+    {
+        return $this->lead();
     }
 
     public function duplicateSource(): ?DuplicateSource
@@ -225,7 +270,8 @@ class LeadForm extends Component
     {
         return view('livewire.leads.lead-form', [
             'sources' => LeadSource::options(),
-            'owners' => $this->ownerOptions(),
+            'users' => $this->assigneeOptions(),
+            'campaigns' => $this->campaignOptions(),
         ])->title($this->isEditing() ? 'Edit lead' : 'Capture lead');
     }
 
@@ -252,7 +298,15 @@ class LeadForm extends Component
             'source' => $this->source,
             'estimated_value' => $this->estimated_value,
             'description' => $this->description,
-            'owner_id' => $this->owner_id,
+            'campaign_id' => $this->chosenCampaignId(),
+            'lead_owner_id' => $this->lead_owner_id === null || $this->lead_owner_id === '' ? null : (int) $this->lead_owner_id,
+            'assignees' => array_map(
+                fn (array $row): array => [
+                    'user_id' => (int) $row['user_id'],
+                    'priority' => $row['priority'] === '' ? null : (int) $row['priority'],
+                ],
+                $this->assignees
+            ),
         ];
     }
 
@@ -275,6 +329,11 @@ class LeadForm extends Component
         $this->source = $lead->source;
         $this->estimated_value = $lead->estimated_value;
         $this->description = $lead->description;
-        $this->owner_id = (string) $lead->owner_id;
+        $this->fillCampaignFrom($lead);
+        $this->lead_owner_id = $lead->lead_owner_id === null ? null : (string) $lead->lead_owner_id;
+        $this->assignees = $lead->assignees->map(fn (LeadAssignee $assignee): array => [
+            'user_id' => (string) $assignee->user_id,
+            'priority' => $assignee->priority === null ? '' : (string) $assignee->priority,
+        ])->all();
     }
 }

@@ -3,6 +3,7 @@
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Deals\Enums\DealCloseReason;
 use App\Domain\Deals\Enums\DealStage;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadSource;
@@ -55,10 +56,11 @@ afterEach(function () {
 
 // -- The catalogue -------------------------------------------------------------
 
-test('the eleven standard reports are declared', function () {
+test('the twelve standard reports are declared', function () {
     // Phase 12 added three: leads by Meta campaign, revenue by Meta campaign,
-    // and what became of the leads the advertising brought in.
-    expect(StandardReports::SLUGS)->toHaveCount(11)
+    // and what became of the leads the advertising brought in. Then the win
+    // and loss reasons the user guide had long promised.
+    expect(StandardReports::SLUGS)->toHaveCount(12)
         ->and(array_keys(StandardReports::all()))->toBe(StandardReports::SLUGS);
 });
 
@@ -82,7 +84,7 @@ test('every standard report names a source and fields that exist', function (str
 })->with(StandardReports::SLUGS);
 
 test('installing is idempotent and never overwrites', function () {
-    expect(StandardReports::install())->toBe(11)
+    expect(StandardReports::install())->toBe(12)
         ->and(StandardReports::install())->toBe(0);
 
     $report = Report::query()->where('slug', 'top-customers')->firstOrFail();
@@ -154,6 +156,9 @@ test('pipeline by stage counts what is in play', function () {
 
     Deal::factory()->count(3)->ownedBy($viewer)->create(['stage' => 'qualification', 'value' => 100]);
     Deal::factory()->ownedBy($viewer)->create(['stage' => 'proposal', 'value' => 700]);
+    // Already decided, so not in play: neither may reach the funnel.
+    Deal::factory()->ownedBy($viewer)->create(['stage' => DealStage::Won->value, 'value' => 9000]);
+    Deal::factory()->ownedBy($viewer)->create(['stage' => DealStage::Lost->value, 'value' => 9000]);
 
     $result = standardReport('pipeline-by-stage', $viewer);
     $rows = standardRows($result);
@@ -198,20 +203,26 @@ test('revenue by month counts accepted quotes only', function () {
         ->and($rows['2026-09']['count'])->toBe(2);
 });
 
-test('salesperson performance splits the deals by owner', function () {
+test('salesperson performance reports what each person won and lost', function () {
     $dana = reportAdmin();
     $sam = reportAdmin();
 
-    Deal::factory()->count(2)->ownedBy($dana)->create(['value' => 500]);
-    Deal::factory()->ownedBy($sam)->create(['value' => 100]);
+    Deal::factory()->count(2)->ownedBy($dana)->create(['stage' => DealStage::Won->value, 'value' => 500]);
+    Deal::factory()->ownedBy($dana)->create(['stage' => DealStage::Lost->value, 'value' => 5000]);
+    // Open: counts toward neither side, and not toward the win rate.
+    Deal::factory()->ownedBy($dana)->create(['stage' => 'proposal', 'value' => 7000]);
+    Deal::factory()->ownedBy($sam)->create(['stage' => DealStage::Won->value, 'value' => 100]);
 
     $result = standardReport('salesperson-performance', $dana);
     $rows = standardRows($result);
 
-    expect($rows[$dana->name]['count'])->toBe(2)
-        ->and($rows[$dana->name]['value'])->toBe(1000.0)
-        ->and($rows[$sam->name]['value'])->toBe(100.0)
-        // Sorted by value, so the bigger seller leads.
+    expect($rows[$dana->name]['won_value'])->toBe(1000.0)
+        ->and($rows[$dana->name]['won_count'])->toBe(2)
+        ->and($rows[$dana->name]['lost_count'])->toBe(1)
+        // Two won of three decided; the open one is left out, not counted lost.
+        ->and(round((float) $rows[$dana->name]['win_rate'], 1))->toBe(66.7)
+        ->and($rows[$sam->name]['win_rate'])->toBe(100.0)
+        // Ranked by what was won — the lost 5000 does not put anybody higher.
         ->and($result->rows[0]->label())->toBe($dana->name);
 });
 
@@ -227,21 +238,73 @@ test('activity by person groups by owner and type', function () {
         ->and($rows[$viewer->name.' — '.ActivityType::Meeting->label()]['count'])->toBe(1);
 });
 
-test('top customers ranks accounts by the value against them', function () {
+test('top customers ranks accounts by what they have won', function () {
     $viewer = reportAdmin();
 
     $big = Account::factory()->create(['name' => 'Big Co']);
     $small = Account::factory()->create(['name' => 'Small Co']);
+    $tyre = Account::factory()->create(['name' => 'Tyre Kicker Ltd']);
 
-    Deal::factory()->ownedBy($viewer)->create(['account_id' => $big->id, 'value' => 5000]);
-    Deal::factory()->ownedBy($viewer)->create(['account_id' => $big->id, 'value' => 1000]);
-    Deal::factory()->ownedBy($viewer)->create(['account_id' => $small->id, 'value' => 200]);
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $big->id, 'value' => 5000, 'stage' => DealStage::Won->value]);
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $big->id, 'value' => 1000, 'stage' => DealStage::Won->value]);
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $small->id, 'value' => 200, 'stage' => DealStage::Won->value]);
+    // Lost and open deals are not purchases; this account bought nothing.
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $tyre->id, 'value' => 90000, 'stage' => DealStage::Lost->value]);
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $small->id, 'value' => 90000, 'stage' => 'proposal']);
 
     $result = standardReport('top-customers', $viewer);
 
-    expect($result->rows[0]->label())->toBe('Big Co')
+    expect($result->rows)->toHaveCount(2)
+        ->and($result->rows[0]->label())->toBe('Big Co')
         ->and($result->rows[0]->value('value'))->toBe(6000.0)
-        ->and($result->rows[1]->label())->toBe('Small Co');
+        ->and($result->rows[0]->id('account'))->toBe($big->id)
+        ->and($result->rows[1]->label())->toBe('Small Co')
+        ->and($result->rows[1]->value('value'))->toBe(200.0);
+});
+
+test('two accounts with the same name are two customers', function () {
+    $viewer = reportAdmin();
+
+    $north = Account::factory()->create(['name' => 'Acme']);
+    $south = Account::factory()->create(['name' => 'Acme']);
+
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $north->id, 'value' => 300, 'stage' => DealStage::Won->value]);
+    Deal::factory()->ownedBy($viewer)->create(['account_id' => $south->id, 'value' => 700, 'stage' => DealStage::Won->value]);
+
+    $result = standardReport('top-customers', $viewer);
+
+    expect($result->rows)->toHaveCount(2)
+        ->and(array_map(fn ($row) => $row->id('account'), $result->rows))->toBe([$south->id, $north->id]);
+});
+
+test('win and loss reasons split the closed deals by why', function () {
+    $viewer = reportAdmin();
+
+    Deal::factory()->ownedBy($viewer)->create(['stage' => DealStage::Won->value, 'close_reason' => 'best_fit', 'value' => 800]);
+    Deal::factory()->count(2)->ownedBy($viewer)->create(['stage' => DealStage::Lost->value, 'close_reason' => 'lost_on_price', 'value' => 100]);
+    Deal::factory()->ownedBy($viewer)->create(['stage' => 'proposal', 'close_reason' => null, 'value' => 5000]);
+
+    $rows = standardRows(standardReport('win-loss-reasons', $viewer));
+
+    expect($rows)->not->toHaveKey('(none)')
+        ->and($rows[DealCloseReason::LostOnPrice->label()]['lost_count'])->toBe(2)
+        ->and($rows[DealCloseReason::BestFit->label()]['won_value'])->toBe(800.0);
+});
+
+test('an untouched built-in is upgraded and an edited one is left alone', function () {
+    StandardReports::install();
+
+    $untouched = Report::query()->where('slug', 'salesperson-performance')->firstOrFail();
+    $untouched->forceFill(['definition' => StandardReports::previousDefinitions()['salesperson-performance']])->save();
+
+    $edited = Report::query()->where('slug', 'top-customers')->firstOrFail();
+    $mine = [...StandardReports::previousDefinitions()['top-customers'], 'limit' => 5];
+    $edited->forceFill(['definition' => $mine])->save();
+
+    expect(StandardReports::upgrade())->toBe(1)
+        ->and($untouched->fresh()->definition()->measures)->toContain('won_value')
+        ->and($edited->fresh()->definition()->limit)->toBe(5)
+        ->and($edited->fresh()->definition()->measures)->toBe(['value', 'count']);
 });
 
 // -- Access --------------------------------------------------------------------

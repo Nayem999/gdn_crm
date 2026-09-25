@@ -1,9 +1,9 @@
 <?php
 
-use App\Domain\Leads\Actions\AssignLeadAction;
 use App\Domain\Leads\Actions\ChangeLeadStatusAction;
 use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\Actions\DeleteLeadAction;
+use App\Domain\Leads\Actions\SyncLeadAssigneesAction;
 use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Enums\LeadSource;
@@ -247,18 +247,23 @@ test('a captured lead always starts as new, whatever the caller asks', function 
 
     expect($lead->status())->toBe(LeadStatus::New)
         ->and($lead->status_changed_at)->not->toBeNull()
-        ->and($lead->owner_id)->toBe($actor->id);
+        // A lead always has at least one assignee; nobody named one, so the
+        // acting user became it — mirroring what owner_id used to default to.
+        ->and(leadOwnerId($lead))->toBe($actor->id);
 });
 
-test('an explicit owner wins over whoever captured it', function () {
+test('an explicit assignee wins over whoever captured it', function () {
     $owner = User::factory()->create();
 
     $lead = app(CreateLeadAction::class)(
-        LeadData::fromArray(['first_name' => 'Dana', 'last_name' => 'Scully', 'owner_id' => $owner->id]),
+        LeadData::fromArray([
+            'first_name' => 'Dana', 'last_name' => 'Scully',
+            'assignees' => [['user_id' => $owner->id, 'priority' => null]],
+        ]),
         User::factory()->create()
     );
 
-    expect($lead->owner_id)->toBe($owner->id);
+    expect(leadOwnerId($lead))->toBe($owner->id);
 });
 
 test('an ordinary update cannot move the status', function () {
@@ -286,7 +291,7 @@ test('an update clears a field the user emptied', function () {
     expect($lead->fresh()->phone)->toBeNull();
 });
 
-test('an update that omits the owner leaves it alone', function () {
+test('an update that omits assignees leaves them alone', function () {
     $owner = User::factory()->create();
     $lead = Lead::factory()->ownedBy($owner)->create();
 
@@ -295,24 +300,30 @@ test('an update that omits the owner leaves it alone', function () {
         'last_name' => $lead->last_name,
     ]));
 
-    expect($lead->fresh()->owner_id)->toBe($owner->id);
+    expect(leadOwnerId($lead->fresh()))->toBe($owner->id);
 });
 
 // -- Assignment ----------------------------------------------------------------
 
-test('assigning hands the lead to somebody else', function () {
+test('assigning adds somebody alongside whoever is already on the lead', function () {
     $lead = Lead::factory()->create();
-    $newOwner = User::factory()->create();
+    $newAssignee = User::factory()->create();
 
-    expect(app(AssignLeadAction::class)($lead, $newOwner))->toBeTrue()
-        ->and($lead->fresh()->owner_id)->toBe($newOwner->id);
+    app(SyncLeadAssigneesAction::class)->add($lead, $newAssignee);
+
+    expect(leadAssigneeIds($lead->fresh()))->toContain($newAssignee->id);
 });
 
-test('assigning to the current owner reports that nothing changed', function () {
+test('assigning somebody already on the lead changes their priority rather than duplicating the row', function () {
     $owner = User::factory()->create();
     $lead = Lead::factory()->ownedBy($owner)->create();
 
-    expect(app(AssignLeadAction::class)($lead, $owner))->toBeFalse();
+    app(SyncLeadAssigneesAction::class)->add($lead, $owner, priority: 1);
+
+    $fresh = $lead->fresh();
+
+    expect($fresh->assignees()->count())->toBe(1)
+        ->and($fresh->assignees()->first()->priority)->toBe(1);
 });
 
 test('deleting a lead keeps the row so history still resolves', function () {

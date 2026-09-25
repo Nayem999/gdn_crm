@@ -49,7 +49,7 @@ class CreateLeadFromConversationAction
             'last_name' => $last,
             // From the channel, never from anything the customer typed.
             'source' => $channel->leadSource(),
-            'owner_id' => $owner->getKey(),
+            'assignees' => [['user_id' => $owner->getKey(), 'priority' => null]],
             'description' => sprintf(
                 'Started a %s conversation. Reply in the social inbox.',
                 $channel->label(),

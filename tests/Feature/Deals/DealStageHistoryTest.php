@@ -349,7 +349,7 @@ test('lead conversion opens the deal history too', function () {
     $result = app(ConvertLeadAction::class)(
         $lead,
         new LeadConversionData(createDeal: true),
-        $lead->owner,
+        $lead->primaryAssignee(),
     );
 
     // Conversion sets the stage with forceFill after create, so the trait sees

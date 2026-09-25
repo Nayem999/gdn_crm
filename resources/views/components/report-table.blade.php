@@ -5,7 +5,16 @@
     // this" sends them looking for records that are there.
     'result',
     'sortable' => false,
+    // Dimension key => record id => URL, for the groups the reader may open.
+    'links' => [],
+    // Whether each row offers "the records behind this". Only on the report
+    // page: the builder preview, the dashboard and the PDF have nowhere to go.
+    'drillable' => false,
 ])
+
+@php
+    $canDrill = $drillable && ($result->source?->canListRecords() ?? false);
+@endphp
 
 @php
     /**
@@ -83,19 +92,39 @@
                                 @endif
                             </th>
                         @endforeach
+                        @if ($canDrill)
+                            <th class="w-px px-4 py-2.5"><span class="sr-only">Records</span></th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($result->rows as $row)
                         <tr class="border-b border-border/60 last:border-0">
                             @foreach ($result->dimensions as $key => $dimension)
-                                <td class="px-4 py-2 text-foreground">{{ $row->group($key) }}</td>
+                                @php($url = ($id = $row->id($key)) !== null ? ($links[$key][$id] ?? null) : null)
+                                <td class="px-4 py-2 text-foreground">
+                                    @if ($url !== null)
+                                        <a href="{{ $url }}" wire:navigate class="font-medium text-accent hover:underline">{{ $row->group($key) }}</a>
+                                    @else
+                                        {{ $row->group($key) }}
+                                    @endif
+                                </td>
                             @endforeach
                             @foreach ($result->measures as $key => $measure)
                                 <td class="px-4 py-2 text-right tabular-nums text-foreground">
                                     {{ $format($row->value($key), $measure) }}
                                 </td>
                             @endforeach
+                            @if ($canDrill)
+                                <td class="px-4 py-2 text-right">
+                                    <button type="button"
+                                            wire:click="drillInto(@js($row->drill()))"
+                                            class="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-muted">
+                                        Records
+                                        <x-icon name="lucide-chevron-right" class="h-3.5 w-3.5" />
+                                    </button>
+                                </td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>
@@ -112,6 +141,9 @@
                                     {{ $format($result->totals[$key] ?? null, $measure) }}
                                 </td>
                             @endforeach
+                            @if ($canDrill)
+                                <td></td>
+                            @endif
                         </tr>
                     </tfoot>
                 @endif

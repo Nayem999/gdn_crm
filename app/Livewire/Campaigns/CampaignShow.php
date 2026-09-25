@@ -57,7 +57,7 @@ class CampaignShow extends Component
         return Lead::query()
             ->visibleTo(auth()->user())
             ->where('campaign_id', $this->campaignId)
-            ->with('owner:id,name')
+            ->with('assignees.user:id,name')
             ->latest('created_at')
             ->limit(10)
             ->get();

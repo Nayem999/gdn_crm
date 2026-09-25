@@ -5,6 +5,8 @@ use App\Listeners\VerifyApplicationHealth;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -88,12 +90,20 @@ test('backups are written where nothing serves them', function () {
         ->and(config('filesystems.disks.local.visibility'))->not->toBe('public');
 });
 
-test('the dump command never puts the password through a shell', function () {
+/**
+ * @return array<int, string>
+ */
+function backupArguments(): array
+{
     $command = new ReflectionMethod(BackupDatabase::class, 'command');
-    $command->setAccessible(true);
 
-    /** @var array<int, string> $arguments */
-    $arguments = $command->invoke(app(BackupDatabase::class), (string) config('database.default'), 'testing', '/tmp/x.sql');
+    return $command->invoke(app(BackupDatabase::class), (string) config('database.default'), 'testing', '/tmp/x.sql');
+}
+
+test('the dump command never puts the password through a shell', function () {
+    config()->set('database.connections.'.config('database.default').'.dump_binary', null);
+
+    $arguments = backupArguments();
 
     // An argument list, not a string: a database name with a quote in it
     // cannot become part of the command.
@@ -101,6 +111,28 @@ test('the dump command never puts the password through a shell', function () {
         ->and($arguments[0])->toBe('mysqldump')
         ->and(implode(' ', $arguments))->toContain('--single-transaction');
 });
+
+test('the dump binary can be pointed at one outside the PATH', function () {
+    config()->set('database.connections.'.config('database.default').'.dump_binary', '/opt/lampp/bin/mysqldump');
+
+    expect(backupArguments()[0])->toBe('/opt/lampp/bin/mysqldump');
+});
+
+test('routines and events are only dumped when the server will list them', function (string $flag, string $probe) {
+    // A MariaDB whose system tables predate it refuses these listings outright,
+    // which used to fail the whole backup on an un-upgraded XAMPP install.
+    try {
+        DB::select($probe);
+        $listable = true;
+    } catch (QueryException) {
+        $listable = false;
+    }
+
+    expect(in_array($flag, backupArguments(), true))->toBe($listable);
+})->with([
+    'routines' => ['--routines', 'show function status where Db = database()'],
+    'events' => ['--events', 'show events'],
+]);
 
 // -- Health --------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\LeadExportSource;
 use App\Domain\Leads\LeadFields;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Settings\NumberFormat;
 use App\Domain\Shared\Concerns\ExportsDataView;
 use App\Domain\Shared\Concerns\WithDataView;
@@ -78,10 +79,10 @@ class LeadsIndex extends Component
     {
         $query = Lead::query()
             ->visibleTo(auth()->user())
-            ->with('owner:id,name');
+            ->with(['assignees.user:id,name', 'leadOwner:id,name']);
 
         return match ($this->quickFilter) {
-            'mine' => $query->where('leads.owner_id', auth()->id()),
+            'mine' => $query->whereHas('assignedUsers', fn ($assignees) => $assignees->where('users.id', auth()->id())),
             'open' => $query->open(),
             'stalled' => $query->open()->where('leads.status_changed_at', '<=', now()->subDays(14)),
             'this_week' => $query->where('leads.created_at', '>=', now()->startOfWeek()),
@@ -194,7 +195,14 @@ class LeadsIndex extends Component
                     '<a href="mailto:'.e($record->email).'" class="text-accent hover:underline">'
                     .e($record->email).'</a>'
                 ),
-            'owner' => $record->owner === null ? $this->blank() : $record->owner->name,
+            'assignees' => $record->assignees->isEmpty()
+                ? $this->blank()
+                : implode(', ', $record->assignees->map(
+                    fn (LeadAssignee $assignee) => $assignee->priority === null
+                        ? $assignee->user->name
+                        : $assignee->user->name.' ('.$assignee->priority.')'
+                )->all()),
+            'lead_owner' => $record->leadOwner === null ? $this->blank() : $record->leadOwner->name,
             'days_in_status' => (string) $record->daysInStatus(),
             'score' => new HtmlString(ChipPalette::chip(
                 $record->score.' · '.$record->grade()->label(),

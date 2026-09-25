@@ -2,6 +2,8 @@
 
 namespace App\Domain\Workflows\Handlers;
 
+use App\Domain\Leads\Actions\SyncLeadAssigneesAction;
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Workflows\Assignment\AssignmentResolver;
 use App\Domain\Workflows\Models\WorkflowAction;
 use App\Domain\Workflows\Runtime\WorkflowContext;
@@ -35,6 +37,22 @@ class AssignOwnerHandler implements WorkflowActionHandler
 
         if ($target === null) {
             return WorkflowStepOutcome::skipped('Nobody matched the assignment rule.');
+        }
+
+        // Leads have no owner_id column to force-fill: several people can be
+        // assigned at once, so a workflow "assigning" one adds them alongside
+        // whoever else is already there rather than replacing an owner.
+        if ($record instanceof Lead) {
+            if ($record->assignedUsers->contains('id', $target->id)) {
+                return WorkflowStepOutcome::skipped($target->name.' is already assigned to this record.');
+            }
+
+            app(SyncLeadAssigneesAction::class)->add($record, $target);
+
+            return WorkflowStepOutcome::success(
+                'Assigned to '.$target->name,
+                ['user_id' => $target->id],
+            );
         }
 
         if ((int) $record->getAttribute('owner_id') === $target->id) {

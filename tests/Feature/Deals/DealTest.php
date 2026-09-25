@@ -505,7 +505,7 @@ test('a converted deal lands on the default pipeline at its first open stage', f
     $result = app(ConvertLeadAction::class)(
         $lead,
         new LeadConversionData(createDeal: true),
-        $lead->owner,
+        $lead->primaryAssignee(),
     );
 
     expect($result->deal->pipeline_id)->toBe($pipeline->id)

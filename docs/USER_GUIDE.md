@@ -90,6 +90,12 @@ links survive.
 **Creating one:** *New lead*, or let one arrive by itself from a public capture
 form, an email, or the website chat widget.
 
+**Who works it:** a lead has one or more **assignees**, all able to see and work
+it at once; an optional priority decides who is told next if nobody acts. It can
+also have a **lead owner** — optional, and anybody on the system, assigned or
+not. The owner is a label for accountability: it shows on the list and the lead,
+filters and reports, but it does not change who can see the lead.
+
 **Working one:** open the lead and use the timeline on the right to log a call,
 add a note, attach a document, or schedule a follow-up. The status moves through
 *New → Contacted → Nurturing → Qualified*, or to *Unqualified* when it goes
@@ -180,8 +186,16 @@ cost prices and units.
    was quoted.
 
 A sent quote cannot be edited. Raise a **new version** instead — versions are
-numbered and kept together, so you can see what changed between v1 and v2. An
-accepted quote can be turned into an order and then an invoice.
+numbered and kept together, so you can see what changed between v1 and v2.
+
+From an accepted quote to money in the bank:
+
+1. Mark the quote **Accepted**, then turn it into an **order**.
+2. **Confirm** the order — a draft order cannot be invoiced.
+3. Raise the **invoice** from the confirmed order, then **issue** it — a draft
+   invoice cannot take a payment.
+4. Record each **payment** against the issued invoice; the balance due updates
+   as you do.
 
 Quotes lapse automatically once their validity date has passed.
 
@@ -215,9 +229,12 @@ campaign, an email send, an exhibition stand, a referral scheme. Each carries a
 type, a status, the dates it runs between, a budget and what has actually been
 spent.
 
-Attribute a lead, a contact or a deal to a campaign and its page adds up what
-followed: how many leads came in, how many became deals, how many were won, the
-revenue behind them, the cost per lead and the return.
+Attribute a lead, a contact or a deal to a campaign — the **Campaign** field on
+its form, or automatically for leads from Facebook lead ads — and the campaign's
+page adds up what followed. Converting a lead carries its campaign on to the
+contact and deal it becomes. The page shows how many leads came in, how many
+became deals, how many were won, the revenue behind them, the cost per lead and
+the return.
 
 Two things worth knowing:
 
@@ -289,6 +306,30 @@ instead. The clock runs from **their** message — answering does not extend it.
 
 Every report respects your access level, so two people running the same report
 can legitimately see different numbers.
+
+**Choosing a period.** Every report page has a **Period** — this month, last
+quarter, the last 30 days, a custom range — and, where a source has more than one
+date, which date it is **measured on** (a deal's close date, say, rather than
+when it was created). Months and weeks follow the company's timezone. Changing
+the period does not change the saved report; to change what it opens with, set
+the period in the builder. A saved period is relative, so a scheduled "last
+month" report always covers the month just gone.
+
+**Following a figure.** A customer's name in a report links to the account. Every
+row has **Records**, which lists the deals, leads or tickets behind that row —
+the deals that put a customer at the top, or everything a salesperson won in the
+period — each linking to its own page.
+
+**Sharing exactly what you see.** The period and the row you opened are part of
+the page's address, so copying it gives a colleague the same view, run with
+their own access.
+
+**Won and lost.** Deal reports can measure *won value*, *won deals*, *lost
+deals*, *win rate* and *open pipeline*. Won and lost follow the stages your
+pipelines mark as won or lost, and the win rate counts closed deals only. The
+built-in *Top customers* counts won deals only, *Salesperson performance* shows
+what each person won and lost, *Pipeline by stage* shows open deals only, and
+*Win and loss reasons* groups closed deals by why they closed.
 
 ---
 

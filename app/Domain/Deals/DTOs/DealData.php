@@ -21,6 +21,8 @@ readonly class DealData
         public ?string $expectedCloseDate = null,
         public ?string $description = null,
         public ?int $ownerId = null,
+        public ?int $campaignId = null,
+        public bool $setsCampaign = false,
     ) {}
 
     /**
@@ -49,6 +51,8 @@ readonly class DealData
             expectedCloseDate: $value('expected_close_date'),
             description: $value('description'),
             ownerId: $id('owner_id'),
+            campaignId: $id('campaign_id'),
+            setsCampaign: array_key_exists('campaign_id', $attributes),
         );
     }
 
@@ -57,7 +61,12 @@ readonly class DealData
      */
     public function toAttributes(): array
     {
+        // Written only when the caller sent a campaign: an update that says
+        // nothing about it must not wipe an attribution made elsewhere.
+        $campaign = $this->setsCampaign ? ['campaign_id' => $this->campaignId] : [];
+
         return [
+            ...$campaign,
             'name' => $this->name,
             'account_id' => $this->accountId,
             'contact_id' => $this->contactId,

@@ -55,7 +55,7 @@ function timelineUserWithAccessLevel(DataAccessLevel $level, array $permissions)
 
 test('someone who cannot see the record cannot read what was written on it', function () {
     $owner = timelineAuthor();
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $note = Note::factory()->on($lead)->by($owner)->create();
 
     // Holds every timeline permission, but not leads.view.
@@ -70,7 +70,7 @@ test('the record access level decides which timelines are readable', function ()
     $owner = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
     $peer = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
 
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $note = Note::factory()->on($lead)->by($owner)->create();
 
     // Both hold leads.view and timeline.view. Only one of them owns the lead,
@@ -81,7 +81,7 @@ test('the record access level decides which timelines are readable', function ()
 
 test('reading the timeline needs its own permission, not just the record', function () {
     $user = timelineUser(['leads.view']);
-    $lead = Lead::factory()->create(['owner_id' => $user->id]);
+    $lead = Lead::factory()->ownedBy($user)->create();
     $note = Note::factory()->on($lead)->create();
 
     expect(Gate::forUser($user)->allows('view', $lead))->toBeTrue()
@@ -100,7 +100,7 @@ test('nobody edits a note they did not write', function () {
         'timeline.view', 'timeline.create', 'timeline.update', 'timeline.delete',
     ]);
 
-    $lead = Lead::factory()->create(['owner_id' => $author->id]);
+    $lead = Lead::factory()->ownedBy($author)->create();
     $note = Note::factory()->on($lead)->by($author)->create();
 
     expect(Gate::forUser($colleague)->allows('view', $note))->toBeTrue()
@@ -110,7 +110,7 @@ test('nobody edits a note they did not write', function () {
 
 test('the author can retract their own note and so can someone who may change the record', function () {
     $author = timelineUser(['leads.view', 'timeline.view', 'timeline.delete']);
-    $lead = Lead::factory()->create(['owner_id' => $author->id]);
+    $lead = Lead::factory()->ownedBy($author)->create();
     $note = Note::factory()->on($lead)->by($author)->create();
 
     // Can change the lead itself, so may tidy its timeline.
@@ -145,7 +145,7 @@ test('a document is as reachable as the record it hangs off', function () {
     $owner = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
     $peer = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
 
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $document = Document::factory()->on($lead)->by($owner)->create();
 
     expect(Gate::forUser($owner)->allows('view', $document))->toBeTrue()
@@ -156,7 +156,7 @@ test('a document is as reachable as the record it hangs off', function () {
 
 test('the file downloads for somebody allowed to have it', function () {
     $owner = timelineAuthor();
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $document = Document::factory()->on($lead)->by($owner)->withFile('contract.pdf')->create();
 
     $this->actingAs($owner)
@@ -168,7 +168,7 @@ test('a guessed document id downloads nothing for somebody who cannot see the re
     $owner = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
     $peer = timelineUserWithAccessLevel(DataAccessLevel::Own, ['leads.view', 'timeline.view']);
 
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $document = Document::factory()->on($lead)->by($owner)->withFile()->create();
 
     $this->actingAs($peer)
@@ -184,7 +184,7 @@ test('a document download is closed to a guest', function () {
 
 test('a document whose file has gone is a missing page, not a server error', function () {
     $owner = timelineAuthor();
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     // No withFile(): the row exists, the bytes never did.
     $document = Document::factory()->on($lead)->by($owner)->create();
 
@@ -195,7 +195,7 @@ test('a document whose file has gone is a missing page, not a server error', fun
 
 test('the stored file never sits on the public disk', function () {
     $owner = timelineAuthor();
-    $lead = Lead::factory()->create(['owner_id' => $owner->id]);
+    $lead = Lead::factory()->ownedBy($owner)->create();
     $document = Document::factory()->on($lead)->by($owner)->withFile('contract.pdf')->create();
 
     // A contract served from /storage would be readable by anyone who guessed

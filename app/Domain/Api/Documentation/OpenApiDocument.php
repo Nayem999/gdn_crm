@@ -193,6 +193,12 @@ class OpenApiDocument
             'number' => ['type' => ['number', 'null']],
             'boolean' => ['type' => ['boolean', 'null']],
             'object' => ['type' => ['object', 'null']],
+            // A list of assignee objects is the one array-typed field this
+            // API currently returns (Lead::assignees) — declared minimally
+            // rather than describing each object's own properties, which
+            // would need a per-field item schema this generator has no
+            // input for yet.
+            'array' => ['type' => 'array', 'items' => ['type' => 'object']],
             'date' => ['type' => ['string', 'null'], 'format' => 'date'],
             'date-time' => ['type' => ['string', 'null'], 'format' => 'date-time'],
             'email' => ['type' => ['string', 'null'], 'format' => 'email'],

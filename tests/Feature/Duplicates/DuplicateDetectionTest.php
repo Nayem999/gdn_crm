@@ -29,7 +29,14 @@ function duplicateUser(): User
  */
 function duplicatesOf(DuplicateSource $source, $record, ?User $user = null): array
 {
-    return app(DuplicateFinder::class)->for($source, $record, $user ?? $record->owner ?? duplicateUser());
+    // A lead has no single owner to fall back to any more — several people
+    // can be assigned at once — so it reads the same primary assignee
+    // Lead::primaryAssignee() and every other "one name" display already do.
+    $fallbackOwner = $record instanceof Lead
+        ? $record->primaryAssignee()
+        : $record->owner;
+
+    return app(DuplicateFinder::class)->for($source, $record, $user ?? $fallbackOwner ?? duplicateUser());
 }
 
 function leadSource(): LeadDuplicates

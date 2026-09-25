@@ -145,3 +145,12 @@ submit: `exists` proves a record is real, never that this person may reach it.
 full record and screens (3.2), the board (3.3) and stage history (3.4) on top —
 `DealStage` becomes the default pipeline rather than being replaced, and
 `probability()` moves to a per-stage setting.
+
+## owner_id is gone — leads have several assignees, not one owner
+Lead has no owner_id column. `lead_assignees` (via SyncLeadAssigneesAction, the only writer) holds every assignee; all of them are fully able to work the lead the moment they're added. `priority` is optional and only orders the escalation ladder (leads:escalate-assignments, hourly, settings key leads.escalation_hours) — it never gates who may act today.
+
+Reading "the owner" of a Lead: use `primaryAssignee()` (highest-priority assignee, tie-broken by assigned_at) — see AssignmentResolver::recordOwner(), SendNotificationHandler::owner(), CreateRecordHandler::owner() for the special-case pattern every generic owner_id reader needs for Lead.
+
+Lead::scopeVisibleTo() is fully overridden (whereHas('assignedUsers', ...)) rather than using the shared ScopesByAccessLevel owner-column mechanism — a lead with zero assignees is invisible below `all` access, the same leak owner_id being NOT NULL used to close.
+
+Factories: LeadFactory::ownedBy($user) replaces the whole assignee set with just $user (what owner_id used to mean); assignedTo($user, $priority) adds one more assignee alongside whoever's already there, for testing the multi-assign concept itself. tests/Pest.php has leadOwnerId()/leadAssigneeIds() helpers — use them instead of ->owner_id in any test touching a Lead.

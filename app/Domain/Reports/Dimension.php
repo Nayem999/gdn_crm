@@ -3,6 +3,7 @@
 namespace App\Domain\Reports;
 
 use App\Domain\Reports\Enums\DateGrain;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Something a report can group by.
@@ -20,6 +21,12 @@ readonly class Dimension
      * @param  bool  $isDate  Whether it is bucketed by a DateGrain.
      * @param  array<array-key, string>  $labels  Stored value => what to print.
      * @param  string|null  $join  The join this dimension needs, by key.
+     * @param  bool  $dateOnly  A DATE column rather than a stored moment: compared as
+     *                          a calendar day, with no timezone shift.
+     * @param  string|null  $recordColumn  The id of the record each group is, when a
+     *                                     group is one record (an account, a person).
+     * @param  class-string<Model>|null  $recordModel
+     * @param  string|null  $recordRoute  The named route that shows that record.
      */
     public function __construct(
         public string $key,
@@ -28,6 +35,10 @@ readonly class Dimension
         public bool $isDate = false,
         public array $labels = [],
         public ?string $join = null,
+        public bool $dateOnly = false,
+        public ?string $recordColumn = null,
+        public ?string $recordModel = null,
+        public ?string $recordRoute = null,
     ) {}
 
     /**
@@ -38,9 +49,34 @@ readonly class Dimension
         return new self($key, $label, $column);
     }
 
-    public static function date(string $key, string $label, string $column): self
+    public static function date(string $key, string $label, string $column, bool $dateOnly = false): self
     {
-        return new self($key, $label, $column, isDate: true);
+        return new self($key, $label, $column, isDate: true, dateOnly: $dateOnly);
+    }
+
+    /**
+     * A dimension whose every group is one record, so a row can link to it.
+     *
+     * Grouped by the record's id as well as its name: two accounts called
+     * "Acme" are two customers, and grouping on the name alone added them up.
+     *
+     * @param  class-string<Model>  $model
+     */
+    public static function record(
+        string $key,
+        string $label,
+        string $column,
+        string $join,
+        string $recordColumn,
+        string $model,
+        ?string $route = null,
+    ): self {
+        return new self($key, $label, $column, join: $join, recordColumn: $recordColumn, recordModel: $model, recordRoute: $route);
+    }
+
+    public function isRecord(): bool
+    {
+        return $this->recordColumn !== null;
     }
 
     /**

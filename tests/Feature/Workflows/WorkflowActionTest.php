@@ -20,6 +20,8 @@ use App\Domain\Workflows\Webhooks\WebhookTarget;
 use App\Domain\Workflows\WorkflowCache;
 use App\Mail\NotificationMail;
 use App\Models\User;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
@@ -47,7 +49,22 @@ function fireStep(WorkflowActionType $type, array $config, array $leadAttributes
 
     app(WorkflowCache::class)->flush();
 
-    $lead = Lead::factory()->create($leadAttributes);
+    // Leads have no owner_id column of their own any more — a caller wanting
+    // to seed one is really asking for the lead's one assignee.
+    $ownerId = Arr::pull($leadAttributes, 'owner_id');
+
+    if ($ownerId === null) {
+        $lead = Lead::factory()->create($leadAttributes);
+    } else {
+        // A "record created" workflow's dispatch waits for the commit
+        // (WorkflowObserver), but only a real transaction defers it —
+        // without one it fires the instant the insert happens, before the
+        // seeded owner below has been written. Wrapping the create here
+        // mirrors what CreateLeadAction does for the same reason.
+        $lead = DB::transaction(
+            fn () => Lead::factory()->ownedBy(User::query()->findOrFail($ownerId))->create($leadAttributes)
+        );
+    }
 
     return [WorkflowRun::query()->sole()->fresh(), $lead->fresh(), $workflow];
 }
@@ -132,7 +149,7 @@ test('assign owner hands the record over and logs to whom', function () {
 
     [$run, $lead] = fireStep(WorkflowActionType::AssignOwner, ['assign_to' => 'user:'.$target->id]);
 
-    expect($lead->owner_id)->toBe($target->id)
+    expect(leadOwnerId($lead))->toBe($target->id)
         ->and($run->status())->toBe(WorkflowRunStatus::Success)
         ->and(WorkflowRunStep::query()->sole()->message)->toContain('Priya Ramanathan');
 });
@@ -375,7 +392,7 @@ test('steps run in order and each writes a row', function () {
         ->and($steps[0]->actionType())->toBe(WorkflowActionType::UpdateField)
         ->and($steps[1]->actionType())->toBe(WorkflowActionType::AssignOwner)
         ->and($lead->fresh()->company_name)->toBe('First')
-        ->and($lead->fresh()->owner_id)->toBe($target->id);
+        ->and(leadOwnerId($lead->fresh()))->toBe($target->id);
 });
 
 test('a failing step stops the rest when it says it should', function () {

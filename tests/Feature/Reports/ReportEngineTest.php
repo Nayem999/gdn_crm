@@ -5,6 +5,7 @@ use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Reports\Enums\DateGrain;
 use App\Domain\Reports\ReportDefinition;
 use App\Domain\Reports\ReportResult;
@@ -132,6 +133,66 @@ test('a count groups rows the way the dimension says', function () {
     expect($counts[LeadStatus::New->label()])->toBe(3)
         ->and($counts[LeadStatus::Qualified->label()])->toBe(2)
         ->and($result->totals['count'])->toBe(5);
+});
+
+test('the owner dimension reads the primary assignee, even when a lead has several', function () {
+    $viewer = reportAdmin();
+    $second = reportAdmin();
+
+    Lead::factory()->ownedBy($viewer)->create();
+
+    // A second lead with two assignees: $viewer holds the lower (so, higher
+    // precedence) priority number, $second the higher one — proving the join
+    // picks the same assignee assignees()/primaryAssignee() would, not just
+    // whichever row happens to come back first.
+    $shared = Lead::factory()->ownedBy($viewer)->create();
+    LeadAssignee::query()
+        ->where('lead_id', $shared->id)
+        ->where('user_id', $viewer->id)
+        ->update(['priority' => 1]);
+    LeadAssignee::factory()
+        ->for($shared, 'lead')
+        ->for($second, 'user')
+        ->prioritised(5)
+        ->create();
+
+    $result = runReport([
+        'source' => 'leads',
+        'dimensions' => ['owner'],
+        'measures' => ['count'],
+    ], $viewer);
+
+    $byOwner = [];
+
+    foreach ($result->rows as $row) {
+        $byOwner[$row->group('owner')] = $row->value('count');
+    }
+
+    expect($byOwner[$viewer->name])->toBe(2)
+        ->and($byOwner)->not->toHaveKey($second->name);
+});
+
+test('leads group by their lead owner separately from who is assigned', function () {
+    $viewer = reportAdmin();
+    $manager = User::factory()->create(['name' => 'Sales Manager']);
+
+    Lead::factory()->count(2)->ownedBy($viewer)->create(['lead_owner_id' => $manager->id]);
+    Lead::factory()->ownedBy($viewer)->create();
+
+    $result = runReport([
+        'source' => 'leads',
+        'dimensions' => ['lead_owner'],
+        'measures' => ['count'],
+    ], $viewer);
+
+    $byLeadOwner = [];
+
+    foreach ($result->rows as $row) {
+        $byLeadOwner[(string) $row->group('lead_owner')] = $row->value('count');
+    }
+
+    expect($byLeadOwner['Sales Manager'])->toBe(2)
+        ->and(array_sum($byLeadOwner))->toBe(3);
 });
 
 test('a sum totals the column, and the report total is its own query', function () {

@@ -1,9 +1,11 @@
 <?php
 
+use App\Domain\Leads\Models\Lead;
 use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Tenancy;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -31,6 +33,11 @@ pest()->extend(TestCase::class)
             ?? Tenant::factory()->create(['slug' => 'default']);
 
         app(Tenancy::class)->set($tenant);
+
+        // Uploads, avatars and attachments go to a throwaway disk. Without this,
+        // every suite run left its fixture files on the real private disk.
+        Storage::fake('local');
+        Storage::fake('public');
 
         // The SSRF guard resolves a hostname to decide whether it points inside
         // the network. Left alone, that is a real DNS lookup in every test that
@@ -83,7 +90,26 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A lead's one owner, standing in for the `owner_id` column removed when
+ * leads moved to multiple, priority-ordered assignees. Reads the same thing
+ * `Lead::primaryAssignee()` does — the lowest priority (nulls last), ties
+ * broken by whoever was assigned first — so a test written against "the
+ * owner" before that change still asks the same question afterwards.
+ */
+function leadOwnerId(Lead $lead): ?int
 {
-    // ..
+    return $lead->primaryAssignee()?->id;
+}
+
+/**
+ * Every user id currently assigned to a lead, in escalation order — for a
+ * test asserting on the whole set rather than just the one name a compact
+ * display would show.
+ *
+ * @return array<int, int>
+ */
+function leadAssigneeIds(Lead $lead): array
+{
+    return $lead->assignees()->pluck('user_id')->all();
 }

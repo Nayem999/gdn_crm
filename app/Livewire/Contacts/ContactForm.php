@@ -3,6 +3,7 @@
 namespace App\Livewire\Contacts;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Campaigns\Concerns\WithCampaignAttribution;
 use App\Domain\Contacts\Actions\CreateContactAction;
 use App\Domain\Contacts\Actions\UpdateContactAction;
 use App\Domain\Contacts\ContactDuplicates;
@@ -28,6 +29,7 @@ class ContactForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCampaignAttribution;
     use WithCustomFieldForm;
 
     /**
@@ -142,6 +144,7 @@ class ContactForm extends Component
             'account_id' => ['nullable', 'integer', 'exists:accounts,id'],
             'is_primary' => ['boolean'],
             'owner_id' => ['required', 'integer', 'exists:users,id'],
+            ...$this->campaignRules(),
         ];
     }
 
@@ -178,6 +181,10 @@ class ContactForm extends Component
         if ($this->account_id !== null && $this->visibleAccount((int) $this->account_id) === null) {
             $this->addError('account_id', 'That account is not available to you.');
 
+            return;
+        }
+
+        if (! $this->guardCampaign()) {
             return;
         }
 
@@ -307,7 +314,13 @@ class ContactForm extends Component
             'departments' => Department::options(),
             'accounts' => $this->accountOptions(),
             'owners' => $this->ownerOptions(),
+            'campaigns' => $this->campaignOptions(),
         ])->title($this->isEditing() ? 'Edit contact' : 'New contact');
+    }
+
+    protected function attributedRecord(): ?Contact
+    {
+        return $this->contact();
     }
 
     private function visibleAccount(int $accountId): ?Account
@@ -341,6 +354,7 @@ class ContactForm extends Component
             'account_id' => $this->account_id,
             'is_primary' => $this->is_primary,
             'owner_id' => $this->owner_id,
+            'campaign_id' => $this->chosenCampaignId(),
         ];
     }
 
@@ -363,5 +377,6 @@ class ContactForm extends Component
         $this->account_id = $contact->account_id === null ? null : (string) $contact->account_id;
         $this->is_primary = $contact->is_primary;
         $this->owner_id = (string) $contact->owner_id;
+        $this->fillCampaignFrom($contact);
     }
 }

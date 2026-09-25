@@ -290,8 +290,10 @@ test('a line with no equals sign is ignored rather than half stored', function (
         ->set('rows.0.transform_map', "web form = website\njust a note\n\n  spaced = out  ")
         ->call('save');
 
+    // toEqual: MySQL 8 hands a JSON object back with its keys re-sorted, and a
+    // lookup map means the same in any order.
     expect($source->fresh()->mappings->firstOrFail()->transform_options['map'])
-        ->toBe(['web form' => 'website', 'spaced' => 'out']);
+        ->toEqual(['web form' => 'website', 'spaced' => 'out']);
 });
 
 test('the matching rules save', function () {

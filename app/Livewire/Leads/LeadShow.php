@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Leads;
 
-use App\Domain\Leads\Actions\AssignLeadAction;
 use App\Domain\Leads\Actions\ChangeLeadStatusAction;
 use App\Domain\Leads\Actions\DeleteLeadAction;
+use App\Domain\Leads\Actions\SyncLeadAssigneesAction;
 use App\Domain\Leads\DTOs\LeadScore;
 use App\Domain\Leads\DTOs\QualificationCheck;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -35,16 +35,20 @@ class LeadShow extends Component
     public int $leadId;
 
     /**
-     * The owner picked in the reassign control.
+     * The person picked in the "add an assignee" control.
      */
-    public ?string $reassignTo = null;
+    public ?string $newAssigneeId = null;
+
+    /**
+     * Their optional priority, alongside it.
+     */
+    public ?string $newAssigneePriority = null;
 
     public function mount(Lead $lead): void
     {
         $this->authorize('view', $lead);
 
         $this->leadId = $lead->id;
-        $this->reassignTo = (string) $lead->owner_id;
     }
 
     /**
@@ -55,7 +59,7 @@ class LeadShow extends Component
     public function lead(): Lead
     {
         $lead = Lead::withTrashed()
-            ->with(['owner', 'convertedAccount', 'convertedContact', 'convertedDeal'])
+            ->with(['assignees.user', 'convertedAccount', 'convertedContact', 'convertedDeal'])
             ->findOrFail($this->leadId);
 
         abort_if($lead->trashed() && ! $lead->isMerged(), 404);
@@ -111,27 +115,54 @@ class LeadShow extends Component
         $this->dispatch('lead-updated', message: 'Moved to '.$target->label().'.');
     }
 
-    public function reassign(): void
+    public function addAssignee(): void
     {
         $lead = $this->lead();
 
         $this->authorize('assign', $lead);
 
-        $owner = User::query()->find((int) $this->reassignTo);
+        $this->validate([
+            'newAssigneeId' => ['required', 'integer', 'exists:users,id'],
+            'newAssigneePriority' => ['nullable', 'integer', 'min:1', 'max:65535'],
+        ], [], ['newAssigneeId' => 'person', 'newAssigneePriority' => 'priority']);
 
-        if ($owner === null) {
-            $this->addError('reassignTo', 'Choose somebody to hand this to.');
+        $user = User::query()->findOrFail((int) $this->newAssigneeId);
+        $priority = $this->newAssigneePriority === null || $this->newAssigneePriority === ''
+            ? null
+            : (int) $this->newAssigneePriority;
+
+        app(SyncLeadAssigneesAction::class)->add($lead, $user, $priority);
+
+        $this->reset(['newAssigneeId', 'newAssigneePriority']);
+
+        $this->dispatch('lead-updated', message: $user->name.' was added to this lead.');
+    }
+
+    public function removeAssignee(int $userId): void
+    {
+        $lead = $this->lead();
+
+        $this->authorize('assign', $lead);
+
+        $user = User::query()->find($userId);
+
+        if ($user === null) {
+            return;
+        }
+
+        try {
+            $removed = app(SyncLeadAssigneesAction::class)->remove($lead, $user);
+        } catch (RuntimeException $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
 
             return;
         }
 
-        if (! app(AssignLeadAction::class)($lead, $owner)) {
-            $this->dispatch('notify', type: 'error', message: 'That lead already belongs to '.$owner->name.'.');
-
+        if (! $removed) {
             return;
         }
 
-        $this->dispatch('lead-updated', message: 'Handed to '.$owner->name.'.');
+        $this->dispatch('lead-updated', message: $user->name.' was taken off this lead.');
     }
 
     public function delete(): void
@@ -148,13 +179,19 @@ class LeadShow extends Component
     }
 
     /**
+     * Every user not already on the lead, since adding somebody already there
+     * would just change their priority through the wrong control.
+     *
      * @return array<int, string>
      */
-    public function ownerOptions(): array
+    public function assignableOptions(): array
     {
+        $lead = $this->lead();
+        $already = $lead->assignees->pluck('user_id')->all();
+
         $options = [];
 
-        foreach (User::query()->orderBy('name')->get() as $user) {
+        foreach (User::query()->whereNotIn('id', $already)->orderBy('name')->get() as $user) {
             $options[$user->id] = $user->name;
         }
 
@@ -173,7 +210,7 @@ class LeadShow extends Component
         return view('livewire.leads.lead-show', [
             'lead' => $lead,
             'transitions' => $this->availableTransitions(),
-            'owners' => $this->ownerOptions(),
+            'assignableUsers' => $this->assignableOptions(),
             'breakdown' => $this->scoreBreakdown(),
             'qualification' => $this->qualification(),
             'duplicates' => $this->duplicatesOf($lead),

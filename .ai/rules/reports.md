@@ -129,3 +129,6 @@ otherwise sit in Redis as megabytes of PDF.
 `next($after, $hour, $dayOfWeek, $dayOfMonth)`. A day of the month passed
 positionally lands in `$dayOfWeek` and is silently ignored, and every monthly
 schedule then fires on the 1st. Call it with **named arguments**; the tests do.
+
+## Periods, record links and drill-through go through the registry too
+A period (DatePeriod, relative) is only ever applied through a declared date Dimension — ReportDefinition carries the dimension key, and a non-date key falls back to the source's first date. Boundaries are the office's day (DisplayTime) converted to UTC; `dateOnly` dimensions (DATE columns) compare as calendar days. Dimension::record() groups by the record id as well as its name (same-named accounts stay apart) and gives each ReportRow its id and raw drill keys; ReportRunner::records() reuses baseQuery() so a drilled list always sums to its row. Dimensions and measures use separate SQL alias prefixes (d_/m_) — sources do offer both under one key (quotes "accepted", leads "converted"). Won/lost measures read Deal::closingStageKeys(), quoted via PDO. Changed built-ins keep their old definition in StandardReports::previousDefinitions() so upgrade() (run by the seeder) only rewrites untouched ones.

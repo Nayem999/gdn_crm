@@ -136,6 +136,16 @@
                         wire:model="owner_id"
                     />
                 @endif
+
+                <x-select
+                    name="campaign_id"
+                    label="Campaign"
+                    :options="$this->campaignOptions()"
+                    :selected="$campaign_id"
+                    placeholder="Not from a campaign"
+                    :error="$errors->first('campaign_id')"
+                    wire:model="campaign_id"
+                />
             </div>
         </section>
 

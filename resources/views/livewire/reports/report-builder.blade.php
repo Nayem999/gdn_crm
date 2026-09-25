@@ -198,6 +198,52 @@
                     </div>
                 @endif
 
+                <div wire:key="report-period">
+                    <x-select
+                        name="period"
+                        label="Period"
+                        :options="$this->periodOptions()"
+                        :selected="$period"
+                        hint="Relative, so a scheduled report keeps covering the right stretch."
+                        :error="$errors->first('period')"
+                        wire:model.live="period"
+                    />
+                </div>
+
+                @if ($this->dateFieldOptions() !== [])
+                    {{-- Options follow the source, so the key does too. --}}
+                    <div wire:key="report-date-field-{{ $source }}">
+                        <x-select
+                            name="dateField"
+                            label="Period measured on"
+                            :options="$this->dateFieldOptions()"
+                            :selected="$dateField"
+                            placeholder="The report's first date"
+                            clearable
+                            wire:model.live="dateField"
+                        />
+                    </div>
+                @endif
+
+                @if ($this->isCustomPeriod())
+                    <div>
+                        <x-form.label for="report-date-from">From</x-form.label>
+                        <x-form.input id="report-date-from" type="date" wire:model.live.debounce.500ms="dateFrom" :invalid="$errors->has('dateFrom')" />
+                        <x-form.error for="dateFrom" />
+                    </div>
+                    <div>
+                        <x-form.label for="report-date-to">To</x-form.label>
+                        <x-form.input id="report-date-to" type="date" wire:model.live.debounce.500ms="dateTo" :invalid="$errors->has('dateTo')" />
+                        <x-form.error for="dateTo" />
+                    </div>
+                @endif
+
+                <div>
+                    <x-form.label for="report-limit">Rows to keep</x-form.label>
+                    <x-form.input id="report-limit" type="number" min="1" max="1000" placeholder="All" wire:model.live.debounce.500ms="limit" :invalid="$errors->has('limit')" />
+                    <x-form.error for="limit" />
+                </div>
+
                 <div wire:key="report-chart">
                     <x-select
                         name="chartType"

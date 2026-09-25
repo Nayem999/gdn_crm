@@ -4,10 +4,14 @@ namespace App\Domain\Leads\Actions;
 
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Models\Lead;
+use Illuminate\Support\Facades\DB;
 
 class UpdateLeadAction
 {
-    public function __construct(private readonly ScoreLeadAction $scoreLead) {}
+    public function __construct(
+        private readonly ScoreLeadAction $scoreLead,
+        private readonly SyncLeadAssigneesAction $syncAssignees,
+    ) {}
 
     /**
      * Update a lead's details.
@@ -17,17 +21,22 @@ class UpdateLeadAction
      */
     public function __invoke(Lead $lead, LeadData $data): Lead
     {
-        $attributes = $data->toAttributes();
+        // Wrapped together: a "record updated"/"field changed" workflow's
+        // dispatch waits for this transaction to commit (WorkflowObserver),
+        // so reading "the record owner" sees the sync below rather than the
+        // set as it stood before this edit.
+        DB::transaction(function () use ($lead, $data): void {
+            $lead->update($data->toAttributes());
 
-        // The owner only moves when one was chosen, so an edit that leaves the
-        // field alone cannot silently unassign the record.
-        if ($data->ownerId !== null) {
-            $attributes['owner_id'] = $data->ownerId;
-        }
-
-        $lead->update($attributes);
+            // Null means the caller has no opinion on who is assigned — an
+            // ingested update, say — so the existing set is left exactly as
+            // it was rather than read back in just to hand unchanged.
+            if ($data->assignees !== null) {
+                $this->syncAssignees->handle($lead, $data->assignees);
+            }
+        });
 
         // The edit may have changed something a scoring rule reads.
-        return ($this->scoreLead)($lead);
+        return ($this->scoreLead)($lead->refresh());
     }
 }

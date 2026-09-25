@@ -1,0 +1,162 @@
+# Deploys master to the live server over FTP — but only once CI has passed.
+#
+# Triggered by the CI workflow finishing, not by the push itself: a push that
+# fails Pint, PHPStan or the test suite never reaches the live site. It can also
+# be started by hand from the Actions tab ("Run workflow").
+#
+# Credentials are GitHub secrets, never values in this file — anything written
+# here is readable by everyone with access to the repository, forever, through
+# its history. Add them under Settings → Secrets and variables → Actions:
+#
+#   FTP_SERVER    ftp.goldeninfotech.net
+#   FTP_USERNAME  the FTP user
+#   FTP_PASSWORD  the FTP password
+#
+# Optional repository variable (same page, Variables tab):
+#
+#   FTP_PROTOCOL  "ftps" (the default, encrypted) or "ftp" if the host has no TLS
+#
+# The whole application lives in public_html. The repository's own root
+# .htaccess is for the local XAMPP setup (it proxies to localhost:8080) and would
+# take the live site down, so a production one is written in its place below:
+# every request goes into public/, and nothing outside public/ is reachable.
+#
+# What this does NOT do — FTP cannot run commands. After a release that adds
+# migrations or changes config, run on the server (cPanel Terminal or SSH), from
+# the application folder:
+#
+#   php artisan migrate --force
+#   php artisan optimize
+#   php artisan queue:restart
+#
+# First deploy only: create .env on the server by hand (it is never uploaded),
+# then `php artisan key:generate` and `php artisan storage:link`.
+name: Deploy to live
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+# One deploy at a time, and never cancelled part-way: a half-uploaded release is
+# worse than a late one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # A CI run that failed, or was cancelled, deploys nothing; a manual run
+    # deploys master only, whichever branch it was started from.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
+      || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Lets secrets be scoped to production, and required reviewers be added
+    # under Settings → Environments if you want a human to approve each deploy.
+    environment: production
+
+    steps:
+      - name: Check out the commit CI passed
+        uses: actions/checkout@v4
+        with:
+          # The exact commit CI tested, not whatever master points at by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, gd, zip, bcmath, intl
+          coverage: none
+
+      - name: Install PHP dependencies (production only)
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build the front end
+        run: |
+          npm ci
+          npm run build
+
+      - name: Keep the empty folders Laravel writes into
+        # Their only tracked file is a .gitignore, which the upload skips, so
+        # without these the server would have no storage/framework or
+        # bootstrap/cache and every request would fail.
+        run: |
+          for dir in storage/app/public storage/app/private storage/framework/cache/data \
+                     storage/framework/sessions storage/framework/views storage/logs bootstrap/cache; do
+            mkdir -p "$dir" && touch "$dir/.keep"
+          done
+
+      - name: Write the production .htaccess
+        run: |
+          cat > .htaccess <<'HTACCESS'
+          # Production: the application sits in public_html, so every request
+          # is sent into public/ and nothing else (vendor, storage, .env, the
+          # source) can be fetched from the web.
+          <IfModule mod_rewrite.c>
+              RewriteEngine On
+              # cPanel AutoSSL renews the certificate through /.well-known/ in
+              # public_html itself; sending that into public/ would break it.
+              RewriteCond %{REQUEST_URI} !^/\.well-known/
+              RewriteCond %{REQUEST_URI} !^/public/
+              RewriteRule ^(.*)$ public/$1 [L,QSA]
+          </IfModule>
+
+          # Without mod_rewrite the rule above does nothing and every file would
+          # be served as it stands — refuse everything rather than that.
+          <IfModule !mod_rewrite.c>
+              <IfModule mod_authz_core.c>
+                  Require all denied
+              </IfModule>
+              <IfModule !mod_authz_core.c>
+                  Order allow,deny
+                  Deny from all
+              </IfModule>
+          </IfModule>
+
+          Options -Indexes
+
+          <FilesMatch "^\.">
+              <IfModule mod_authz_core.c>
+                  Require all denied
+              </IfModule>
+              <IfModule !mod_authz_core.c>
+                  Order allow,deny
+                  Deny from all
+              </IfModule>
+          </FilesMatch>
+          HTACCESS
+
+      - name: Upload over FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          server-dir: /Websites/gdncrm.goldeninfotech.net/public_html/
+          # Only changed files are sent: the action keeps a record of what it
+          # uploaded last time on the server. Files it never uploaded — logs,
+          # sessions, cached views, documents people attached — are left alone.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            .claude/**
+            .ai/**
+            node_modules/**
+            tests/**
+            .env
+            .env.*
+            phpunit.xml

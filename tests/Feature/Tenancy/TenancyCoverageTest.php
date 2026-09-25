@@ -82,9 +82,16 @@ function tenancyTables(): array
     // assert things about somebody else's tables.
     $database = DB::connection()->getDatabaseName();
 
+    // The stand-in tables tests/Fixtures/migrations adds to the test database
+    // only. They are not the application's, so they are neither scoped nor
+    // pending.
+    $fixtures = ['data_view_records', 'filterable_records', 'access_level_records', 'fixture_records', 'team_scope_records'];
+
     return collect(Schema::getTables())
         ->where('schema', $database)
         ->pluck('name')
+        ->reject(fn (string $table): bool => in_array($table, $fixtures, true))
+        ->values()
         ->all();
 }
 

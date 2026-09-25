@@ -91,7 +91,7 @@ test('a submission creates a lead', function () {
         ->and($lead->last_name)->toBe('Ramanathan')
         ->and($lead->email)->toBe('priya@example.com')
         // From the form, never the payload.
-        ->and($lead->owner_id)->toBe($owner->id)
+        ->and(leadOwnerId($lead))->toBe($owner->id)
         ->and($lead->source())->toBe(LeadSource::WebForm)
         ->and($lead->status())->toBe(LeadStatus::New);
 
@@ -150,7 +150,7 @@ test('a missing timestamp fails safe rather than being waved through', function 
 
 // -- What a public payload may not do -----------------------------------------
 
-test('a payload cannot choose the owner or the source', function () {
+test('a payload cannot choose the assignee or the source', function () {
     // A submission that could route itself would route itself to somebody who
     // will not look at it.
     $owner = User::factory()->create();
@@ -158,14 +158,14 @@ test('a payload cannot choose the owner or the source', function () {
     $form = LeadCaptureForm::factory()->ownedBy($owner)->create();
 
     $this->post(route('lead-capture.submit', $form->token), capturePayload([
-        'owner_id' => $stranger->id,
+        'assignees' => [['user_id' => $stranger->id, 'priority' => null]],
         'source' => LeadSource::Partner->value,
         'status' => LeadStatus::Qualified->value,
     ]))->assertOk();
 
     $lead = Lead::query()->firstOrFail();
 
-    expect($lead->owner_id)->toBe($owner->id)
+    expect(leadOwnerId($lead))->toBe($owner->id)
         ->and($lead->source())->toBe(LeadSource::WebForm)
         ->and($lead->status())->toBe(LeadStatus::New);
 });

@@ -21,9 +21,16 @@
 # take the live site down, so a production one is written in its place below:
 # every request goes into public/, and nothing outside public/ is reachable.
 #
-# What this does NOT do — FTP cannot run commands. After a release that adds
-# migrations or changes config, run on the server (cPanel Terminal or SSH), from
-# the application folder:
+# What this does NOT do:
+#
+# - vendor/ is not uploaded (13,000+ files; far too slow one by one over FTP).
+#   Upload it yourself whenever composer.lock changes — build it with
+#   `composer install --no-dev --optimize-autoloader`, or run that command on
+#   the server if it has Composer.
+#
+# - FTP cannot run commands. After a release that adds migrations or changes
+#   config, run on the server (cPanel Terminal or SSH), from the application
+#   folder:
 #
 #   php artisan migrate --force
 #   php artisan optimize
@@ -73,6 +80,8 @@ jobs:
           extensions: mbstring, pdo_mysql, gd, zip, bcmath, intl
           coverage: none
 
+      # Needed to build the front end (Tailwind scans Laravel's pagination views
+      # in vendor/), not to upload: vendor/ is excluded below.
       - name: Install PHP dependencies (production only)
         run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
@@ -149,6 +158,13 @@ jobs:
           # Only changed files are sent: the action keeps a record of what it
           # uploaded last time on the server. Files it never uploaded — logs,
           # sessions, cached views, documents people attached — are left alone.
+          # vendor/ is 13,000+ files: over this server's link, uploading them
+          # one at a time takes most of a day, so it is uploaded by hand (see
+          # the top of this file) and never touched here — the action only
+          # deletes what it uploaded itself. bootstrap/cache/*.php is the
+          # package manifest composer wrote for CI's vendor/, not the server's;
+          # next to an older vendor/ it names providers that are not there and
+          # every request fails, so Laravel rebuilds it on the server instead.
           exclude: |
             **/.git*
             **/.git*/**
@@ -160,3 +176,5 @@ jobs:
             .env
             .env.*
             phpunit.xml
+            vendor/**
+            bootstrap/cache/*.php

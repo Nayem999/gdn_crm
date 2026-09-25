@@ -97,7 +97,10 @@ test('what was mapped is written down, so a failure can be read afterwards', fun
 
     $event = ingestionDeliver($source, ingestionTaskPayload());
 
-    expect($event->mapped_output)->toBe([
+    // toEqual, not toBe: a JSON column comes back with its keys in the
+    // engine's own order — MySQL 8 sorts them, MariaDB keeps them — and the
+    // mapping is read by key, never by position.
+    expect($event->mapped_output)->toEqual([
         'first_name' => 'Dara',
         'last_name' => 'Okafor',
         'email' => 'dara@acme.test',

@@ -100,6 +100,22 @@ Implement `dataViewKanbanSumField()` to get a summed money figure in the header
 
 The paginator is hidden in kanban mode; the per-column footers are the pager.
 
+## Any aggregate that drops to the base builder must `applyScopes()` first
+`kanbanTotals()`, and every module's own `totals()`, aggregate on the base query
+builder — one row instead of hydrating a model per group for columns that are
+not on the model. Getting there is `applyScopes()->getQuery()`, **never**
+`getQuery()` alone (`toBase()` is the same thing and equally fine).
+
+Eloquent applies its global scopes at *execution* time, not when the builder is
+built, so `getQuery()` on its own silently throws them away. Every model with a
+list screen soft-deletes, so the `deleted_at is null` never lands and the figure
+printed above or below the rows counts records that are not in them — a count
+that disagrees with what is on screen, with nothing to indicate why.
+
+It fails quietly and only under data the happy-path tests do not create, so each
+`totals()` carries a test that deletes a record and asserts the figure did not
+follow it. `PipelineFunnel::totals()` is the same pattern on the dashboard.
+
 ## A card never shows the field the board groups by
 `kanban.blade.php` filters `dataViewKanbanField()` out of the card's detail
 lines. Without it every card in the "Scoping" column carried the line

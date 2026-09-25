@@ -20,7 +20,10 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite passed 4,800 tests and takes over 25 minutes with coverage on
+    # a hosted runner; 30 cut it off before it could finish, reporting a
+    # "cancelled" run that said nothing about the code.
+    timeout-minutes: 60
 
     services:
       mysql:

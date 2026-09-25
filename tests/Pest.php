@@ -5,6 +5,7 @@ use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Tenancy;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -32,6 +33,11 @@ pest()->extend(TestCase::class)
             ?? Tenant::factory()->create(['slug' => 'default']);
 
         app(Tenancy::class)->set($tenant);
+
+        // Uploads, avatars and attachments go to a throwaway disk. Without this,
+        // every suite run left its fixture files on the real private disk.
+        Storage::fake('local');
+        Storage::fake('public');
 
         // The SSRF guard resolves a hostname to decide whether it points inside
         // the network. Left alone, that is a real DNS lookup in every test that

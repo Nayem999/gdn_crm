@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
@@ -95,7 +97,7 @@ class BackupDatabase extends Command
         $config = (array) config("database.connections.{$connection}");
 
         return array_values(array_filter([
-            'mysqldump',
+            (string) ($config['dump_binary'] ?? 'mysqldump'),
             '--host='.($config['host'] ?? '127.0.0.1'),
             '--port='.($config['port'] ?? 3306),
             '--user='.($config['username'] ?? 'root'),
@@ -104,12 +106,32 @@ class BackupDatabase extends Command
             // blocked writes for its duration is one somebody switches off.
             '--single-transaction',
             '--quick',
-            '--routines',
-            '--events',
+            // A server whose system tables predate its version (an un-upgraded
+            // XAMPP, say) refuses to list routines and events, failing the whole
+            // dump. This application defines neither, so skipping them there
+            // loses nothing, where failing loses the backup.
+            $this->canList($connection, 'show function status where Db = database()') ? '--routines' : null,
+            $this->canList($connection, 'show events') ? '--events' : null,
             '--no-tablespaces',
             '--result-file='.$path,
             $database,
         ], fn (?string $argument) => $argument !== null));
+    }
+
+    /**
+     * Asked by trying rather than by reading server variables: MariaDB reports
+     * the event scheduler "OFF" yet still refuses SHOW EVENTS when its system
+     * tables are out of date.
+     */
+    private function canList(string $connection, string $query): bool
+    {
+        try {
+            DB::connection($connection)->select($query);
+        } catch (QueryException) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

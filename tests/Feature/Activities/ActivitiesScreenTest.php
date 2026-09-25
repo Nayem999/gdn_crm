@@ -159,6 +159,17 @@ test('the totals describe the whole filtered set, not the page', function () {
         ->and($totals['completed'])->toBe(1);
 });
 
+test('the totals do not count removed activities', function () {
+    $user = activityAdmin();
+    Activity::factory()->ownedBy($user)->create(['due_at' => '2026-10-10 09:00']);
+    $gone = Activity::factory()->ownedBy($user)->create(['due_at' => '2026-10-10 09:00']);
+    $gone->delete();
+
+    $totals = Livewire::actingAs($user)->test(ActivitiesIndex::class)->instance()->totals();
+
+    expect($totals['count'])->toBe(1)->and($totals['open'])->toBe(1);
+});
+
 test('the overdue total makes the same all-day allowance the row does', function () {
     $user = activityAdmin();
     Activity::factory()->ownedBy($user)->allDay('2026-10-01')->create();

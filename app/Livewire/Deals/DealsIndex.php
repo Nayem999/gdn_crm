@@ -408,7 +408,13 @@ class DealsIndex extends Component
     #[Computed]
     public function totals(): array
     {
+        // `applyScopes()` before `getQuery()`, never `getQuery()` alone.
+        // Eloquent applies its global scopes at execution time, so dropping
+        // straight to the base builder silently discards them — and Deal
+        // soft-deletes, which would count removed deals in a figure printed
+        // under the rows they are not in.
         $query = $this->dataViewQuery()
+            ->applyScopes()
             ->getQuery()
             ->cloneWithout(['columns', 'orders', 'limit', 'offset'])
             ->cloneWithoutBindings(['select', 'order']);

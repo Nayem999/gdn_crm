@@ -602,7 +602,13 @@ trait WithDataView
         $column = $model->qualifyColumn($field);
         $sumField = $this->dataViewKanbanSumField();
 
+        // `applyScopes()` before `getQuery()`, never `getQuery()` alone.
+        // Eloquent applies its global scopes at execution time, so dropping
+        // straight to the base builder silently discards them — and every
+        // model with a board soft-deletes, which would make a column's count
+        // disagree with the cards stacked under it.
         $query = $this->dataViewQuery()
+            ->applyScopes()
             ->getQuery()
             ->cloneWithout(['columns', 'orders', 'limit', 'offset'])
             ->select($column)

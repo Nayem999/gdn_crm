@@ -220,6 +220,20 @@ test('each column carries the count and the summed value of the whole filtered s
         ->and($totals['negotiation']['sum'])->toBe(10000.0);
 });
 
+test('a column does not count removed deals', function () {
+    $pipeline = dealPipeline();
+    $user = dealUserSeeingEverything(['deals.view']);
+
+    Deal::factory()->onPipeline($pipeline, 'scoping')->create(['value' => '1000']);
+    Deal::factory()->onPipeline($pipeline, 'scoping')->create(['value' => '9000'])->delete();
+
+    // The grouped aggregate runs on the base builder, which does not carry
+    // Eloquent's global scopes — a count above a column has to mean the cards
+    // stacked under it.
+    expect(dealBoard($user)->instance()->kanbanTotals()['scoping'])
+        ->toMatchArray(['count' => 1, 'sum' => 1000.0]);
+});
+
 test('the totals describe the data, not the page of cards on screen', function () {
     $pipeline = dealPipeline();
     $user = dealUserSeeingEverything(['deals.view']);

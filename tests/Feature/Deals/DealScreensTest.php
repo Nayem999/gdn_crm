@@ -482,6 +482,22 @@ test('the totals follow the filters', function () {
         ->toMatchArray(['count' => 1, 'value' => 1000.0, 'weighted' => 200.0]);
 });
 
+test('the totals do not count removed deals', function () {
+    $user = dealAdmin();
+    dealPipeline();
+
+    Deal::factory()->ownedBy($user)->create(['value' => 100]);
+    $gone = Deal::factory()->ownedBy($user)->create(['value' => 900]);
+    $gone->delete();
+
+    // The aggregate drops to the base builder, where Eloquent's global scopes
+    // are not applied for it — so the soft-delete condition has to be put back
+    // deliberately, or the figure describes rows the list does not show.
+    $totals = Livewire::actingAs($user)->test(DealsIndex::class)->instance()->totals();
+
+    expect($totals['count'])->toBe(1)->and($totals['value'])->toBe(100.0);
+});
+
 test('a deal whose pipeline has no matching stage counts at zero rather than dropping out', function () {
     $pipeline = dealPipeline();
     $user = dealUserSeeingEverything(['deals.view']);

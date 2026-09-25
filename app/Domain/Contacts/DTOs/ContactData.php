@@ -25,6 +25,8 @@ readonly class ContactData
         public ?int $accountId = null,
         public bool $isPrimary = false,
         public ?int $ownerId = null,
+        public ?int $campaignId = null,
+        public bool $setsCampaign = false,
     ) {}
 
     /**
@@ -60,6 +62,8 @@ readonly class ContactData
             accountId: $id('account_id'),
             isPrimary: (bool) ($attributes['is_primary'] ?? false),
             ownerId: $id('owner_id'),
+            campaignId: $id('campaign_id'),
+            setsCampaign: array_key_exists('campaign_id', $attributes),
         );
     }
 
@@ -72,7 +76,12 @@ readonly class ContactData
      */
     public function toAttributes(): array
     {
+        // Written only when the caller sent a campaign: an update that says
+        // nothing about it must not wipe an attribution made elsewhere.
+        $campaign = $this->setsCampaign ? ['campaign_id' => $this->campaignId] : [];
+
         return [
+            ...$campaign,
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
             'job_title' => $this->jobTitle,

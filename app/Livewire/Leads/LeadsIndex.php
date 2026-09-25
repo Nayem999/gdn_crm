@@ -79,7 +79,7 @@ class LeadsIndex extends Component
     {
         $query = Lead::query()
             ->visibleTo(auth()->user())
-            ->with('assignees.user:id,name');
+            ->with(['assignees.user:id,name', 'leadOwner:id,name']);
 
         return match ($this->quickFilter) {
             'mine' => $query->whereHas('assignedUsers', fn ($assignees) => $assignees->where('users.id', auth()->id())),
@@ -202,6 +202,7 @@ class LeadsIndex extends Component
                         ? $assignee->user->name
                         : $assignee->user->name.' ('.$assignee->priority.')'
                 )->all()),
+            'lead_owner' => $record->leadOwner === null ? $this->blank() : $record->leadOwner->name,
             'days_in_status' => (string) $record->daysInStatus(),
             'score' => new HtmlString(ChipPalette::chip(
                 $record->score.' · '.$record->grade()->label(),

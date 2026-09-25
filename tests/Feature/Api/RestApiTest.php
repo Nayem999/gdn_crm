@@ -3,6 +3,7 @@
 use App\Domain\Access\PermissionResolver;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\Models\Contact;
+use App\Domain\Leads\Models\Lead;
 use App\Livewire\Settings\ApiTokens;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -260,4 +261,15 @@ it('revokes only the signed-in person own keys', function () {
         ->call('revoke', $theirToken->accessToken->getKey());
 
     expect($theirs->tokens()->count())->toBe(1);
+});
+
+test('a lead in the API carries its optional owner', function () {
+    $user = apiUser();
+    $manager = User::factory()->create();
+    Lead::factory()->ownedBy($user)->create(['lead_owner_id' => $manager->id]);
+    Lead::factory()->ownedBy($user)->create();
+
+    $owners = collect(apiGet(keyFor($user), '/leads')->assertOk()->json('data'))->pluck('lead_owner_id')->sort()->values()->all();
+
+    expect($owners)->toBe([null, $manager->id]);
 });

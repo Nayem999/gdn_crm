@@ -774,7 +774,7 @@ test('the export writes readable values rather than stored ones', function () {
 test('every select on the capture form uses the shared component', function () {
     $rendered = Livewire::actingAs(leadAdmin())->test(LeadForm::class)->html();
 
-    // Two dropdowns: source and owner.
-    expect(substr_count($rendered, 'tomSelectField('))->toBe(2)
-        ->and(substr_count($rendered, '<select'))->toBe(2);
+    // Four dropdowns: source, campaign, lead owner and the first assignee.
+    expect(substr_count($rendered, 'tomSelectField('))->toBe(4)
+        ->and(substr_count($rendered, '<select'))->toBe(4);
 });

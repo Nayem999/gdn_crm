@@ -36,6 +36,10 @@ readonly class LeadData
         public ?string $estimatedValue = null,
         public ?string $description = null,
         public ?array $assignees = null,
+        public ?int $campaignId = null,
+        public bool $setsCampaign = false,
+        public ?int $leadOwnerId = null,
+        public bool $setsLeadOwner = false,
     ) {}
 
     /**
@@ -68,6 +72,10 @@ readonly class LeadData
             estimatedValue: $value('estimated_value'),
             description: $value('description'),
             assignees: $attributes['assignees'] ?? null,
+            campaignId: ($attributes['campaign_id'] ?? '') === '' ? null : (int) $attributes['campaign_id'],
+            setsCampaign: array_key_exists('campaign_id', $attributes),
+            leadOwnerId: ($attributes['lead_owner_id'] ?? '') === '' ? null : (int) $attributes['lead_owner_id'],
+            setsLeadOwner: array_key_exists('lead_owner_id', $attributes),
         );
     }
 
@@ -78,11 +86,20 @@ readonly class LeadData
      * Assignees are absent too: they live in their own table, written by
      * SyncLeadAssigneesAction rather than a column on this one.
      *
+     * The campaign and the lead owner are written only when the caller sent
+     * them: capture forms, ingestion and Meta updates carry neither key, and
+     * treating that as "clear it" would wipe what somebody set in the app.
+     *
      * @return array<string, mixed>
      */
     public function toAttributes(): array
     {
+        $campaign = $this->setsCampaign ? ['campaign_id' => $this->campaignId] : [];
+        $owner = $this->setsLeadOwner ? ['lead_owner_id' => $this->leadOwnerId] : [];
+
         return [
+            ...$campaign,
+            ...$owner,
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
             'job_title' => $this->jobTitle,

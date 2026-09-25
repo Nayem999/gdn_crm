@@ -609,9 +609,9 @@ test('a page below one is treated as the first page', function () {
 test('every select on the contact form uses the shared component', function () {
     $rendered = Livewire::actingAs(contactAdmin())->test(ContactForm::class)->html();
 
-    // Three dropdowns: department, account (server-side), owner.
-    expect(substr_count($rendered, 'tomSelectField('))->toBe(3)
-        ->and(substr_count($rendered, '<select'))->toBe(3)
+    // Four dropdowns: department, account (server-side), owner, campaign.
+    expect(substr_count($rendered, 'tomSelectField('))->toBe(4)
+        ->and(substr_count($rendered, '<select'))->toBe(4)
         // The account one is wired to the paginated search.
         ->and($rendered)->toContain('searchAccounts');
 });

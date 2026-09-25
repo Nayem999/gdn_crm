@@ -142,6 +142,16 @@
                     <p class="mt-1.5 text-xs text-muted-foreground">Totalled per column on the pipeline board.</p>
                 </div>
 
+                <x-select
+                    name="campaign_id"
+                    label="Campaign"
+                    :options="$campaigns"
+                    :selected="$campaign_id"
+                    placeholder="Not from a campaign"
+                    :error="$errors->first('campaign_id')"
+                    wire:model="campaign_id"
+                />
+
                 <div class="sm:col-span-2">
                     <x-form.label for="description">Notes</x-form.label>
                     <textarea
@@ -165,6 +175,19 @@
                 Everybody listed here can see and work this lead at once — priority only decides who the
                 escalation sweep notifies next if nobody has, and is optional.
             </p>
+
+            <div class="mt-4 max-w-md">
+                <x-select
+                    name="lead_owner_id"
+                    label="Lead owner"
+                    :options="$users"
+                    :selected="$lead_owner_id"
+                    placeholder="No owner"
+                    :error="$errors->first('lead_owner_id')"
+                    hint="Optional. Who is accountable for the lead — it does not change who can see it."
+                    wire:model="lead_owner_id"
+                />
+            </div>
 
             <div class="mt-4 space-y-3">
                 @foreach ($assignees as $index => $row)

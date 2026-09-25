@@ -3,6 +3,7 @@
 namespace App\Domain\Reports;
 
 use App\Domain\Reports\Enums\DateGrain;
+use App\Domain\Reports\Enums\DatePeriod;
 use App\Domain\Shared\Filters\FilterGroup;
 
 /**
@@ -20,6 +21,10 @@ readonly class ReportDefinition
      * @param  array<int, string>  $measures  Measure keys, in column order.
      * @param  string|null  $sortBy  A dimension or measure key.
      * @param  int|null  $limit  Rows to return, or null for the runner's cap.
+     * @param  string|null  $dateField  A date dimension key the period applies to;
+     *                                  null means the source's first date.
+     * @param  string|null  $dateFrom  Y-m-d, for a custom period only.
+     * @param  string|null  $dateTo  Y-m-d, for a custom period only.
      */
     public function __construct(
         public string $source,
@@ -30,6 +35,10 @@ readonly class ReportDefinition
         public ?string $sortBy = null,
         public string $sortDirection = 'desc',
         public ?int $limit = null,
+        public DatePeriod $period = DatePeriod::AllTime,
+        public ?string $dateField = null,
+        public ?string $dateFrom = null,
+        public ?string $dateTo = null,
     ) {}
 
     /**
@@ -54,6 +63,10 @@ readonly class ReportDefinition
                 $state['limit'] === null || $state['limit'] === '' => null,
                 default => max(1, (int) $state['limit']),
             },
+            period: DatePeriod::tryFrom((string) ($state['period'] ?? '')) ?? DatePeriod::AllTime,
+            dateField: self::text($state['date_field'] ?? null),
+            dateFrom: self::date($state['date_from'] ?? null),
+            dateTo: self::date($state['date_to'] ?? null),
         );
     }
 
@@ -71,6 +84,10 @@ readonly class ReportDefinition
             'sort_by' => $this->sortBy,
             'sort_direction' => $this->sortDirection,
             'limit' => $this->limit,
+            'period' => $this->period->value,
+            'date_field' => $this->dateField,
+            'date_from' => $this->dateFrom,
+            'date_to' => $this->dateTo,
         ];
     }
 
@@ -87,7 +104,35 @@ readonly class ReportDefinition
 
     public function withSource(string $source): self
     {
-        return new self($source, [], [], new FilterGroup, $this->grain, null, $this->sortDirection, $this->limit);
+        // The date field belongs to the old source; the period carries over.
+        return new self($source, [], [], new FilterGroup, $this->grain, null, $this->sortDirection, $this->limit, $this->period, null, $this->dateFrom, $this->dateTo);
+    }
+
+    /**
+     * The same report over a different stretch of time — what a reader picks on
+     * the report page without changing the saved report.
+     */
+    public function withPeriod(DatePeriod $period, ?string $dateField = null, ?string $dateFrom = null, ?string $dateTo = null): self
+    {
+        return new self(
+            $this->source, $this->dimensions, $this->measures, $this->filters, $this->grain,
+            $this->sortBy, $this->sortDirection, $this->limit,
+            $period, $dateField ?? $this->dateField, self::date($dateFrom), self::date($dateTo),
+        );
+    }
+
+    private static function text(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * A Y-m-d string, or null. Only the shape is checked here; DatePeriod
+     * refuses a date the calendar does not have.
+     */
+    private static function date(mixed $value): ?string
+    {
+        return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : null;
     }
 
     /**

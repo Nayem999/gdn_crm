@@ -324,6 +324,11 @@
 
                 <dl class="mt-4 space-y-3 border-t border-border pt-4">
                     <div>
+                        <dt class="text-xs uppercase tracking-wide text-muted-foreground">Lead owner</dt>
+                        <dd class="mt-1 text-sm text-foreground">{{ $lead->leadOwner?->name ?? '—' }}</dd>
+                    </div>
+
+                    <div>
                         <dt class="text-xs uppercase tracking-wide text-muted-foreground">Captured</dt>
                         <dd class="mt-1 text-sm text-foreground">{{ $lead->created_at?->format('j M Y') }}</dd>
                     </div>

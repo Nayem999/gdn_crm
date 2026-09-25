@@ -3,13 +3,14 @@
 namespace App\Domain\Reports;
 
 use App\Domain\Deals\Enums\DealStage;
+use App\Domain\Deals\Models\Deal;
 use App\Domain\Reports\Enums\ChartType;
 use App\Domain\Reports\Models\Report;
 use App\Domain\Shared\Enums\FilterOperator;
 use App\Domain\Shared\Filters\FilterGroup;
 
 /**
- * The eight reports every installation starts with.
+ * The reports every installation starts with.
  *
  * Declared as definitions rather than written as queries, so a built-in is the
  * same kind of thing a person builds: it opens in the builder, it can be
@@ -47,6 +48,9 @@ final class StandardReports
         'leads-by-meta-campaign',
         'revenue-by-meta-campaign',
         'meta-conversion-funnel',
+        // Promised by the user guide ("the reason is what makes the win/loss
+        // report worth reading") long before it existed.
+        'win-loss-reasons',
     ];
 
     /**
@@ -118,6 +122,9 @@ final class StandardReports
                     'dimensions' => ['stage'],
                     'measures' => ['count', 'value'],
                     'sort_by' => 'count',
+                    // Open deals only. "In play" that counted what was already
+                    // won or lost put last year's closed deals in the funnel.
+                    'filters' => self::notIn('stage', Deal::closingStageKeys()),
                 ]),
             ],
             'lead-conversion' => [
@@ -148,13 +155,18 @@ final class StandardReports
             ],
             'salesperson-performance' => [
                 'name' => 'Salesperson performance',
-                'description' => 'Deals per person: how many, how much, and how long they take.',
+                'description' => 'What each person won and lost, their win rate, and how long a deal takes them.',
                 'chart' => ChartType::Bar,
                 'definition' => ReportDefinition::fromArray([
                     'source' => 'deals',
                     'dimensions' => ['owner'],
-                    'measures' => ['count', 'value', 'days_to_close'],
-                    'sort_by' => 'value',
+                    // Won and lost apart rather than one "value": a total that
+                    // added the lost deals to the won ones ranked whoever lost
+                    // the most money highest.
+                    'measures' => ['won_value', 'won_count', 'lost_count', 'win_rate', 'days_to_close'],
+                    'sort_by' => 'won_value',
+                    // A period means "closed in" it — when the work was decided.
+                    'date_field' => 'closed',
                 ]),
             ],
             'activity-by-person' => [
@@ -170,14 +182,18 @@ final class StandardReports
             ],
             'top-customers' => [
                 'name' => 'Top customers',
-                'description' => 'Accounts by the value of the deals against them.',
+                'description' => 'Accounts by the value of the deals they have won.',
                 'chart' => ChartType::Bar,
                 'definition' => ReportDefinition::fromArray([
                     'source' => 'deals',
                     'dimensions' => ['account'],
-                    'measures' => ['value', 'count'],
+                    'measures' => ['value', 'count', 'average_value'],
+                    // Won only: an account that lost a large deal is not a
+                    // top customer, and an open one has not bought anything yet.
+                    'filters' => self::equals('stage', DealStage::Won->value),
                     'sort_by' => 'value',
                     'limit' => 20,
+                    'date_field' => 'closed',
                 ]),
             ],
             'leads-by-meta-campaign' => [
@@ -222,8 +238,80 @@ final class StandardReports
                     'sort_direction' => 'desc',
                 ]),
             ],
+            'win-loss-reasons' => [
+                'name' => 'Win and loss reasons',
+                'description' => 'Why deals were won and why they were lost.',
+                'chart' => ChartType::Bar,
+                'definition' => ReportDefinition::fromArray([
+                    'source' => 'deals',
+                    'dimensions' => ['close_reason'],
+                    'measures' => ['won_count', 'lost_count', 'won_value', 'value'],
+                    'filters' => self::in('stage', Deal::closingStageKeys()),
+                    'sort_by' => 'lost_count',
+                    'date_field' => 'closed',
+                ]),
+            ],
             default => null,
         };
+    }
+
+    /**
+     * What earlier releases shipped, for the built-ins that have since changed.
+     *
+     * A built-in still matching its old shipped definition has not been edited
+     * by anybody, so upgrading it loses nothing; one that differs was changed on
+     * purpose and is left exactly as it is.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function previousDefinitions(): array
+    {
+        return [
+            'pipeline-by-stage' => ['source' => 'deals', 'dimensions' => ['stage'], 'measures' => ['count', 'value'], 'sort_by' => 'count'],
+            'salesperson-performance' => ['source' => 'deals', 'dimensions' => ['owner'], 'measures' => ['count', 'value', 'days_to_close'], 'sort_by' => 'value'],
+            'top-customers' => ['source' => 'deals', 'dimensions' => ['account'], 'measures' => ['value', 'count'], 'sort_by' => 'value', 'limit' => 20],
+        ];
+    }
+
+    /**
+     * Brings untouched built-ins up to their current definition, and adds any
+     * that are missing.
+     *
+     * Compared after normalising both sides through the DTO, so a stored
+     * definition that only differs by defaults added later still counts as
+     * untouched.
+     *
+     * @return int how many were upgraded
+     */
+    public static function upgrade(): int
+    {
+        $upgraded = 0;
+
+        foreach (self::previousDefinitions() as $slug => $previous) {
+            $report = Report::query()->where('slug', $slug)->where('is_standard', true)->first();
+            $current = self::find($slug);
+
+            if ($report === null || $current === null) {
+                continue;
+            }
+
+            $stored = ReportDefinition::fromArray((array) $report->definition)->toArray();
+
+            if ($stored !== ReportDefinition::fromArray($previous)->toArray()) {
+                continue;
+            }
+
+            $report->forceFill([
+                'definition' => $current['definition']->toArray(),
+                'description' => $current['description'],
+            ])->save();
+
+            $upgraded++;
+        }
+
+        self::install();
+
+        return $upgraded;
     }
 
     /**
@@ -284,6 +372,34 @@ final class StandardReports
             ]],
             'groups' => [],
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $values
+     * @return array<string, mixed>
+     */
+    private static function in(string $field, array $values, FilterOperator $operator = FilterOperator::In): array
+    {
+        return [
+            'match' => FilterGroup::MATCH_ALL,
+            'conditions' => [[
+                'field' => $field,
+                'operator' => $operator->value,
+                'value' => null,
+                'second_value' => null,
+                'selected' => array_values($values),
+            ]],
+            'groups' => [],
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $values
+     * @return array<string, mixed>
+     */
+    private static function notIn(string $field, array $values): array
+    {
+        return self::in($field, $values, FilterOperator::NotIn);
     }
 
     /**

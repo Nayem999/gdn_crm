@@ -463,9 +463,10 @@ test('scoring the whole database costs queries per rule, not per lead', function
 
     app(ScoreLeadsAction::class)();
 
-    // Three rules, the id sweep, the rule lookup and one update per distinct
-    // score. Nowhere near one round trip per lead.
-    expect($queries)->toBeLessThan(15);
+    // Three rules, the id sweep, the rule lookup, the lead-owner options the
+    // field list carries, and one update per distinct score. Nowhere near one
+    // round trip per lead.
+    expect($queries)->toBeLessThan(16);
 });
 
 // -- The rescore job -----------------------------------------------------------

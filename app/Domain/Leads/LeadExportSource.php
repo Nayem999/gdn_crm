@@ -27,7 +27,7 @@ class LeadExportSource implements DataViewExportSource
     {
         $user = User::query()->findOrFail($request->userId);
 
-        $query = Lead::query()->visibleTo($user)->with('assignees.user:id,name');
+        $query = Lead::query()->visibleTo($user)->with(['assignees.user:id,name', 'leadOwner:id,name']);
 
         if ($request->onlySelected) {
             $query->whereKey($request->selectedIds);
@@ -65,6 +65,7 @@ class LeadExportSource implements DataViewExportSource
                     ? $assignee->user->name
                     : $assignee->user->name.' ('.$assignee->priority.')'
             )->implode(', '),
+            'lead_owner' => $record->leadOwner?->name,
             'days_in_status' => $record->daysInStatus(),
             // The number on its own says little outside the app.
             'score' => $record->score.' ('.$record->grade()->label().')',

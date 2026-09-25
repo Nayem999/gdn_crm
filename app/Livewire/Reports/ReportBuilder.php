@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Domain\Reports\Actions\SaveReportAction;
 use App\Domain\Reports\Enums\ChartType;
 use App\Domain\Reports\Enums\DateGrain;
+use App\Domain\Reports\Enums\DatePeriod;
 use App\Domain\Reports\Models\Report;
 use App\Domain\Reports\ReportDefinition;
 use App\Domain\Reports\ReportResult;
@@ -17,6 +18,7 @@ use App\Domain\Shared\Filters\FilterGroup;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -64,6 +66,23 @@ class ReportBuilder extends Component
 
     public string $grain = 'month';
 
+    /**
+     * The period the report covers when opened — relative ("last month"), so a
+     * scheduled report keeps covering the right stretch.
+     */
+    public string $period = 'all_time';
+
+    public string $dateField = '';
+
+    public string $dateFrom = '';
+
+    public string $dateTo = '';
+
+    /**
+     * How many rows to keep, e.g. a top-20. Empty for the runner's own cap.
+     */
+    public string $limit = '';
+
     public string $sortBy = '';
 
     public string $sortDirection = 'desc';
@@ -100,6 +119,11 @@ class ReportBuilder extends Component
             $this->chartType = $report->chart_type;
             $this->isShared = $report->is_shared;
             $this->filters = $definition->filters->toArray();
+            $this->period = $definition->period->value;
+            $this->dateField = (string) $definition->dateField;
+            $this->dateFrom = (string) $definition->dateFrom;
+            $this->dateTo = (string) $definition->dateTo;
+            $this->limit = $definition->limit === null ? '' : (string) $definition->limit;
 
             return;
         }
@@ -242,6 +266,37 @@ class ReportBuilder extends Component
     /**
      * @return array<string, string>
      */
+    public function periodOptions(): array
+    {
+        return DatePeriod::options();
+    }
+
+    /**
+     * The source's dates a period can be measured on.
+     *
+     * @return array<string, string>
+     */
+    public function dateFieldOptions(): array
+    {
+        $options = [];
+
+        foreach ($this->reportSource()->dimensions ?? [] as $key => $dimension) {
+            if ($dimension->isDate) {
+                $options[$key] = $dimension->label;
+            }
+        }
+
+        return $options;
+    }
+
+    public function isCustomPeriod(): bool
+    {
+        return $this->period === DatePeriod::Custom->value;
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function chartOptions(): array
     {
         return ChartType::options();
@@ -298,6 +353,8 @@ class ReportBuilder extends Component
         $this->dimensions = [];
         $this->measures = [];
         $this->sortBy = '';
+        // The date belongs to the old source; the period itself still applies.
+        $this->dateField = '';
         $this->clearFilters();
         $this->forgetResult();
     }
@@ -430,6 +487,13 @@ class ReportBuilder extends Component
             'grain' => $this->grain,
             'sort_by' => $this->sortBy === '' ? null : $this->sortBy,
             'sort_direction' => $this->sortDirection,
+            // Carried through rather than dropped: saving a top-20 in the
+            // builder used to quietly turn it into a top-1000.
+            'limit' => $this->limit === '' ? null : (int) $this->limit,
+            'period' => $this->period,
+            'date_field' => $this->dateField === '' ? null : $this->dateField,
+            'date_from' => $this->isCustomPeriod() && $this->dateFrom !== '' ? $this->dateFrom : null,
+            'date_to' => $this->isCustomPeriod() && $this->dateTo !== '' ? $this->dateTo : null,
         ]);
     }
 
@@ -469,7 +533,11 @@ class ReportBuilder extends Component
         $this->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:255'],
-        ]);
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.ReportRunner::MAX_ROWS],
+            'period' => ['required', Rule::in(array_keys(DatePeriod::options()))],
+            'dateFrom' => ['nullable', 'date_format:Y-m-d'],
+            'dateTo' => ['nullable', 'date_format:Y-m-d'],
+        ], [], ['dateFrom' => 'from date', 'dateTo' => 'to date', 'limit' => 'row limit']);
 
         if ($this->measures === []) {
             $this->addError('measures', 'Choose at least one thing to measure — a report with none is a list.');

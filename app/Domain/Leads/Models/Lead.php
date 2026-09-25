@@ -56,6 +56,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property Carbon|null $status_changed_at
  * @property int|null $campaign_id
+ * @property int|null $lead_owner_id
  * @property Carbon|null $converted_at
  * @property int|null $converted_account_id
  * @property int|null $converted_contact_id
@@ -102,6 +103,7 @@ class Lead extends Model
         'description',
         'status_changed_at',
         'campaign_id',
+        'lead_owner_id',
     ];
 
     /**
@@ -146,7 +148,7 @@ class Lead extends Model
     {
         return [
             'first_name', 'last_name', 'company_name', 'email',
-            'status', 'source', 'estimated_value',
+            'status', 'source', 'estimated_value', 'lead_owner_id',
         ];
     }
 
@@ -209,6 +211,17 @@ class Lead extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    /**
+     * Who owns the lead, if anybody. A label only: visibility and the work
+     * itself follow the assignees, never this.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function leadOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lead_owner_id');
     }
 
     /**

@@ -42,7 +42,18 @@ readonly class ReportSource
         public array $joins = [],
         public array $filters = [],
         public string $description = '',
+        public ?string $recordLabel = null,
+        public ?string $recordRoute = null,
     ) {}
+
+    /**
+     * Whether a row of this source's report can be opened to list the records
+     * behind it.
+     */
+    public function canListRecords(): bool
+    {
+        return $this->recordLabel !== null;
+    }
 
     /**
      * This source's records, scoped to what the viewer may see.

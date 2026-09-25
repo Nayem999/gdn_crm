@@ -3,6 +3,7 @@
 namespace App\Livewire\Deals;
 
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Campaigns\Concerns\WithCampaignAttribution;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Deals\Actions\CreateDealAction;
@@ -29,6 +30,7 @@ use RuntimeException;
 class DealForm extends Component
 {
     use AuthorizesRequests;
+    use WithCampaignAttribution;
     use WithCustomFieldForm;
 
     /**
@@ -81,6 +83,7 @@ class DealForm extends Component
             $this->expected_close_date = $deal->expected_close_date?->format('Y-m-d');
             $this->description = $deal->description;
             $this->owner_id = (string) $deal->owner_id;
+            $this->fillCampaignFrom($deal);
             $this->loadCustomFields($deal);
 
             return;
@@ -121,6 +124,7 @@ class DealForm extends Component
             'expected_close_date' => ['nullable', 'date'],
             'description' => ['nullable', 'string', 'max:5000'],
             'owner_id' => ['required', 'integer', 'exists:users,id'],
+            ...$this->campaignRules(),
         ];
     }
 
@@ -169,6 +173,10 @@ class DealForm extends Component
             return;
         }
 
+        if (! $this->guardCampaign()) {
+            return;
+        }
+
         $this->validateCustomFields($this->currentUser());
 
         $data = DealData::fromArray([
@@ -180,6 +188,7 @@ class DealForm extends Component
             'expected_close_date' => $this->expected_close_date,
             'description' => $this->description,
             'owner_id' => $this->canAssign($deal) ? $this->owner_id : $deal?->owner_id,
+            'campaign_id' => $this->chosenCampaignId(),
         ]);
 
         try {
@@ -322,6 +331,11 @@ class DealForm extends Component
         }
 
         return $user;
+    }
+
+    protected function attributedRecord(): ?Deal
+    {
+        return $this->deal();
     }
 
     public function render(): View

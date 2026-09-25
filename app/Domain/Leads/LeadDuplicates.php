@@ -71,6 +71,7 @@ class LeadDuplicates implements DuplicateSource
             'source' => 'Source',
             'estimated_value' => 'Estimated value',
             'description' => 'Notes',
+            'lead_owner_id' => 'Lead owner',
         ];
     }
 
@@ -127,6 +128,7 @@ class LeadDuplicates implements DuplicateSource
         return match ($field) {
             'estimated_value' => $this->money($record->estimated_value),
             'source' => $record->source()?->label() ?? self::BLANK,
+            'lead_owner_id' => $record->leadOwner->name ?? self::BLANK,
             default => $this->blankOr($record->getAttribute($field)),
         };
     }

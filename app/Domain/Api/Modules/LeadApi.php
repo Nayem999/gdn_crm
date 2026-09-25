@@ -35,7 +35,7 @@ class LeadApi implements ApiModule
 
     public function query(User $user): Builder
     {
-        return Lead::query()->visibleTo($user)->with('assignees.user:id,name');
+        return Lead::query()->visibleTo($user)->with(['assignees.user:id,name', 'leadOwner:id,name']);
     }
 
     public function toArray(Model $record): array
@@ -56,6 +56,7 @@ class LeadApi implements ApiModule
                 'name' => $assignee->user->name,
                 'priority' => $assignee->priority,
             ])->all(),
+            'lead_owner_id' => $record->lead_owner_id,
             'created_at' => $record->created_at?->toIso8601String(),
             'updated_at' => $record->updated_at?->toIso8601String(),
         ];
@@ -73,6 +74,7 @@ class LeadApi implements ApiModule
             'phone' => ['nullable', 'string', 'max:32'],
             'source' => ['nullable', Rule::in(array_keys(LeadSource::options()))],
             'description' => ['nullable', 'string'],
+            'lead_owner_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             // Deliberately no owner_id/assignees field: several people can be
             // assigned to a lead at once, with an optional priority between
             // them, and that does not fit this endpoint's flat validation-rule
@@ -116,6 +118,7 @@ class LeadApi implements ApiModule
             'source' => 'string',
             'score' => 'integer',
             'assignees' => 'array',
+            'lead_owner_id' => 'integer',
             'created_at' => 'date-time',
             'updated_at' => 'date-time',
         ];

@@ -172,6 +172,29 @@ test('the owner dimension reads the primary assignee, even when a lead has sever
         ->and($byOwner)->not->toHaveKey($second->name);
 });
 
+test('leads group by their lead owner separately from who is assigned', function () {
+    $viewer = reportAdmin();
+    $manager = User::factory()->create(['name' => 'Sales Manager']);
+
+    Lead::factory()->count(2)->ownedBy($viewer)->create(['lead_owner_id' => $manager->id]);
+    Lead::factory()->ownedBy($viewer)->create();
+
+    $result = runReport([
+        'source' => 'leads',
+        'dimensions' => ['lead_owner'],
+        'measures' => ['count'],
+    ], $viewer);
+
+    $byLeadOwner = [];
+
+    foreach ($result->rows as $row) {
+        $byLeadOwner[(string) $row->group('lead_owner')] = $row->value('count');
+    }
+
+    expect($byLeadOwner['Sales Manager'])->toBe(2)
+        ->and(array_sum($byLeadOwner))->toBe(3);
+});
+
 test('a sum totals the column, and the report total is its own query', function () {
     $viewer = reportAdmin();
 

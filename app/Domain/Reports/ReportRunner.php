@@ -3,10 +3,12 @@
 namespace App\Domain\Reports;
 
 use App\Domain\Reports\Enums\Aggregate;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Filters\FilterApplier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -81,10 +83,81 @@ class ReportRunner
     }
 
     /**
+     * The records behind one row, one line each, with each measure's own value.
+     *
+     * The same base query as run() — the viewer's scope, the filters, the
+     * period — narrowed by the drill, so the list is exactly what the row
+     * counted. A count has no per-record value and is left out; a sum or an
+     * average shows the number each record contributed.
+     *
+     * @param  array<string, string>  $drill  Dimension key => the row's raw value.
+     */
+    public function records(ReportDefinition $definition, User $viewer, array $drill): ReportRecords
+    {
+        $source = ReportSources::find($definition->source);
+
+        if ($source === null || ! $source->visibleTo($viewer)) {
+            return ReportRecords::refused();
+        }
+
+        if (! $source->canListRecords()) {
+            return new ReportRecords($source);
+        }
+
+        $dimensions = $this->resolveDimensions($definition, $source);
+        $measures = array_filter(
+            $this->resolveMeasures($definition, $source),
+            fn (Measure $measure) => $measure->aggregate !== Aggregate::Count && $measure->column !== null,
+        );
+
+        $query = $this->baseQuery($definition, $source, $viewer, $dimensions, $measures, $drill);
+
+        $selects = [$source->table.'.id as r__id', $source->recordLabel.' as r__label'];
+
+        foreach ($measures as $key => $measure) {
+            $selects[] = $measure->column.' as '.$this->measureAlias($key);
+        }
+
+        $query->selectRaw(implode(', ', $selects));
+
+        $leading = array_key_first($measures);
+
+        if ($leading !== null) {
+            // Nulls last, then the biggest contribution first: the answer to
+            // "why is this row where it is" is read from the top.
+            $query->orderByRaw($measures[$leading]->column.' IS NULL')
+                ->orderByRaw($measures[$leading]->column.' desc');
+        }
+
+        $rows = $query->orderByDesc($source->table.'.id')->limit(ReportRecords::LIMIT + 1)->get();
+
+        $items = [];
+
+        foreach ($rows->take(ReportRecords::LIMIT) as $row) {
+            $values = [];
+
+            foreach ($measures as $key => $measure) {
+                $raw = $row->{$this->measureAlias($key)} ?? null;
+                $values[$key] = $raw === null ? null : round((float) $raw, 2);
+            }
+
+            $items[] = [
+                'id' => (int) $row->r__id,
+                'label' => trim((string) $row->r__label) === '' ? '(unnamed)' : (string) $row->r__label,
+                'url' => $source->recordRoute === null ? null : route($source->recordRoute, (int) $row->r__id),
+                'values' => $values,
+            ];
+        }
+
+        return new ReportRecords($source, $measures, $items, $rows->count() > ReportRecords::LIMIT);
+    }
+
+    /**
      * The scoped, filtered and joined query, before grouping.
      *
      * @param  array<string, Dimension>  $dimensions
      * @param  array<string, Measure>  $measures
+     * @param  array<string, string>  $drill
      */
     private function baseQuery(
         ReportDefinition $definition,
@@ -92,6 +165,7 @@ class ReportRunner
         User $viewer,
         array $dimensions,
         array $measures,
+        array $drill = [],
     ): QueryBuilder {
         /** @var Builder<covariant \Illuminate\Database\Eloquent\Model> $eloquent */
         $eloquent = $source->query($viewer);
@@ -119,7 +193,112 @@ class ReportRunner
             });
         }
 
+        $this->applyPeriod($query, $definition, $source);
+        $this->applyDrill($query, $definition, $drill);
+
         return $query;
+    }
+
+    /**
+     * The date dimension a period is measured on: the one the definition names,
+     * else the first date it groups by, else the source's first date.
+     *
+     * Only ever a declared date dimension — a key the source does not have, or
+     * one that is not a date, falls through to the default rather than reaching
+     * SQL.
+     */
+    public function periodDimension(ReportDefinition $definition, ReportSource $source): ?Dimension
+    {
+        $named = $definition->dateField === null ? null : $source->dimension($definition->dateField);
+
+        if ($named !== null && $named->isDate) {
+            return $named;
+        }
+
+        foreach ($definition->dimensions as $key) {
+            $dimension = $source->dimension($key);
+
+            if ($dimension !== null && $dimension->isDate) {
+                return $dimension;
+            }
+        }
+
+        foreach ($source->dimensions as $dimension) {
+            if ($dimension->isDate) {
+                return $dimension;
+            }
+        }
+
+        return null;
+    }
+
+    private function applyPeriod(QueryBuilder $query, ReportDefinition $definition, ReportSource $source): void
+    {
+        $dimension = $this->periodDimension($definition, $source);
+        $timezone = DisplayTime::timezone();
+        $days = $definition->period->days(Carbon::now($timezone), $definition->dateFrom, $definition->dateTo);
+
+        if ($dimension === null || $days === null) {
+            return;
+        }
+
+        [$from, $to] = $days;
+
+        // A DATE column holds the office's calendar day already. A stored
+        // moment is UTC, where the office's day starts and ends at other hours,
+        // so its boundaries are converted rather than compared as dates.
+        $app = (string) config('app.timezone', 'UTC');
+
+        if ($from !== null) {
+            $query->where($dimension->column, '>=', $dimension->dateOnly
+                ? $from->toDateString()
+                : $from->copy()->startOfDay()->setTimezone($app)->toDateTimeString());
+        }
+
+        if ($to !== null) {
+            $query->where($dimension->column, '<=', $dimension->dateOnly
+                ? $to->toDateString()
+                : $to->copy()->endOfDay()->setTimezone($app)->toDateTimeString());
+        }
+    }
+
+    /**
+     * Narrow to one row's records: each drilled dimension equal to its value.
+     *
+     * Only dimensions the definition groups by — a drill naming anything else
+     * is ignored, the same way an undeclared dimension is. Values are bound.
+     *
+     * @param  array<string, string>  $drill
+     */
+    private function applyDrill(QueryBuilder $query, ReportDefinition $definition, array $drill): void
+    {
+        $source = ReportSources::find($definition->source);
+
+        if ($source === null) {
+            return;
+        }
+
+        foreach ($drill as $key => $value) {
+            if (! in_array($key, $definition->dimensions, true)) {
+                continue;
+            }
+
+            $dimension = $source->dimension((string) $key);
+
+            if ($dimension === null) {
+                continue;
+            }
+
+            $expression = $dimension->isRecord() ? (string) $dimension->recordColumn : $dimension->expression($definition->grain);
+
+            if ($value === ReportRow::NONE) {
+                $query->whereRaw($expression.' IS NULL');
+
+                continue;
+            }
+
+            $query->whereRaw($expression.' = ?', [$dimension->isRecord() ? (int) $value : (string) $value]);
+        }
     }
 
     /**
@@ -176,15 +355,20 @@ class ReportRunner
 
         foreach ($dimensions as $key => $dimension) {
             $expression = $dimension->expression($definition->grain);
-            $selects[] = $expression.' as '.$this->alias($key);
+            $selects[] = $expression.' as '.$this->dimensionAlias($key);
             // The expression, not the alias: MySQL permits an alias in GROUP BY
             // but the standard does not, and ONLY_FULL_GROUP_BY rejects some
             // shapes that rely on it.
             $groups[] = DB::raw($expression);
+
+            if ($dimension->isRecord()) {
+                $selects[] = $dimension->recordColumn.' as '.$this->dimensionAlias($key).'__id';
+                $groups[] = DB::raw((string) $dimension->recordColumn);
+            }
         }
 
         foreach ($measures as $key => $measure) {
-            $selects[] = $measure->expression().' as '.$this->alias($key);
+            $selects[] = $measure->expression().' as '.$this->measureAlias($key);
         }
 
         $query->selectRaw(implode(', ', $selects));
@@ -258,7 +442,7 @@ class ReportRunner
         $selects = [];
 
         foreach ($measures as $key => $measure) {
-            $selects[] = $measure->expression().' as '.$this->alias($key);
+            $selects[] = $measure->expression().' as '.$this->measureAlias($key);
         }
 
         $row = $query->selectRaw(implode(', ', $selects))->first();
@@ -266,7 +450,7 @@ class ReportRunner
         $totals = [];
 
         foreach ($measures as $key => $measure) {
-            $value = $row?->{$this->alias($key)};
+            $value = $row?->{$this->measureAlias($key)};
 
             $totals[$key] = $this->cast($value, $measure);
         }
@@ -287,17 +471,33 @@ class ReportRunner
         foreach ($rows as $row) {
             $groups = [];
             $values = [];
+            $ids = [];
+            $keys = [];
 
             foreach ($dimensions as $key => $dimension) {
-                $raw = $row->{$this->alias($key)} ?? null;
+                $raw = $row->{$this->dimensionAlias($key)} ?? null;
                 $groups[$key] = $dimension->display($raw);
+
+                if ($dimension->isRecord()) {
+                    $id = $row->{$this->dimensionAlias($key).'__id'} ?? null;
+
+                    if ($id !== null) {
+                        $ids[$key] = (int) $id;
+                    }
+
+                    $keys[$key] = $id === null ? ReportRow::NONE : (string) $id;
+
+                    continue;
+                }
+
+                $keys[$key] = $raw === null || $raw === '' ? ReportRow::NONE : (string) $raw;
             }
 
             foreach ($measures as $key => $measure) {
-                $values[$key] = $this->cast($row->{$this->alias($key)} ?? null, $measure);
+                $values[$key] = $this->cast($row->{$this->measureAlias($key)} ?? null, $measure);
             }
 
-            $shaped[] = new ReportRow($groups, $values);
+            $shaped[] = new ReportRow($groups, $values, $ids, $keys);
         }
 
         return $shaped;
@@ -363,8 +563,19 @@ class ReportRunner
      * the one place a key becomes SQL text, and a prefix also keeps a
      * dimension called "count" from colliding with a measure of that name.
      */
-    private function alias(string $key): string
+    private function dimensionAlias(string $key): string
     {
-        return 'r_'.preg_replace('/[^a-z0-9_]/i', '_', $key);
+        return 'd_'.preg_replace('/[^a-z0-9_]/i', '_', $key);
+    }
+
+    /**
+     * A measure's alias, prefixed differently from a dimension's: a source may
+     * offer both under one key — quotes group by the date they were accepted
+     * and count how many were — and a shared alias let the measure overwrite
+     * the group, printing "1" where the month should be.
+     */
+    private function measureAlias(string $key): string
+    {
+        return 'm_'.preg_replace('/[^a-z0-9_]/i', '_', $key);
     }
 }

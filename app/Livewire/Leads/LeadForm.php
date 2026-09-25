@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leads;
 
+use App\Domain\Campaigns\Concerns\WithCampaignAttribution;
 use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
 use App\Domain\Leads\Actions\CreateLeadAction;
 use App\Domain\Leads\Actions\UpdateLeadAction;
@@ -30,6 +31,7 @@ class LeadForm extends Component
 {
     use AuthorizesRequests;
     use WarnsAboutDuplicates;
+    use WithCampaignAttribution;
     use WithCustomFieldForm;
 
     #[Locked]
@@ -68,6 +70,8 @@ class LeadForm extends Component
     public ?string $estimated_value = null;
 
     public ?string $description = null;
+
+    public ?string $lead_owner_id = null;
 
     /**
      * One row per person the lead is being handed to.
@@ -156,9 +160,11 @@ class LeadForm extends Component
             // rather than being silently truncated by MySQL.
             'estimated_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'lead_owner_id' => ['nullable', 'integer', 'exists:users,id'],
             'assignees' => ['required', 'array', 'min:1'],
             'assignees.*.user_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
             'assignees.*.priority' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            ...$this->campaignRules(),
         ];
     }
 
@@ -176,6 +182,8 @@ class LeadForm extends Component
             'address_line_2' => 'address line 2',
             'postal_code' => 'postal code',
             'estimated_value' => 'estimated value',
+            'campaign_id' => 'campaign',
+            'lead_owner_id' => 'lead owner',
             'assignees.*.user_id' => 'assignee',
             'assignees.*.priority' => 'priority',
         ];
@@ -203,6 +211,10 @@ class LeadForm extends Component
 
         $this->validate();
         $this->validateCustomFields($this->customFieldViewer());
+
+        if (! $this->guardCampaign()) {
+            return;
+        }
 
         $data = LeadData::fromArray($this->formFields());
 
@@ -239,6 +251,11 @@ class LeadForm extends Component
         return $options;
     }
 
+    protected function attributedRecord(): ?Lead
+    {
+        return $this->lead();
+    }
+
     public function duplicateSource(): ?DuplicateSource
     {
         return app(LeadDuplicates::class);
@@ -254,6 +271,7 @@ class LeadForm extends Component
         return view('livewire.leads.lead-form', [
             'sources' => LeadSource::options(),
             'users' => $this->assigneeOptions(),
+            'campaigns' => $this->campaignOptions(),
         ])->title($this->isEditing() ? 'Edit lead' : 'Capture lead');
     }
 
@@ -280,6 +298,8 @@ class LeadForm extends Component
             'source' => $this->source,
             'estimated_value' => $this->estimated_value,
             'description' => $this->description,
+            'campaign_id' => $this->chosenCampaignId(),
+            'lead_owner_id' => $this->lead_owner_id === null || $this->lead_owner_id === '' ? null : (int) $this->lead_owner_id,
             'assignees' => array_map(
                 fn (array $row): array => [
                     'user_id' => (int) $row['user_id'],
@@ -309,6 +329,8 @@ class LeadForm extends Component
         $this->source = $lead->source;
         $this->estimated_value = $lead->estimated_value;
         $this->description = $lead->description;
+        $this->fillCampaignFrom($lead);
+        $this->lead_owner_id = $lead->lead_owner_id === null ? null : (string) $lead->lead_owner_id;
         $this->assignees = $lead->assignees->map(fn (LeadAssignee $assignee): array => [
             'user_id' => (string) $assignee->user_id,
             'priority' => $assignee->priority === null ? '' : (string) $assignee->priority,

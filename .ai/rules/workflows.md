@@ -53,3 +53,8 @@ A paused run gets no `finished_at` and no `duration_ms`. A run waiting three day
 Run steps are appended, never replaced, so both attempts stay in the log — "did this ever work" needs to see that it failed at nine and succeeded at ten.
 
 When adding a status to `WorkflowRunStatus`, check `isFinished()` and `isRetryable()`: `skipped` and `rejected` are finished and NOT failures (conditions not matching, or somebody saying no, is the workflow working), and `awaiting_approval` is the one non-terminal state that is not retryable — it needs a person, not another attempt.
+
+## A "record created/updated" workflow dispatch can fire before a follow-up write completes
+WorkflowObserver defers its dispatch to DB::afterCommit(). Laravel's own DatabaseTransactionsManager treats "only the RefreshDatabase test-wrapping transaction is open" as "no transaction" and runs the callback immediately — so in both production (no transaction at all) and tests, the dispatch fires the instant Lead::create()/update() finishes, before any follow-up write in the same action (e.g. CreateLeadAction/UpdateLeadAction syncing lead_assignees) has run.
+
+Any action that creates/updates a workflow-watched record and then makes a separate follow-up write the workflow might read (record_owner, a related row, etc.) must wrap both in DB::transaction() — this defers the afterCommit callback to that inner transaction's own commit, which happens after the follow-up write. See CreateLeadAction/UpdateLeadAction for the pattern, and tests/Feature/Workflows/WorkflowActionTest.php's fireStep() for the equivalent test-side wrapping.

@@ -17,6 +17,7 @@ use App\Domain\Contacts\ContactFields;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Deals\DealFields;
 use App\Domain\Deals\Enums\DealCloseReason;
+use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
@@ -33,6 +34,7 @@ use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
 use App\Domain\Support\TicketFields;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Everything a report can be about.
@@ -160,11 +162,12 @@ final class ReportSources
             dimensions: self::dimensions([
                 Dimension::coded('stage', 'Stage', 'deals.stage', DealFields::stageOptions()),
                 Dimension::coded('pipeline', 'Pipeline', 'deals.pipeline_id', DealFields::pipelineOptions()),
-                Dimension::joined('owner', 'Owner', 'deal_owner.name', 'owner'),
-                Dimension::joined('account', 'Account', 'deal_account.name', 'account'),
+                Dimension::record('owner', 'Owner', 'deal_owner.name', 'owner', 'deals.owner_id', User::class),
+                Dimension::record('account', 'Account', 'deal_account.name', 'account', 'deals.account_id', Account::class, 'accounts.show'),
+                Dimension::record('campaign', 'Campaign', 'deal_campaign.name', 'campaign', 'deals.campaign_id', Campaign::class, 'campaigns.show'),
                 Dimension::coded('close_reason', 'Close reason', 'deals.close_reason', DealCloseReason::options()),
                 Dimension::date('created', 'Created', 'deals.created_at'),
-                Dimension::date('expected_close', 'Expected close', 'deals.expected_close_date'),
+                Dimension::date('expected_close', 'Expected close', 'deals.expected_close_date', dateOnly: true),
                 Dimension::date('closed', 'Closed', 'deals.closed_at'),
                 // Which advertising this revenue can be traced to. Conversion
                 // copies a lead's attribution onto its deal, which is the only
@@ -180,10 +183,21 @@ final class ReportSources
                 // and AVG ignores nulls, so this is the average of the deals
                 // that actually closed rather than nought for the rest.
                 Measure::average('days_to_close', 'Average days to close', 'TIMESTAMPDIFF(DAY, deals.created_at, deals.closed_at)'),
+                // Won and lost read the stages each pipeline marks as such, not
+                // a stage called "won": a company can rename and add stages.
+                new Measure('won_count', 'Won deals', Aggregate::Count, 'CASE WHEN '.self::dealStageIn(StageOutcome::Won).' THEN 1 END', 'number'),
+                Measure::money('won_value', 'Won value', 'CASE WHEN '.self::dealStageIn(StageOutcome::Won).' THEN deals.value END'),
+                new Measure('lost_count', 'Lost deals', Aggregate::Count, 'CASE WHEN '.self::dealStageIn(StageOutcome::Lost).' THEN 1 END', 'number'),
+                // An average of 100 for each won deal and 0 for each lost one
+                // is the win rate of the closed deals; open ones are null and
+                // AVG leaves them out, so it is never diluted by work in hand.
+                Measure::average('win_rate', 'Win rate', 'CASE WHEN '.self::dealStageIn(StageOutcome::Won).' THEN 100 WHEN '.self::dealStageIn(StageOutcome::Lost).' THEN 0 END', 'percent'),
+                Measure::money('open_value', 'Open pipeline', 'CASE WHEN NOT '.self::dealStageIn(null).' THEN deals.value END'),
             ]),
             joins: self::joins([
                 new ReportJoin('owner', 'users', 'owner_id', alias: 'deal_owner'),
                 new ReportJoin('account', 'accounts', 'account_id', alias: 'deal_account'),
+                new ReportJoin('campaign', 'campaigns', 'campaign_id', alias: 'deal_campaign'),
                 new ReportJoin(
                     'attribution',
                     'marketing_attributions',
@@ -195,6 +209,8 @@ final class ReportSources
             ]),
             filters: DealFields::filters(),
             description: 'Pipeline value, win rates and how long deals take.',
+            recordLabel: 'deals.name',
+            recordRoute: 'deals.show',
         );
     }
 
@@ -209,7 +225,11 @@ final class ReportSources
             dimensions: self::dimensions([
                 Dimension::coded('status', 'Status', 'leads.status', LeadStatus::options()),
                 Dimension::coded('source', 'Source', 'leads.source', LeadSource::options()),
-                Dimension::joined('owner', 'Owner', 'lead_owner.name', 'owner'),
+                // Kept as the `owner` key so saved reports still resolve, but
+                // labelled for what it is now that leads have a separate owner.
+                Dimension::record('owner', 'Primary assignee', 'lead_owner.name', 'owner', 'lead_owner.user_id', User::class),
+                Dimension::record('lead_owner', 'Lead owner', 'lead_owner_user.name', 'lead_owner', 'leads.lead_owner_id', User::class),
+                Dimension::record('campaign', 'Campaign', 'lead_campaign.name', 'campaign', 'leads.campaign_id', Campaign::class, 'campaigns.show'),
                 Dimension::plain('country', 'Country', 'leads.country'),
                 Dimension::date('created', 'Created', 'leads.created_at'),
                 Dimension::date('converted', 'Converted', 'leads.converted_at'),
@@ -245,6 +265,8 @@ final class ReportSources
                 // cannot belong to a different tenant's lead than the id it is
                 // matched against.
                 new ReportJoin('owner', self::leadOwnerSubquery(), 'id', 'lead_id', alias: 'lead_owner'),
+                new ReportJoin('lead_owner', 'users', 'lead_owner_id', alias: 'lead_owner_user'),
+                new ReportJoin('campaign', 'campaigns', 'campaign_id', alias: 'lead_campaign'),
                 // A morph table, so the type is part of the join: on the id
                 // alone it would match a deal or a contact holding the same
                 // number and report one module's campaign against another's.
@@ -259,6 +281,8 @@ final class ReportSources
             ]),
             filters: LeadFields::filters(),
             description: 'Where leads come from, and what happens to them.',
+            recordLabel: "CONCAT_WS(' ', leads.first_name, leads.last_name)",
+            recordRoute: 'leads.show',
         );
     }
 
@@ -274,7 +298,7 @@ final class ReportSources
                 Dimension::plain('industry', 'Industry', 'accounts.industry'),
                 Dimension::plain('size', 'Size', 'accounts.size'),
                 Dimension::plain('country', 'Country', 'accounts.country'),
-                Dimension::joined('owner', 'Owner', 'account_owner.name', 'owner'),
+                Dimension::record('owner', 'Owner', 'account_owner.name', 'owner', 'accounts.owner_id', User::class),
                 Dimension::date('created', 'Created', 'accounts.created_at'),
             ]),
             measures: self::measures([
@@ -286,6 +310,8 @@ final class ReportSources
             ]),
             filters: AccountFields::filters(),
             description: 'Who the customers are.',
+            recordLabel: 'accounts.name',
+            recordRoute: 'accounts.show',
         );
     }
 
@@ -298,10 +324,10 @@ final class ReportSources
             permission: 'contacts.view',
             query: fn (User $viewer) => Contact::query()->visibleTo($viewer),
             dimensions: self::dimensions([
-                Dimension::joined('account', 'Account', 'contact_account.name', 'account'),
+                Dimension::record('account', 'Account', 'contact_account.name', 'account', 'contacts.account_id', Account::class, 'accounts.show'),
                 Dimension::plain('country', 'Country', 'contacts.country'),
                 Dimension::plain('job_title', 'Job title', 'contacts.job_title'),
-                Dimension::joined('owner', 'Owner', 'contact_owner.name', 'owner'),
+                Dimension::record('owner', 'Owner', 'contact_owner.name', 'owner', 'contacts.owner_id', User::class),
                 Dimension::date('created', 'Created', 'contacts.created_at'),
             ]),
             measures: self::measures([
@@ -313,6 +339,8 @@ final class ReportSources
             ]),
             filters: ContactFields::filters(),
             description: 'The people behind the accounts.',
+            recordLabel: "CONCAT_WS(' ', contacts.first_name, contacts.last_name)",
+            recordRoute: 'contacts.show',
         );
     }
 
@@ -328,7 +356,7 @@ final class ReportSources
                 Dimension::coded('type', 'Type', 'activities.type', ActivityType::options()),
                 Dimension::coded('status', 'Status', 'activities.status', ActivityStatus::options()),
                 Dimension::coded('priority', 'Priority', 'activities.priority', ActivityPriority::options()),
-                Dimension::joined('owner', 'Owner', 'activity_owner.name', 'owner'),
+                Dimension::record('owner', 'Owner', 'activity_owner.name', 'owner', 'activities.owner_id', User::class),
                 Dimension::date('due', 'Due', 'activities.due_at'),
                 Dimension::date('completed', 'Completed', 'activities.completed_at'),
             ]),
@@ -342,6 +370,8 @@ final class ReportSources
             ]),
             filters: ActivityFields::filters(),
             description: 'Calls, meetings and tasks, and who is doing them.',
+            recordLabel: 'activities.subject',
+            recordRoute: 'activities.edit',
         );
     }
 
@@ -357,8 +387,8 @@ final class ReportSources
                 Dimension::coded('status', 'Status', 'tickets.status', TicketStatus::options()),
                 Dimension::coded('priority', 'Priority', 'tickets.priority', TicketPriority::options()),
                 Dimension::coded('source', 'Came in by', 'tickets.source', TicketSource::options()),
-                Dimension::joined('agent', 'Agent', 'ticket_owner.name', 'owner'),
-                Dimension::joined('account', 'Account', 'ticket_account.name', 'account'),
+                Dimension::record('agent', 'Agent', 'ticket_owner.name', 'owner', 'tickets.owner_id', User::class),
+                Dimension::record('account', 'Account', 'ticket_account.name', 'account', 'tickets.account_id', Account::class, 'accounts.show'),
                 Dimension::date('created', 'Raised', 'tickets.created_at'),
                 Dimension::date('resolved', 'Resolved', 'tickets.resolved_at'),
             ]),
@@ -386,6 +416,8 @@ final class ReportSources
             ]),
             filters: TicketFields::filters(),
             description: 'Support volume, resolution times and who is carrying it.',
+            recordLabel: 'tickets.subject',
+            recordRoute: 'tickets.show',
         );
     }
 
@@ -408,9 +440,9 @@ final class ReportSources
             dimensions: self::dimensions([
                 Dimension::coded('status', 'Status', 'campaigns.status', CampaignStatus::options()),
                 Dimension::coded('type', 'Type', 'campaigns.type', CampaignType::options()),
-                Dimension::joined('owner', 'Owner', 'campaign_owner.name', 'owner'),
-                Dimension::date('started', 'Starts', 'campaigns.start_date'),
-                Dimension::date('ended', 'Ends', 'campaigns.end_date'),
+                Dimension::record('owner', 'Owner', 'campaign_owner.name', 'owner', 'campaigns.owner_id', User::class),
+                Dimension::date('started', 'Starts', 'campaigns.start_date', dateOnly: true),
+                Dimension::date('ended', 'Ends', 'campaigns.end_date', dateOnly: true),
             ]),
             measures: self::measures([
                 Measure::count('count', 'Campaigns'),
@@ -424,6 +456,8 @@ final class ReportSources
             ]),
             filters: CampaignFields::filters(),
             description: 'What marketing costs, and what it was budgeted at.',
+            recordLabel: 'campaigns.name',
+            recordRoute: 'campaigns.show',
         );
     }
 
@@ -437,9 +471,9 @@ final class ReportSources
             query: fn (User $viewer) => Quote::query()->visibleTo($viewer),
             dimensions: self::dimensions([
                 Dimension::coded('status', 'Status', 'quotes.status', QuoteStatus::options()),
-                Dimension::joined('owner', 'Owner', 'quote_owner.name', 'owner'),
-                Dimension::joined('account', 'Account', 'quote_account.name', 'account'),
-                Dimension::date('issued', 'Issued', 'quotes.issue_date'),
+                Dimension::record('owner', 'Owner', 'quote_owner.name', 'owner', 'quotes.owner_id', User::class),
+                Dimension::record('account', 'Account', 'quote_account.name', 'account', 'quotes.account_id', Account::class, 'accounts.show'),
+                Dimension::date('issued', 'Issued', 'quotes.issue_date', dateOnly: true),
                 Dimension::date('accepted', 'Accepted', 'quotes.accepted_at'),
             ]),
             measures: self::measures([
@@ -454,6 +488,8 @@ final class ReportSources
             ]),
             filters: QuoteFields::filters(),
             description: 'What was quoted, and what came back.',
+            recordLabel: 'quotes.number',
+            recordRoute: 'quotes.edit',
         );
     }
 
@@ -493,10 +529,25 @@ final class ReportSources
      * column to one column, and "the owner" is no longer that on the leads
      * table itself.
      */
+    /**
+     * "This deal's stage is one of the stages for this outcome", as SQL.
+     *
+     * The keys come from pipeline configuration an administrator types, so they
+     * are quoted by the driver rather than trusted. Null means any closing
+     * outcome, won or lost.
+     */
+    private static function dealStageIn(?StageOutcome $outcome): string
+    {
+        $pdo = DB::connection()->getPdo();
+        $quoted = array_map(fn (string $key): string => (string) $pdo->quote($key), Deal::closingStageKeys($outcome));
+
+        return 'deals.stage IN ('.implode(', ', $quoted).')';
+    }
+
     private static function leadOwnerSubquery(): string
     {
         return <<<'SQL'
-        (SELECT ranked.lead_id, users.name FROM (
+        (SELECT ranked.lead_id, ranked.user_id, users.name FROM (
             SELECT lead_id, user_id, ROW_NUMBER() OVER (
                 PARTITION BY lead_id ORDER BY priority IS NULL, priority, assigned_at
             ) AS rn

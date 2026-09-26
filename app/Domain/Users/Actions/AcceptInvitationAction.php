@@ -28,12 +28,17 @@ class AcceptInvitationAction
         }
 
         $user = DB::transaction(function () use ($invitation, $name, $password) {
-            $user = User::create([
+            $user = new User([
                 'name' => $name,
                 'email' => $invitation->email,
                 'password' => Hash::make($password),
                 'current_team_id' => $invitation->team_id,
             ]);
+
+            // Into the workspace of whoever invited them. Accepting happens
+            // signed out, so there is no workspace being acted for to take.
+            $user->setAttribute('tenant_id', $invitation->invitedBy?->tenant_id);
+            $user->save();
 
             // Following the emailed link proves they control the address, so
             // there's nothing left to verify. Set outside the mass-assignment

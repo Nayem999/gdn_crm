@@ -131,7 +131,9 @@ class LeadShow extends Component
             ? null
             : (int) $this->newAssigneePriority;
 
-        app(SyncLeadAssigneesAction::class)->add($lead, $user, $priority);
+        $actor = auth()->user();
+
+        app(SyncLeadAssigneesAction::class)->add($lead, $user, $priority, $actor instanceof User ? $actor : null);
 
         $this->reset(['newAssigneeId', 'newAssigneePriority']);
 

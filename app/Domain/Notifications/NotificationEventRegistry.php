@@ -188,6 +188,24 @@ final class NotificationEventRegistry
                 ],
             ),
             new NotificationEvent(
+                key: 'leads.assigned',
+                label: 'Lead assigned to you',
+                group: 'Leads',
+                description: 'Somebody was added to a lead as an assignee, or made its owner. The person who made the change is not told.',
+                recipientTypes: [RecipientType::AssignedAgent],
+                defaultChannels: [NotificationChannel::InApp, NotificationChannel::Email],
+                mergeFields: [
+                    'lead.name' => "The lead's name",
+                    'lead.company' => 'The company they are from',
+                    'lead.role' => 'What the person was made: "an assignee" or "the owner"',
+                    'lead.by' => 'Who made the change, or "an automation"',
+                ],
+                defaultSubject: 'Lead assigned to you: {{lead.name}}',
+                defaultTemplates: [
+                    '*' => '{{lead.by}} made you {{lead.role}} of {{lead.name}} ({{lead.company}}).',
+                ],
+            ),
+            new NotificationEvent(
                 key: 'activity.assigned',
                 label: 'Activity assigned',
                 group: 'Activities',

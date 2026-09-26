@@ -214,8 +214,9 @@ class Lead extends Model
     }
 
     /**
-     * Who owns the lead, if anybody. A label only: visibility and the work
-     * itself follow the assignees, never this.
+     * Who owns the lead, if anybody: accountable for it, so it is visible to
+     * them (scopeVisibleTo) and they are told when made owner, alongside the
+     * assignees who work it.
      *
      * @return BelongsTo<User, $this>
      */
@@ -355,9 +356,9 @@ class Lead extends Model
     }
 
     /**
-     * Own/team/all, now read off `lead_assignees` instead of a flat owner
-     * column — "own" is any lead I am on, "team" is any lead somebody on my
-     * team is on. Overrides ScopesByAccessLevel's column-comparison version
+     * Own/team/all, read off `lead_assignees` and the lead owner rather than a
+     * single owner column — "own" is any lead I am on or own, "team" is any
+     * lead somebody on my team is on or owns. Overrides ScopesByAccessLevel's column-comparison version
      * entirely rather than pointing `accessLevelOwnerColumn()` somewhere
      * else, because there is no single column left to point it at.
      *
@@ -366,28 +367,24 @@ class Lead extends Model
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        return match (static::resolveAccessLevelFor($user)) {
-            DataAccessLevel::All => $query,
-            DataAccessLevel::Own => $query->whereHas(
-                'assignedUsers',
-                fn (Builder $assignees) => $assignees->where('users.id', $user->id)
-            ),
-            DataAccessLevel::Team => $query->where(function (Builder $scoped) use ($user) {
-                if ($user->current_team_id === null) {
-                    $scoped->whereHas(
-                        'assignedUsers',
-                        fn (Builder $assignees) => $assignees->where('users.id', $user->id)
-                    );
+        $level = static::resolveAccessLevelFor($user);
 
-                    return;
-                }
+        if ($level === DataAccessLevel::All) {
+            return $query;
+        }
 
-                $scoped->whereHas('assignedUsers', fn (Builder $assignees) => $assignees->whereIn(
-                    'users.id',
-                    User::query()->where('current_team_id', $user->current_team_id)->select('id')
-                ));
-            }),
-        };
+        // Own: just this person. Team: everybody on their team — or just them,
+        // with no team to share with.
+        $people = $level === DataAccessLevel::Team && $user->current_team_id !== null
+            ? User::query()->where('current_team_id', $user->current_team_id)->select('id')
+            : [$user->id];
+
+        // Assigned to one of them, or owned by one of them: the owner is
+        // accountable for the lead, so it is theirs to see too.
+        return $query->where(function (Builder $scoped) use ($people) {
+            $scoped->whereHas('assignedUsers', fn (Builder $assignees) => $assignees->whereIn('users.id', $people))
+                ->orWhereIn($scoped->qualifyColumn('lead_owner_id'), $people);
+        });
     }
 
     // -- Queries -------------------------------------------------------------

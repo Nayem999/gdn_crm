@@ -30,6 +30,8 @@ use RuntimeException;
  */
 class SyncLeadAssigneesAction
 {
+    public function __construct(private readonly AnnounceLeadAssignmentAction $announce) {}
+
     /**
      * Replace the whole assignee set.
      *
@@ -102,9 +104,13 @@ class SyncLeadAssigneesAction
      * capture form's configured owner, an ingested record's default, a
      * workflow's "assign owner" action.
      */
-    public function add(Lead $lead, User $user, ?int $priority = null): LeadAssignee
+    /**
+     * @param  User|null  $actor  Who added them; null for an automation, which
+     *                            is how the new assignee's notification reads.
+     */
+    public function add(Lead $lead, User $user, ?int $priority = null, ?User $actor = null): LeadAssignee
     {
-        return DB::transaction(function () use ($lead, $user, $priority) {
+        $row = DB::transaction(function () use ($lead, $user, $priority) {
             $before = $this->summary($lead);
 
             $row = LeadAssignee::query()->updateOrCreate(
@@ -116,6 +122,14 @@ class SyncLeadAssigneesAction
 
             return $row;
         });
+
+        // Told only when genuinely new to the lead: a changed priority on
+        // somebody already assigned is not news to them.
+        if ($row->wasRecentlyCreated) {
+            ($this->announce)($lead, [$user->id], null, $actor);
+        }
+
+        return $row;
     }
 
     /**

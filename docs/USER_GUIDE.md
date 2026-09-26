@@ -93,8 +93,13 @@ form, an email, or the website chat widget.
 **Who works it:** a lead has one or more **assignees**, all able to see and work
 it at once; an optional priority decides who is told next if nobody acts. It can
 also have a **lead owner** — optional, and anybody on the system, assigned or
-not. The owner is a label for accountability: it shows on the list and the lead,
-filters and reports, but it does not change who can see the lead.
+not — who is accountable for it. The owner can see the lead as well as the
+assignees; it shows on the list and the lead, and filters and reports by it.
+
+**Who hears about it:** everybody put on a lead — each new assignee, and a new
+owner — gets a *Lead assigned to you* notification, except the person who made
+the change. Anybody whose role can see every lead (a Super Admin, say) sees it
+regardless.
 
 **Working one:** open the lead and use the timeline on the right to log a call,
 add a note, attach a document, or schedule a follow-up. The status moves through

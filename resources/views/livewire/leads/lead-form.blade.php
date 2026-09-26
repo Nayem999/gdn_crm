@@ -184,7 +184,7 @@
                     :selected="$lead_owner_id"
                     placeholder="No owner"
                     :error="$errors->first('lead_owner_id')"
-                    hint="Optional. Who is accountable for the lead — it does not change who can see it."
+                    hint="Optional. Who is accountable for the lead. They can see it, and are told when you save."
                     wire:model="lead_owner_id"
                 />
             </div>

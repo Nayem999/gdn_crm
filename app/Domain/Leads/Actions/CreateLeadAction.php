@@ -13,6 +13,7 @@ class CreateLeadAction
     public function __construct(
         private readonly ScoreLeadAction $scoreLead,
         private readonly SyncLeadAssigneesAction $syncAssignees,
+        private readonly AnnounceLeadAssignmentAction $announce,
     ) {}
 
     /**
@@ -44,6 +45,14 @@ class CreateLeadAction
 
             return $lead;
         });
+
+        // Everybody put on it, and its owner, except the person who made it.
+        ($this->announce)(
+            $lead,
+            $lead->assignees()->pluck('user_id')->all(),
+            $lead->lead_owner_id,
+            $actor,
+        );
 
         return ($this->scoreLead)($lead->refresh());
     }

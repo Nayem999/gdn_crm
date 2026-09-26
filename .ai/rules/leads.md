@@ -151,6 +151,8 @@ Lead has no owner_id column. `lead_assignees` (via SyncLeadAssigneesAction, the 
 
 Reading "the owner" of a Lead: use `primaryAssignee()` (highest-priority assignee, tie-broken by assigned_at) — see AssignmentResolver::recordOwner(), SendNotificationHandler::owner(), CreateRecordHandler::owner() for the special-case pattern every generic owner_id reader needs for Lead.
 
-Lead::scopeVisibleTo() is fully overridden (whereHas('assignedUsers', ...)) rather than using the shared ScopesByAccessLevel owner-column mechanism — a lead with zero assignees is invisible below `all` access, the same leak owner_id being NOT NULL used to close.
+Lead::scopeVisibleTo() is fully overridden (whereHas('assignedUsers', ...) OR lead_owner_id) rather than using the shared ScopesByAccessLevel owner-column mechanism — a lead with zero assignees and no owner is invisible below `all` access, the same leak owner_id being NOT NULL used to close. The optional lead owner (lead_owner_id) sees the lead too; that was a deliberate change, it began as a label only.
+
+Everybody newly put on a lead — assignees and a new owner — gets `leads.assigned`, never the actor who made the change. AnnounceLeadAssignmentAction is the one sender, fired after commit from CreateLeadAction, UpdateLeadAction (only the newly added) and SyncLeadAssigneesAction::add() (only when the row is new; a null actor reads as an automation). Add a new way to assign somebody and it must go through one of those.
 
 Factories: LeadFactory::ownedBy($user) replaces the whole assignee set with just $user (what owner_id used to mean); assignedTo($user, $priority) adds one more assignee alongside whoever's already there, for testing the multi-assign concept itself. tests/Pest.php has leadOwnerId()/leadAssigneeIds() helpers — use them instead of ->owner_id in any test touching a Lead.

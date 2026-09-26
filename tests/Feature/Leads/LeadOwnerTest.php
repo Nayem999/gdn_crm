@@ -6,14 +6,18 @@ use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\LeadFields;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Shared\Enums\DataAccessLevel;
 use App\Domain\Shared\Enums\FilterOperator;
 use App\Domain\Shared\Filters\FilterApplier;
 use App\Domain\Shared\Filters\FilterGroup;
 use App\Livewire\Leads\LeadForm;
 use App\Livewire\Leads\LeadShow;
 use App\Livewire\Leads\LeadsIndex;
+use App\Models\Team;
 use App\Models\User;
 use Livewire\Livewire;
+use Spatie\Permission\Guard;
+use Spatie\Permission\Models\Role;
 
 function leadOwnerEditor(): User
 {
@@ -84,13 +88,37 @@ test('the owner can be cleared again', function () {
     expect($lead->fresh()->lead_owner_id)->toBeNull();
 });
 
-test('owning a lead does not make it visible', function () {
-    // A label only: who can see a lead is still decided by its assignees.
+test('owning a lead makes it visible to the owner', function () {
+    // The owner is accountable for the lead, so it is theirs to see — even
+    // when somebody else is the one assigned to work it.
     $owner = leadOwnerEditor();
     $lead = Lead::factory()->create(['lead_owner_id' => $owner->id]);
 
-    expect(Lead::query()->visibleTo($owner)->whereKey($lead->id)->exists())->toBeFalse()
-        ->and($owner->can('view', $lead))->toBeFalse();
+    expect(Lead::query()->visibleTo($owner)->whereKey($lead->id)->exists())->toBeTrue()
+        ->and($owner->can('view', $lead))->toBeTrue();
+});
+
+test('a lead neither assigned to nor owned by somebody stays hidden from them', function () {
+    $outsider = leadOwnerEditor();
+    $lead = Lead::factory()->create(['lead_owner_id' => User::factory()->create()->id]);
+
+    expect(Lead::query()->visibleTo($outsider)->whereKey($lead->id)->exists())->toBeFalse()
+        ->and($outsider->can('view', $lead))->toBeFalse();
+});
+
+test('a team sees the leads its members own', function () {
+    $team = Team::factory()->create();
+    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $viewer->assignRole(Role::query()->create([
+        'name' => 'Leads team '.uniqid(),
+        'guard_name' => Guard::getDefaultName(Role::class),
+        'data_access_level' => DataAccessLevel::Team->value,
+    ]));
+    $viewer = $viewer->fresh();
+    $teammate = User::factory()->create(['current_team_id' => $team->id]);
+    $lead = Lead::factory()->create(['lead_owner_id' => $teammate->id]);
+
+    expect(Lead::query()->visibleTo($viewer)->whereKey($lead->id)->exists())->toBeTrue();
 });
 
 test('an update that says nothing about the owner leaves it alone', function () {

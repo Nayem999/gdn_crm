@@ -5,6 +5,7 @@ use App\Http\Middleware\SetTenantFromUser;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
@@ -48,6 +49,21 @@ return Application::configure(basePath: dirname(__DIR__))
             // nothing on purpose.
             SetTenantFromUser::class,
         ]);
+
+        // API requests act for a workspace too. Without this every scoped
+        // query on the API matched nothing: /api/v1/leads answered with an
+        // empty list whatever the key's owner could see.
+        $middleware->api(append: [SetTenantFromUser::class]);
+
+        // Before route model binding, which runs in SubstituteBindings. Left
+        // where appending puts it — after — `/leads/{lead}` looked the lead up
+        // with no workspace set, the tenant scope matched nothing, and every
+        // lead page answered 404. Still after authentication and the session
+        // check, which the priority list places ahead of SubstituteBindings.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: SetTenantFromUser::class,
+        );
 
         // The headers a browser needs to defend the page. Appended to every
         // response rather than to the web group alone, so an API response and a

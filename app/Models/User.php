@@ -5,6 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Auth\Models\LoginHistory;
+use App\Domain\Tenancy\Models\Tenant;
+use App\Domain\Tenancy\Tenancy;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +26,30 @@ class User extends Authenticatable implements HasMedia
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, InteractsWithMedia, Notifiable, RecordsActivity, SoftDeletes, TwoFactorAuthenticatable;
+
+    /**
+     * Every user belongs to a workspace, however they were created.
+     *
+     * SetTenantFromUser reads users.tenant_id to decide which workspace a
+     * request acts for; a user created without one — by an administrator, an
+     * accepted invitation, sign-up or the installer, none of which set it —
+     * was served no workspace, and every tenant-scoped list came back empty.
+     * The workspace being acted for when there is one, otherwise the first
+     * (and, until more are made, only) one.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if ($user->getAttribute('tenant_id') !== null) {
+                return;
+            }
+
+            $user->setAttribute(
+                'tenant_id',
+                app(Tenancy::class)->id() ?? Tenant::query()->orderBy('id')->value('id'),
+            );
+        });
+    }
 
     /**
      * The attributes that are mass assignable.

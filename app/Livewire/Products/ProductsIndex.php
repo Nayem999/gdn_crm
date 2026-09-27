@@ -32,7 +32,7 @@ use RuntimeException;
  * The component owns the query — including visibleTo() — so a row outside the
  * viewer's access level never reaches the page, whichever view they are in.
  */
-#[Title('Products')]
+#[Title('Product / Service')]
 class ProductsIndex extends Component
 {
     use AuthorizesRequests;

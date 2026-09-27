@@ -24,7 +24,7 @@ use RuntimeException;
  * writes the row and its parts in one transaction, so a bundle is never briefly
  * saved with the wrong contents.
  */
-#[Title('Product')]
+#[Title('Product / Service')]
 class ProductForm extends Component
 {
     use AuthorizesRequests;

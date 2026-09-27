@@ -16,7 +16,7 @@
         ['label' => 'Deals', 'icon' => 'handshake', 'route' => 'deals.index', 'permission' => 'deals.view'],
         ['label' => 'Activities', 'icon' => 'calendar-clock', 'route' => 'activities.index', 'permission' => 'activities.view'],
         ['label' => 'Calendar', 'icon' => 'calendar-days', 'route' => 'calendar', 'permission' => 'activities.view'],
-        ['label' => 'Products', 'icon' => 'package', 'route' => 'products.index', 'permission' => 'products.view'],
+        ['label' => 'Product / Service', 'icon' => 'package', 'route' => 'products.index', 'permission' => 'products.view'],
         ['label' => 'Quotes', 'icon' => 'file-text', 'route' => 'quotes.index', 'permission' => 'quotes.view'],
         ['label' => 'Support', 'icon' => 'life-buoy', 'route' => 'tickets.index', 'permission' => 'tickets.view'],
         ['label' => 'Knowledge', 'icon' => 'book-open', 'route' => 'knowledge.index', 'permission' => 'knowledge.view'],

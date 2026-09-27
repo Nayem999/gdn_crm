@@ -94,8 +94,8 @@ test('accounts that already look like the lead are offered instead of a second c
 
     $component = Livewire::actingAs($user)->test(LeadConvert::class, ['lead' => $lead]);
 
-    expect($component->instance()->accountOptions())->toHaveKey((string) $existing->id)
-        ->and($component->instance()->accountOptions()[''])->toBe('Create a new account');
+    expect(collect($component->instance()->searchAccounts()['options'])->first()['value'])->toBe((string) $existing->id)
+        ->and(collect($component->viewData('accounts'))->pluck('value')->all())->toContain((string) $existing->id);
 
     $component->assertSee('Acme Industries Ltd');
 });
@@ -107,7 +107,7 @@ test('people already on file are offered too', function () {
 
     $component = Livewire::actingAs($user)->test(LeadConvert::class, ['lead' => $lead]);
 
-    expect($component->instance()->contactOptions())->toHaveKey((string) $existing->id);
+    expect(collect($component->instance()->searchContacts()['options'])->pluck('value')->all())->toContain((string) $existing->id);
 });
 
 test('a record outside the viewer access level is never offered', function () {
@@ -117,7 +117,8 @@ test('a record outside the viewer access level is never offered', function () {
 
     $component = Livewire::actingAs($user)->test(LeadConvert::class, ['lead' => $lead]);
 
-    expect($component->instance()->accountOptions())->toBe(['' => 'Create a new account']);
+    expect($component->viewData('accounts'))->toBe([])
+        ->and($component->instance()->searchAccounts('Acme')['options'])->toBe([]);
 });
 
 // -- Converting ---------------------------------------------------------------------

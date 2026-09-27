@@ -27,13 +27,13 @@
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <x-form.label for="first_name" required>First name</x-form.label>
-                    <x-form.input id="first_name" wire:model="first_name" :invalid="$errors->has('first_name')" />
+                    <x-form.input id="first_name" wire:model.live.debounce.500ms="first_name" :invalid="$errors->has('first_name')" />
                     <x-form.error for="first_name" />
                 </div>
 
                 <div>
                     <x-form.label for="last_name" required>Last name</x-form.label>
-                    <x-form.input id="last_name" wire:model="last_name" :invalid="$errors->has('last_name')" />
+                    <x-form.input id="last_name" wire:model.live.debounce.500ms="last_name" :invalid="$errors->has('last_name')" />
                     <x-form.error for="last_name" />
                 </div>
 
@@ -47,11 +47,88 @@
                     <x-form.label for="company_name">Company</x-form.label>
                     <x-form.input id="company_name" wire:model.live.debounce.500ms="company_name" :invalid="$errors->has('company_name')" />
                     <x-form.error for="company_name" />
-                    <p class="mt-1.5 text-xs text-muted-foreground">
-                        As they gave it. Converting the lead is what creates the account.
-                    </p>
                 </div>
             </div>
+        </section>
+
+        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+            <h2 class="text-base font-semibold text-foreground">The organisation</h2>
+            <p class="mt-1 text-sm text-muted-foreground">
+                Optional. Link an account on file, or give a new account name to create one when you save.
+            </p>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {{-- Keyed on the value: picking a contact can choose the account
+                     from the server, which a wire:ignore'd dropdown only shows
+                     once it is rebuilt. --}}
+                <div wire:key="lead-account-{{ $account_id }}">
+                    <x-select
+                        name="account_id"
+                        label="Account"
+                        :options="$accountOptions"
+                        :selected="$account_id"
+                        placeholder="Not on file — search accounts…"
+                        search-method="searchAccounts"
+                        preload="focus"
+                        clearable
+                        :error="$errors->first('account_id')"
+                        wire:model.live="account_id"
+                    />
+                </div>
+
+                @if (! $account_id && $this->canCreateAccount())
+                    <div>
+                        <x-form.label for="new_account_name">New account name</x-form.label>
+                        <x-form.input id="new_account_name" wire:model="new_account_name" :invalid="$errors->has('new_account_name')" />
+                        <x-form.error for="new_account_name" />
+                        <p class="mt-1.5 text-xs text-muted-foreground">Leave blank to create no account now.</p>
+                    </div>
+                @endif
+            </div>
+        </section>
+
+        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
+            <h2 class="text-base font-semibold text-foreground">The person</h2>
+            <p class="mt-1 text-sm text-muted-foreground">
+                Optional. Link a contact on file, or give a new person name to create one when you save.
+            </p>
+
+            <div class="mt-4 max-w-md" wire:key="lead-contact-{{ $contact_id }}">
+                <x-select
+                    name="contact_id"
+                    label="Contact"
+                    :options="$contactOptions"
+                    :selected="$contact_id"
+                    placeholder="Not on file — search contacts…"
+                    search-method="searchContacts"
+                    preload="focus"
+                    clearable
+                    :error="$errors->first('contact_id')"
+                    wire:model.live="contact_id"
+                />
+            </div>
+
+            @if (! $contact_id && $this->canCreateContact())
+                <h3 class="mt-6 text-sm font-medium text-foreground">New person name</h3>
+
+                <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <x-form.label for="new_contact_first_name">First name</x-form.label>
+                        <x-form.input id="new_contact_first_name" wire:model="new_contact_first_name" :invalid="$errors->has('new_contact_first_name')" />
+                        <x-form.error for="new_contact_first_name" />
+                    </div>
+
+                    <div>
+                        <x-form.label for="new_contact_last_name">Last name</x-form.label>
+                        <x-form.input id="new_contact_last_name" wire:model="new_contact_last_name" :invalid="$errors->has('new_contact_last_name')" />
+                        <x-form.error for="new_contact_last_name" />
+                    </div>
+                </div>
+
+                <p class="mt-1.5 text-xs text-muted-foreground">
+                    Leave blank to create no contact now. The new contact gets the lead's email, phone and address, and joins the account above.
+                </p>
+            @endif
         </section>
 
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">

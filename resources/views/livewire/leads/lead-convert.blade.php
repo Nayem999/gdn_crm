@@ -32,7 +32,9 @@
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
             <h2 class="text-base font-semibold text-foreground">The organisation</h2>
             <p class="mt-1 text-sm text-muted-foreground">
-                @if ($accountMatches === [])
+                @if ($lead->account_id !== null && $accountMatches === [])
+                    The lead is linked to an account on file, so it is joined.
+                @elseif ($accountMatches === [])
                     Nothing on file matches, so a new account is created.
                 @else
                     {{ count($accountMatches) }} {{ Str::plural('account', count($accountMatches)) }}
@@ -48,7 +50,12 @@
                         label="Account"
                         :options="$accounts"
                         :selected="$accountId"
+                        placeholder="Create a new account — or search accounts…"
+                        search-method="searchAccounts"
+                        preload="focus"
+                        clearable
                         :error="$errors->first('accountId')"
+                        hint="Clear it to create a new account instead."
                         wire:model.live="accountId"
                     />
                 </div>
@@ -84,23 +91,50 @@
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
             <h2 class="text-base font-semibold text-foreground">The person</h2>
             <p class="mt-1 text-sm text-muted-foreground">
-                @if ($contactMatches === [])
-                    A contact is created from the lead's details.
+                @if ($lead->contact_id !== null && $contactMatches === [])
+                    The lead is linked to somebody on file, so they are used.
+                @elseif ($contactMatches === [])
+                    Nothing on file matches, so a contact is created from the lead's details.
                 @else
                     Somebody on file already looks like {{ $lead->fullName() }}.
                 @endif
             </p>
 
-            <div class="mt-4 max-w-sm" wire:key="convert-contact-{{ $contactId }}">
-                <x-select
-                    name="contactId"
-                    label="Contact"
-                    :options="$contacts"
-                    :selected="$contactId"
-                    :error="$errors->first('contactId')"
-                    wire:model.live="contactId"
-                />
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <div wire:key="convert-contact-{{ $contactId }}">
+                    <x-select
+                        name="contactId"
+                        label="Contact"
+                        :options="$contacts"
+                        :selected="$contactId"
+                        placeholder="Create a new contact — or search contacts…"
+                        search-method="searchContacts"
+                        preload="focus"
+                        clearable
+                        :error="$errors->first('contactId')"
+                        hint="Clear it to create a new contact instead."
+                        wire:model.live="contactId"
+                    />
+                </div>
             </div>
+
+            @if (! $contactId)
+                <h3 class="mt-5 text-sm font-medium text-foreground">New person name</h3>
+
+                <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <x-form.label for="contactFirstName" required>First name</x-form.label>
+                        <x-form.input id="contactFirstName" wire:model="contactFirstName" :invalid="$errors->has('contactFirstName')" />
+                        <x-form.error for="contactFirstName" />
+                    </div>
+
+                    <div>
+                        <x-form.label for="contactLastName" required>Last name</x-form.label>
+                        <x-form.input id="contactLastName" wire:model="contactLastName" :invalid="$errors->has('contactLastName')" />
+                        <x-form.error for="contactLastName" />
+                    </div>
+                </div>
+            @endif
 
             @if ($contactMatches !== [])
                 <ul class="mt-3 space-y-1">

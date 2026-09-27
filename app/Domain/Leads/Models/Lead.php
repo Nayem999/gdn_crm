@@ -57,6 +57,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $status_changed_at
  * @property int|null $campaign_id
  * @property int|null $lead_owner_id
+ * @property int|null $account_id
+ * @property int|null $contact_id
  * @property Carbon|null $converted_at
  * @property int|null $converted_account_id
  * @property int|null $converted_contact_id
@@ -104,6 +106,8 @@ class Lead extends Model
         'status_changed_at',
         'campaign_id',
         'lead_owner_id',
+        'account_id',
+        'contact_id',
     ];
 
     /**
@@ -223,6 +227,27 @@ class Lead extends Model
     public function leadOwner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lead_owner_id');
+    }
+
+    /**
+     * The account this lead is already known to belong to, if somebody linked
+     * one — conversion joins it rather than creating a second copy.
+     *
+     * @return BelongsTo<Account, $this>
+     */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * The person on file this lead is, if somebody linked one.
+     *
+     * @return BelongsTo<Contact, $this>
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
     }
 
     /**

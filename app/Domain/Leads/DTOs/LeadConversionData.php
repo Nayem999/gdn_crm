@@ -20,6 +20,9 @@ readonly class LeadConversionData
 
         /** Link to this contact instead of creating one. */
         public ?int $contactId = null,
+        /** The new contact's name when one is created; the lead's otherwise. */
+        public ?string $contactFirstName = null,
+        public ?string $contactLastName = null,
 
         /** Deals are optional: a lead can become a customer with nothing in play. */
         public bool $createDeal = true,
@@ -50,6 +53,8 @@ readonly class LeadConversionData
             accountId: $id('account_id'),
             accountName: $value('account_name'),
             contactId: $id('contact_id'),
+            contactFirstName: $value('contact_first_name'),
+            contactLastName: $value('contact_last_name'),
             createDeal: (bool) ($attributes['create_deal'] ?? true),
             dealName: $value('deal_name'),
             dealValue: $value('deal_value'),

@@ -7,7 +7,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\ContactDuplicates;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Leads\Actions\ConvertLeadAction;
-use App\Domain\Leads\Concerns\PicksAccountAndContact;
+use App\Domain\Leads\Concerns\EditsLeadPeople;
 use App\Domain\Leads\DTOs\LeadConversionData;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Shared\Duplicates\DuplicateFinder;
@@ -25,36 +25,22 @@ use RuntimeException;
  *
  * The screen's job is to let somebody link to records that already exist rather
  * than start second copies of them, so the 2.5 matcher runs over the lead's
- * company name and email and offers what it finds. Both pickers still search
- * everything the operator can see, with those look-alikes first, and start on
- * whatever the lead was already linked to on its form.
+ * company name and email and offers what it finds first in the pickers.
+ *
+ * The organisation and contact-person sections are the lead form's own
+ * (EditsLeadPeople, <x-lead-people>): pick an account and any number of people
+ * on file, or fill in new ones. Unlike the form, the new fields start filled
+ * from the lead — converting is making records of what the lead says — and
+ * stay editable. The first person becomes the deal's contact.
  */
 #[Title('Convert lead')]
 class LeadConvert extends Component
 {
     use AuthorizesRequests;
-    use PicksAccountAndContact;
+    use EditsLeadPeople;
 
     #[Locked]
     public int $leadId;
-
-    /**
-     * Blank means "create a new one from the lead".
-     */
-    public ?string $accountId = null;
-
-    public string $accountName = '';
-
-    public ?string $contactId = null;
-
-    /**
-     * The new person's name, when no existing contact is chosen. Prefilled
-     * from the lead and editable, since a lead's name is often a nickname or
-     * a chat handle.
-     */
-    public string $contactFirstName = '';
-
-    public string $contactLastName = '';
 
     public bool $createDeal = true;
 
@@ -71,12 +57,32 @@ class LeadConvert extends Component
         $this->authorize('convert', $lead);
 
         $this->leadId = $lead->id;
-        $this->accountId = $lead->account_id !== null ? (string) $lead->account_id : null;
-        $this->contactId = $lead->contact_id !== null ? (string) $lead->contact_id : null;
-        $this->contactFirstName = (string) $lead->first_name;
-        $this->contactLastName = (string) $lead->last_name;
-        $this->accountName = (string) ($lead->company_name ?? $lead->fullName());
-        $this->dealName = $this->accountName.' opportunity';
+        $this->account_id = $lead->account_id !== null ? (string) $lead->account_id : null;
+        $this->new_account_name = (string) ($lead->company_name ?? $lead->fullName());
+        $this->new_account_email = (string) $lead->email;
+        $this->new_account_phone = (string) $lead->phone;
+        $this->new_account_website = (string) $lead->website;
+
+        // Everybody already linked to the lead; with nobody linked, the lead
+        // itself as a new person, ready to check before it is created.
+        $this->contacts = $lead->contacts->map(fn (Contact $contact): array => $this->blankContactRow([
+            'contact_id' => (string) $contact->id,
+        ]))->values()->all() ?: [$this->blankContactRow([
+            'first_name' => (string) $lead->first_name,
+            'last_name' => (string) $lead->last_name,
+            'job_title' => (string) $lead->job_title,
+            'email' => (string) $lead->email,
+            'phone' => (string) $lead->phone,
+            'mobile' => (string) $lead->mobile,
+            'address_line_1' => (string) $lead->address_line_1,
+            'address_line_2' => (string) $lead->address_line_2,
+            'city' => (string) $lead->city,
+            'state' => (string) $lead->state,
+            'postal_code' => (string) $lead->postal_code,
+            'country' => (string) $lead->country,
+        ])];
+
+        $this->dealName = $this->new_account_name.' opportunity';
         $this->dealValue = $lead->estimated_value;
         // Defaults to whoever is on the lead already, since conversion still
         // creates single-owner Account, Contact and Deal records — priority()
@@ -106,7 +112,7 @@ class LeadConvert extends Component
         // An unsaved account carrying just what the lead knows, matched with the
         // same engine the duplicate banner uses.
         $draft = new Account([
-            'name' => $this->accountName !== '' ? $this->accountName : (string) $lead->company_name,
+            'name' => $this->new_account_name !== '' ? $this->new_account_name : (string) $lead->company_name,
             'email' => $lead->email,
             'phone' => $lead->phone,
         ]);
@@ -149,7 +155,7 @@ class LeadConvert extends Component
     /**
      * @return array<int, int>
      */
-    protected function suggestedAccountIds(): array
+    public function suggestedAccountIds(): array
     {
         return array_map(fn (DuplicateMatch $match): int => (int) $match->record->getKey(), $this->accountMatches());
     }
@@ -157,22 +163,27 @@ class LeadConvert extends Component
     /**
      * @return array<int, int>
      */
-    protected function suggestedContactIds(): array
+    public function suggestedContactIds(): array
     {
-        return array_map(fn (DuplicateMatch $match): int => (int) $match->record->getKey(), $this->contactMatches());
+        return array_values(array_unique([
+            ...$this->lead()->contacts()->pluck('contacts.id')->map(fn ($id): int => (int) $id)->all(),
+            ...array_map(fn (DuplicateMatch $match): int => (int) $match->record->getKey(), $this->contactMatches()),
+        ]));
     }
 
     /**
-     * Choosing somebody on file whose account is known picks that account too,
-     * unless one is already chosen.
+     * Converting creates the account and people by definition, so the convert
+     * permission is what is needed, not accounts.create / contacts.create —
+     * the same as before this screen had fields for them.
      */
-    public function updatedContactId(): void
+    public function canCreateAccount(): bool
     {
-        $contact = $this->visibleContact($this->contactId);
+        return $this->currentUser()->can('convert', $this->lead());
+    }
 
-        if ($contact !== null && $contact->account_id !== null && ($this->accountId === null || $this->accountId === '')) {
-            $this->accountId = (string) $contact->account_id;
-        }
+    public function canCreateContact(): bool
+    {
+        return $this->canCreateAccount();
     }
 
     // -- Converting -------------------------------------------------------------
@@ -183,9 +194,7 @@ class LeadConvert extends Component
     protected function rules(): array
     {
         return [
-            'accountName' => ['required_without:accountId', 'nullable', 'string', 'max:255'],
-            'contactFirstName' => ['required_without:contactId', 'nullable', 'string', 'max:255'],
-            'contactLastName' => ['required_without:contactId', 'nullable', 'string', 'max:255'],
+            ...$this->peopleRules(),
             'dealName' => ['nullable', 'string', 'max:255'],
             // Matches the DECIMAL(15,2) column, so MySQL cannot silently truncate.
             'dealValue' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
@@ -199,11 +208,7 @@ class LeadConvert extends Component
      */
     protected function validationAttributes(): array
     {
-        return [
-            'accountName' => 'new account name',
-            'contactFirstName' => 'first name',
-            'contactLastName' => 'last name',
-        ];
+        return $this->peopleAttributes();
     }
 
     public function convert(): void
@@ -213,35 +218,22 @@ class LeadConvert extends Component
         $this->authorize('convert', $lead);
         $this->validate();
 
-        // The chosen records are re-checked against what this person can see:
-        // "exists" proves a record is real, never that they may reach it.
-        $accountId = $this->numeric($this->accountId);
-        $contactId = $this->numeric($this->contactId);
-
-        if ($accountId !== null && ! Account::query()->visibleTo($this->currentUser())->whereKey($accountId)->exists()) {
-            $this->addError('accountId', 'That account is not one you can use.');
-
-            return;
-        }
-
-        if ($contactId !== null && ! Contact::query()->visibleTo($this->currentUser())->whereKey($contactId)->exists()) {
-            $this->addError('contactId', 'That contact is not one you can use.');
-
+        // Conversion always ends with an account and at least one person. The
+        // lead's own links stand; anything newly picked must be visible.
+        if (! $this->guardPeople($lead->account_id, $lead->contacts()->pluck('contacts.id')->all(), needsAccount: true, needsPerson: true)) {
             return;
         }
 
         try {
             $result = app(ConvertLeadAction::class)($lead, new LeadConversionData(
-                accountId: $accountId,
-                accountName: $this->accountName,
-                contactId: $contactId,
-                contactFirstName: $this->contactFirstName,
-                contactLastName: $this->contactLastName,
+                accountId: $this->pickedAccountId(),
                 createDeal: $this->createDeal,
                 dealName: $this->dealName,
                 dealValue: $this->dealValue,
                 dealCloseDate: $this->dealCloseDate,
                 ownerId: $this->numeric($this->ownerId),
+                newAccount: $this->newAccountDetails() ?? [],
+                people: $this->contacts,
             ), $this->currentUser());
         } catch (RuntimeException $exception) {
             $this->dispatch('notify', type: 'error', message: $exception->getMessage());
@@ -260,8 +252,6 @@ class LeadConvert extends Component
     {
         return view('livewire.leads.lead-convert', [
             'lead' => $this->lead(),
-            'accounts' => $this->accountPickerOptions($this->accountId, $this->suggestedAccountIds()),
-            'contacts' => $this->contactPickerOptions($this->contactId, $this->suggestedContactIds()),
             'owners' => $this->ownerOptions(),
         ]);
     }

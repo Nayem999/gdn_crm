@@ -38,6 +38,8 @@ class ConvertLeadAction
         private readonly CreateAccountAction $createAccount,
         private readonly CreateContactAction $createContact,
         private readonly ChangeLeadStatusAction $changeStatus,
+        private readonly ResolveLeadPeopleAction $resolvePeople,
+        private readonly SyncLeadContactsAction $syncContacts,
     ) {}
 
     /**
@@ -58,7 +60,21 @@ class ConvertLeadAction
 
         $result = DB::transaction(function () use ($lead, $data, $actor, $ownerId) {
             $account = $this->account($lead, $data, $actor, $ownerId);
-            $contact = $this->contact($lead, $data, $actor, $account, $ownerId);
+            $people = $this->people($lead, $data, $actor, $account, $ownerId);
+            $contact = $people[0];
+
+            // The other people linked to the lead work there too, so any who
+            // belong to no account yet join the one the lead becomes.
+            foreach ($lead->contacts()->whereNull('contacts.account_id')->get() as $person) {
+                $person->forceFill(['account_id' => $account->id])->save();
+            }
+
+            // Everybody the conversion used stays linked to the lead, after
+            // whoever was linked already.
+            $this->syncContacts->handle($lead, [
+                ...$lead->contacts()->pluck('contacts.id')->all(),
+                ...array_map(fn (Contact $person): int => $person->id, $people),
+            ]);
             $deal = $data->createDeal ? $this->deal($lead, $data, $account, $contact, $ownerId) : null;
 
             // Attribution follows the lead into everything it became. This is
@@ -149,6 +165,13 @@ class ConvertLeadAction
 
     private function account(Lead $lead, LeadConversionData $data, User $actor, ?int $ownerId): Account
     {
+        // The convert page's own fields: picked, or created from the details
+        // typed for it, never the lead's.
+        if ($data->newAccount !== null && $data->accountId === null) {
+            return $this->resolvePeople->account(null, $data->newAccount, $ownerId, $actor)
+                ?? throw new RuntimeException('Name the new account.');
+        }
+
         if ($data->accountId !== null) {
             $account = Account::query()->find($data->accountId);
 
@@ -180,6 +203,28 @@ class ConvertLeadAction
             country: $lead->country,
             ownerId: $ownerId,
         ), $actor);
+    }
+
+    /**
+     * The contact persons the conversion ends with; the first is the deal's.
+     *
+     * @return non-empty-array<int, Contact>
+     *
+     * @throws RuntimeException
+     */
+    private function people(Lead $lead, LeadConversionData $data, User $actor, Account $account, ?int $ownerId): array
+    {
+        if ($data->people === null) {
+            return [$this->contact($lead, $data, $actor, $account, $ownerId)];
+        }
+
+        $people = $this->resolvePeople->contacts($data->people, $account->id, $ownerId, $actor, adoptExisting: true);
+
+        if ($people === []) {
+            throw new RuntimeException('A conversion needs at least one contact person.');
+        }
+
+        return $people;
     }
 
     private function contact(Lead $lead, LeadConversionData $data, User $actor, Account $account, ?int $ownerId): Contact

@@ -29,131 +29,59 @@
     </div>
 
     <form wire:submit="convert" class="space-y-6">
-        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
-            <h2 class="text-base font-semibold text-foreground">The organisation</h2>
-            <p class="mt-1 text-sm text-muted-foreground">
-                @if ($lead->account_id !== null && $accountMatches === [])
-                    The lead is linked to an account on file, so it is joined.
-                @elseif ($accountMatches === [])
-                    Nothing on file matches, so a new account is created.
-                @else
-                    {{ count($accountMatches) }} {{ Str::plural('account', count($accountMatches)) }}
-                    already {{ count($accountMatches) === 1 ? 'looks' : 'look' }} like this one. Joining
-                    an existing account is better than starting a second copy of it.
-                @endif
-            </p>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <div wire:key="convert-account-{{ $accountId }}">
-                    <x-select
-                        name="accountId"
-                        label="Account"
-                        :options="$accounts"
-                        :selected="$accountId"
-                        placeholder="Create a new account — or search accounts…"
-                        search-method="searchAccounts"
-                        preload="focus"
-                        clearable
-                        :error="$errors->first('accountId')"
-                        hint="Clear it to create a new account instead."
-                        wire:model.live="accountId"
-                    />
-                </div>
-
-                @if (! $accountId)
-                    <div>
-                        <x-form.label for="accountName" required>New account name</x-form.label>
-                        <x-form.input id="accountName" wire:model="accountName" :invalid="$errors->has('accountName')" />
-                        <x-form.error for="accountName" />
-                    </div>
-                @endif
-            </div>
-
+        <x-lead-people
+            :form="$this"
+            :suggested-accounts="$this->suggestedAccountIds()"
+            :suggested-contacts="$this->suggestedContactIds()"
+            :account-intro="$accountMatches === []
+                ? 'Pick an account on file, or check the new account below — it is created from these fields.'
+                : count($accountMatches).' '.Str::plural('account', count($accountMatches)).' on file already '.(count($accountMatches) === 1 ? 'looks' : 'look').' like this one. Joining an existing account is better than starting a second copy of it.'"
+            new-account-hint="Filled in from the lead. Change anything before converting."
+            contacts-intro="Pick people on file, or check the new people below — each is created from its own fields. The first person is the deal's contact; the others join the account too."
+        >
             @if ($accountMatches !== [])
-                <ul class="mt-3 space-y-1">
-                    @foreach ($accountMatches as $match)
-                        <li class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <a href="{{ route('accounts.show', $match->record) }}" wire:navigate class="font-medium text-accent hover:underline">
-                                {{ $match->record->name }}
-                            </a>
-                            <span>&mdash; {{ $match->summary() }}</span>
-                            @if ($match->confidence())
-                                <x-status-chip :color="$match->confidence()->color()" dot>
-                                    {{ $match->confidence()->shortLabel() }}
-                                </x-status-chip>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-        </section>
-
-        <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
-            <h2 class="text-base font-semibold text-foreground">The person</h2>
-            <p class="mt-1 text-sm text-muted-foreground">
-                @if ($lead->contact_id !== null && $contactMatches === [])
-                    The lead is linked to somebody on file, so they are used.
-                @elseif ($contactMatches === [])
-                    Nothing on file matches, so a contact is created from the lead's details.
-                @else
-                    Somebody on file already looks like {{ $lead->fullName() }}.
-                @endif
-            </p>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <div wire:key="convert-contact-{{ $contactId }}">
-                    <x-select
-                        name="contactId"
-                        label="Contact"
-                        :options="$contacts"
-                        :selected="$contactId"
-                        placeholder="Create a new contact — or search contacts…"
-                        search-method="searchContacts"
-                        preload="focus"
-                        clearable
-                        :error="$errors->first('contactId')"
-                        hint="Clear it to create a new contact instead."
-                        wire:model.live="contactId"
-                    />
-                </div>
-            </div>
-
-            @if (! $contactId)
-                <h3 class="mt-5 text-sm font-medium text-foreground">New person name</h3>
-
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <x-form.label for="contactFirstName" required>First name</x-form.label>
-                        <x-form.input id="contactFirstName" wire:model="contactFirstName" :invalid="$errors->has('contactFirstName')" />
-                        <x-form.error for="contactFirstName" />
-                    </div>
-
-                    <div>
-                        <x-form.label for="contactLastName" required>Last name</x-form.label>
-                        <x-form.input id="contactLastName" wire:model="contactLastName" :invalid="$errors->has('contactLastName')" />
-                        <x-form.error for="contactLastName" />
-                    </div>
-                </div>
+                <x-slot:account-extra>
+                    <ul class="mt-3 space-y-1">
+                        @foreach ($accountMatches as $match)
+                            <li class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                <a href="{{ route('accounts.show', $match->record) }}" wire:navigate class="font-medium text-accent hover:underline">
+                                    {{ $match->record->name }}
+                                </a>
+                                <span>&mdash; {{ $match->summary() }}</span>
+                                @if ($match->confidence())
+                                    <x-status-chip :color="$match->confidence()->color()" dot>
+                                        {{ $match->confidence()->shortLabel() }}
+                                    </x-status-chip>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </x-slot:account-extra>
             @endif
 
             @if ($contactMatches !== [])
-                <ul class="mt-3 space-y-1">
-                    @foreach ($contactMatches as $match)
-                        <li class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <a href="{{ route('contacts.show', $match->record) }}" wire:navigate class="font-medium text-accent hover:underline">
-                                {{ $match->record->fullName() }}
-                            </a>
-                            <span>&mdash; {{ $match->summary() }}</span>
-                            @if ($match->confidence())
-                                <x-status-chip :color="$match->confidence()->color()" dot>
-                                    {{ $match->confidence()->shortLabel() }}
-                                </x-status-chip>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
+                <x-slot:contacts-extra>
+                    <div class="rounded-lg border border-dashed border-border p-3">
+                        <p class="text-sm text-muted-foreground">Somebody on file already looks like {{ $lead->fullName() }}:</p>
+                        <ul class="mt-2 space-y-1">
+                            @foreach ($contactMatches as $match)
+                                <li class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                    <a href="{{ route('contacts.show', $match->record) }}" wire:navigate class="font-medium text-accent hover:underline">
+                                        {{ $match->record->fullName() }}
+                                    </a>
+                                    <span>&mdash; {{ $match->summary() }}</span>
+                                    @if ($match->confidence())
+                                        <x-status-chip :color="$match->confidence()->color()" dot>
+                                            {{ $match->confidence()->shortLabel() }}
+                                        </x-status-chip>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </x-slot:contacts-extra>
             @endif
-        </section>
+        </x-lead-people>
 
         <section class="rounded-xl border border-border bg-card p-5 sm:p-6">
             <div class="flex flex-wrap items-start justify-between gap-3">

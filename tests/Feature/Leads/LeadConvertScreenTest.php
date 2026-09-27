@@ -80,7 +80,10 @@ test('the form is filled in from the lead', function () {
 
     Livewire::actingAs($user)
         ->test(LeadConvert::class, ['lead' => $lead])
-        ->assertSet('accountName', 'Acme Industries')
+        ->assertSet('new_account_name', 'Acme Industries')
+        ->assertSet('new_account_email', 'dara@acme.test')
+        ->assertSet('contacts.0.first_name', 'Dara')
+        ->assertSet('contacts.0.email', 'dara@acme.test')
         ->assertSet('dealName', 'Acme Industries opportunity')
         ->assertSet('dealValue', '45000.00')
         ->assertSet('ownerId', (string) $user->id)
@@ -95,7 +98,7 @@ test('accounts that already look like the lead are offered instead of a second c
     $component = Livewire::actingAs($user)->test(LeadConvert::class, ['lead' => $lead]);
 
     expect(collect($component->instance()->searchAccounts()['options'])->first()['value'])->toBe((string) $existing->id)
-        ->and(collect($component->viewData('accounts'))->pluck('value')->all())->toContain((string) $existing->id);
+        ->and(collect($component->instance()->peopleOptions($component->instance()->suggestedAccountIds())['accounts'])->pluck('value')->all())->toContain((string) $existing->id);
 
     $component->assertSee('Acme Industries Ltd');
 });
@@ -117,7 +120,7 @@ test('a record outside the viewer access level is never offered', function () {
 
     $component = Livewire::actingAs($user)->test(LeadConvert::class, ['lead' => $lead]);
 
-    expect($component->viewData('accounts'))->toBe([])
+    expect($component->instance()->peopleOptions($component->instance()->suggestedAccountIds())['accounts'])->toBe([])
         ->and($component->instance()->searchAccounts('Acme')['options'])->toBe([]);
 });
 
@@ -159,9 +162,9 @@ test('a new account needs a name', function () {
 
     Livewire::actingAs($user)
         ->test(LeadConvert::class, ['lead' => $lead])
-        ->set('accountName', '')
+        ->set('new_account_name', '')
         ->call('convert')
-        ->assertHasErrors('accountName');
+        ->assertHasErrors('new_account_name');
 
     expect(Account::query()->count())->toBe(0);
 });
@@ -185,9 +188,9 @@ test('an account somebody cannot reach cannot be chosen, however the id arrives'
     // "exists" proves a record is real, never that this person may reach it.
     Livewire::actingAs($user)
         ->test(LeadConvert::class, ['lead' => $lead])
-        ->set('accountId', (string) $theirs->id)
+        ->set('account_id', (string) $theirs->id)
         ->call('convert')
-        ->assertHasErrors('accountId');
+        ->assertHasErrors('account_id');
 
     expect($lead->fresh()->isConverted())->toBeFalse();
 });
@@ -199,9 +202,9 @@ test('a contact somebody cannot reach cannot be chosen either', function () {
 
     Livewire::actingAs($user)
         ->test(LeadConvert::class, ['lead' => $lead])
-        ->set('contactId', (string) $theirs->id)
+        ->set('contacts.0.contact_id', (string) $theirs->id)
         ->call('convert')
-        ->assertHasErrors('contactId');
+        ->assertHasErrors('contacts.0.contact_id');
 });
 
 test('an unqualified lead is turned away with a reason rather than a crash', function () {

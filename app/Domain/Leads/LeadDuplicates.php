@@ -3,6 +3,7 @@
 namespace App\Domain\Leads;
 
 use App\Domain\Activities\ActivityRelations;
+use App\Domain\Leads\Actions\SyncLeadContactsAction;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Shared\Duplicates\DuplicateSource;
@@ -166,6 +167,17 @@ class LeadDuplicates implements DuplicateSource
                     'assigned_at' => $assignee->assigned_at,
                 ]);
             }
+        }
+
+        if ($survivor instanceof Lead && $loser instanceof Lead) {
+            // The people linked to either lead stay linked to the survivor:
+            // the survivor's first, then the duplicate's that it lacks.
+            $people = [
+                ...$survivor->contacts()->pluck('contacts.id')->all(),
+                ...$loser->contacts()->pluck('contacts.id')->all(),
+            ];
+
+            app(SyncLeadContactsAction::class)->handle($survivor, $people);
         }
 
         // A lead's status is not a mergeable field, so nothing here can have

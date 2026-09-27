@@ -46,26 +46,38 @@ A lead is usually somebody nobody has matched to an account yet, so the
 organisation stays free text with an index on it. Conversion is where the
 account gets created.
 
-A lead from an existing customer can also be linked on the form to an account
-and a contact (`leads.account_id` / `leads.contact_id`, both nullable,
-nullOnDelete). They are not `converted_account_id` / `converted_contact_id`:
-those record what a conversion produced, these what somebody said beforehand.
-`LeadConvert` starts its pickers on them, so conversion joins them unless the
-operator clears the picker; `ConvertLeadAction` itself does not read them.
+A lead can also be linked to one account (`leads.account_id`, nullable,
+nullOnDelete) and **any number of contacts** (`lead_contacts` pivot, model
+`LeadContact`, ordered by `position`, written only by `SyncLeadContactsAction`
+— the single `leads.contact_id` column was replaced by it). These are not
+`converted_account_id` / `converted_contact_id`: those record what a conversion
+produced, these what somebody said beforehand. `LeadConvert` starts on the
+account and the first linked contact, and conversion moves the other linked
+contacts with no account into the account the lead becomes.
 
-- `LeadData` writes them only when the key is present (`setsAccount` /
-  `setsContact`), like campaign and lead owner, so ingestion and the API never
-  wipe a link somebody set in the app.
+- `LeadData` writes `account_id` only when the key is present (`setsAccount`),
+  and `contact_ids` null means "leave the set alone", so ingestion and the API
+  never wipe links somebody set in the app. Lead merges union both leads'
+  contacts in `LeadDuplicates::afterMerge()`.
 - The pickers (`Concerns\PicksAccountAndContact`) search on the server across
-  everything the viewer can see, and every chosen id is re-read through
+  everything the viewer can see, and every newly chosen id is re-read through
   `visibleTo()` before it is saved — `exists` proves a record is real, not
   reachable.
-- `LeadForm` can also create them on save: a filled `new_account_name` /
-  `new_contact_first_name`+`new_contact_last_name` (only while nothing is
-  linked, only with `accounts.create` / `contacts.create`) creates the record
-  from the lead's details inside the same transaction as the lead, and links
-  it. Blank means nothing is created until conversion. These are separate from
-  the lead's own first/last name and company in the Person section.
+- `LeadForm` can create them on save from **their own fields**, never the
+  lead's: `new_account_*` (name required once anything is filled; needs
+  `accounts.create`) and one `contacts[]` row per person with its own first/last
+  name, job title, email, phone, mobile (needs `contacts.create`; "Add another
+  person"). Empty rows are ignored. Created in the same transaction as the lead.
+  The organisation and contact-person sections sit at the end of the form.
+- The lead form and the convert page share all of this: `Concerns\EditsLeadPeople`
+  (fields, rules, `guardPeople()`), the `<x-lead-people :form="$this" />`
+  component, and `ResolveLeadPeopleAction` (picks or creates the account and
+  people from their own fields). On the convert page the new fields start
+  filled from the lead and stay editable, an account and at least one person
+  are required, the first person is the deal's contact, and creating them needs
+  only `leads.convert` (`LeadConvert` overrides `canCreateAccount/Contact`).
+  `LeadConversionData::$newAccount` / `$people` carry this; when null (API,
+  older callers) `ConvertLeadAction` keeps building from the lead's details.
 - "Create a new one" is the picker's empty/clearable state, never an option
   with value `''`: Tom Select drops empty-value options, which is what once left
   the convert page's dropdowns blank.

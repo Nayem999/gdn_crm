@@ -16,6 +16,9 @@ readonly class LeadData
      *                                                                           rather than treated as "unassign everybody";
      *                                                                           removing the last assignee is its own,
      *                                                                           deliberate action.
+     * @param  array<int, int>|null  $contactIds  the people on file linked to the lead, in
+     *                                            order; null leaves the set alone, an empty
+     *                                            array unlinks everybody
      */
     public function __construct(
         public string $firstName,
@@ -42,8 +45,7 @@ readonly class LeadData
         public bool $setsLeadOwner = false,
         public ?int $accountId = null,
         public bool $setsAccount = false,
-        public ?int $contactId = null,
-        public bool $setsContact = false,
+        public ?array $contactIds = null,
     ) {}
 
     /**
@@ -82,8 +84,9 @@ readonly class LeadData
             setsLeadOwner: array_key_exists('lead_owner_id', $attributes),
             accountId: ($attributes['account_id'] ?? '') === '' ? null : (int) $attributes['account_id'],
             setsAccount: array_key_exists('account_id', $attributes),
-            contactId: ($attributes['contact_id'] ?? '') === '' ? null : (int) $attributes['contact_id'],
-            setsContact: array_key_exists('contact_id', $attributes),
+            contactIds: is_array($attributes['contact_ids'] ?? null)
+                ? array_values(array_map('intval', $attributes['contact_ids']))
+                : null,
         );
     }
 
@@ -94,10 +97,11 @@ readonly class LeadData
      * Assignees are absent too: they live in their own table, written by
      * SyncLeadAssigneesAction rather than a column on this one.
      *
-     * The campaign, the lead owner and the linked account and contact are
-     * written only when the caller sent them: capture forms, ingestion and
+     * The campaign, the lead owner and the linked account are written only
+     * when the caller sent them: capture forms, ingestion and
      * Meta updates carry none of those keys, and treating that as "clear it"
-     * would wipe what somebody set in the app.
+     * would wipe what somebody set in the app. Linked people live in
+     * lead_contacts, written by SyncLeadContactsAction.
      *
      * @return array<string, mixed>
      */
@@ -106,13 +110,11 @@ readonly class LeadData
         $campaign = $this->setsCampaign ? ['campaign_id' => $this->campaignId] : [];
         $owner = $this->setsLeadOwner ? ['lead_owner_id' => $this->leadOwnerId] : [];
         $account = $this->setsAccount ? ['account_id' => $this->accountId] : [];
-        $contact = $this->setsContact ? ['contact_id' => $this->contactId] : [];
 
         return [
             ...$campaign,
             ...$owner,
             ...$account,
-            ...$contact,
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
             'job_title' => $this->jobTitle,

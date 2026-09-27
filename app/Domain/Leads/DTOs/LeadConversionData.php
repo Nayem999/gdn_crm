@@ -12,6 +12,16 @@ namespace App\Domain\Leads\DTOs;
  */
 readonly class LeadConversionData
 {
+    /**
+     * @param  array{name?: ?string, email?: ?string, phone?: ?string, website?: ?string}|null  $newAccount
+     *                                                                                                       the new account's own details, from the convert page. Null keeps
+     *                                                                                                       the older behaviour of building it from the lead.
+     * @param  array<int, array<string, mixed>>|null  $people
+     *                                                         the contact persons, each picked (contact_id) or
+     *                                                         described on its own fields; the first becomes the
+     *                                                         deal's contact. Null keeps the single contactId /
+     *                                                         lead-details behaviour.
+     */
     public function __construct(
         /** Link to this account instead of creating one. */
         public ?int $accountId = null,
@@ -32,6 +42,9 @@ readonly class LeadConversionData
 
         /** Who owns the three new records. Defaults to the lead's own owner. */
         public ?int $ownerId = null,
+
+        public ?array $newAccount = null,
+        public ?array $people = null,
     ) {}
 
     /**
@@ -60,6 +73,8 @@ readonly class LeadConversionData
             dealValue: $value('deal_value'),
             dealCloseDate: $value('deal_close_date'),
             ownerId: $id('owner_id'),
+            newAccount: is_array($attributes['new_account'] ?? null) ? $attributes['new_account'] : null,
+            people: is_array($attributes['people'] ?? null) ? array_values($attributes['people']) : null,
         );
     }
 }

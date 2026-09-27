@@ -6,7 +6,7 @@
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-foreground">
-                {{ $productId ? 'Edit product' : 'Add product' }}
+                {{ $productId ? 'Edit product / service' : 'Add product / service' }}
             </h1>
             <p class="mt-1 text-sm text-muted-foreground">
                 What it is, what it costs, and what it lists at.
@@ -19,7 +19,7 @@
             class="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
         >
             <x-icon name="lucide-arrow-left" />
-            Catalogue
+            Product / Service
         </a>
     </div>
 

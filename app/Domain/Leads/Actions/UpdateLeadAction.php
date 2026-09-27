@@ -12,6 +12,7 @@ class UpdateLeadAction
     public function __construct(
         private readonly ScoreLeadAction $scoreLead,
         private readonly SyncLeadAssigneesAction $syncAssignees,
+        private readonly SyncLeadContactsAction $syncContacts,
         private readonly AnnounceLeadAssignmentAction $announce,
     ) {}
 
@@ -44,6 +45,11 @@ class UpdateLeadAction
             // it was rather than read back in just to hand unchanged.
             if ($data->assignees !== null) {
                 $this->syncAssignees->handle($lead, $data->assignees);
+            }
+
+            // Null, again, is "no opinion": ingestion never unlinks people.
+            if ($data->contactIds !== null) {
+                $this->syncContacts->handle($lead, $data->contactIds);
             }
         });
 

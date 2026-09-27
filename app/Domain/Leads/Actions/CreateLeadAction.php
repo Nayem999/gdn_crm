@@ -13,6 +13,7 @@ class CreateLeadAction
     public function __construct(
         private readonly ScoreLeadAction $scoreLead,
         private readonly SyncLeadAssigneesAction $syncAssignees,
+        private readonly SyncLeadContactsAction $syncContacts,
         private readonly AnnounceLeadAssignmentAction $announce,
     ) {}
 
@@ -42,6 +43,10 @@ class CreateLeadAction
             // how visibility scoping springs a leak. Falling back to the
             // acting user mirrors what owner_id used to do.
             $this->syncAssignees->handle($lead, $data->assignees ?? [['user_id' => $actor->id, 'priority' => null]]);
+
+            if ($data->contactIds !== null) {
+                $this->syncContacts->handle($lead, $data->contactIds);
+            }
 
             return $lead;
         });

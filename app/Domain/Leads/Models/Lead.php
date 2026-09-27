@@ -58,7 +58,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $campaign_id
  * @property int|null $lead_owner_id
  * @property int|null $account_id
- * @property int|null $contact_id
  * @property Carbon|null $converted_at
  * @property int|null $converted_account_id
  * @property int|null $converted_contact_id
@@ -107,7 +106,6 @@ class Lead extends Model
         'campaign_id',
         'lead_owner_id',
         'account_id',
-        'contact_id',
     ];
 
     /**
@@ -241,13 +239,18 @@ class Lead extends Model
     }
 
     /**
-     * The person on file this lead is, if somebody linked one.
+     * The people on file this lead is linked to, in the order they were
+     * listed. Written only by SyncLeadContactsAction.
      *
-     * @return BelongsTo<Contact, $this>
+     * @return BelongsToMany<Contact, $this, LeadContact>
      */
-    public function contact(): BelongsTo
+    public function contacts(): BelongsToMany
     {
-        return $this->belongsTo(Contact::class);
+        return $this->belongsToMany(Contact::class, 'lead_contacts')
+            ->using(LeadContact::class)
+            ->withPivot(['id', 'position'])
+            ->withTimestamps()
+            ->orderByPivot('position');
     }
 
     /**

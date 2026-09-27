@@ -5,7 +5,7 @@
                 <x-icon name="lucide-package" class="h-5 w-5" />
             </span>
             <div>
-                <h1 class="text-2xl font-semibold text-foreground">Products</h1>
+                <h1 class="text-2xl font-semibold text-foreground">Product / Service</h1>
                 <p class="mt-1 text-sm text-muted-foreground">What you sell, what it costs, and what you charge for it.</p>
             </div>
         </div>
@@ -29,7 +29,7 @@
                     class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
                 >
                     <x-icon name="lucide-plus" />
-                    Add product
+                    Add product / service
                 </a>
             @endcan
         </div>
@@ -73,7 +73,7 @@
     <x-data-view
         :view="$this"
         :records="$this->rows"
-        search-placeholder="Search products…"
+        search-placeholder="Search products and services…"
         empty-icon="package"
         empty-heading="Nothing in the catalogue yet"
         empty-description="Add the products and services you sell, then set what you charge for them."
@@ -83,7 +83,7 @@
                 <a href="{{ route('products.create') }}" wire:navigate
                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
                     <x-icon name="lucide-plus" />
-                    Add your first product
+                    Add your first product / service
                 </a>
             @endcan
         </x-slot:empty-actions>

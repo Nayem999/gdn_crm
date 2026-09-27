@@ -201,8 +201,10 @@ class ConvertLeadAction
         }
 
         return ($this->createContact)(new ContactData(
-            firstName: $lead->first_name,
-            lastName: $lead->last_name,
+            // The name given on the convert page for the new person, when
+            // somebody typed one; the lead's own name otherwise.
+            firstName: trim((string) ($data->contactFirstName ?? '')) !== '' ? trim((string) $data->contactFirstName) : $lead->first_name,
+            lastName: trim((string) ($data->contactLastName ?? '')) !== '' ? trim((string) $data->contactLastName) : $lead->last_name,
             jobTitle: $lead->job_title,
             email: $lead->email,
             phone: $lead->phone,

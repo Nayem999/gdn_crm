@@ -41,10 +41,34 @@ nothing can be moved into it and a converted lead cannot be moved out. Task
 one caller. Do not widen `force()` into a general escape hatch, and do not add
 `Converted` to a transition list to make a form work.
 
-## company_name is a string on purpose
-A lead is somebody nobody has matched to an account yet, so the organisation is
-free text with an index on it, not an `accounts` foreign key. Conversion is
-where the account gets created.
+## company_name is a string on purpose; account_id/contact_id are optional links
+A lead is usually somebody nobody has matched to an account yet, so the
+organisation stays free text with an index on it. Conversion is where the
+account gets created.
+
+A lead from an existing customer can also be linked on the form to an account
+and a contact (`leads.account_id` / `leads.contact_id`, both nullable,
+nullOnDelete). They are not `converted_account_id` / `converted_contact_id`:
+those record what a conversion produced, these what somebody said beforehand.
+`LeadConvert` starts its pickers on them, so conversion joins them unless the
+operator clears the picker; `ConvertLeadAction` itself does not read them.
+
+- `LeadData` writes them only when the key is present (`setsAccount` /
+  `setsContact`), like campaign and lead owner, so ingestion and the API never
+  wipe a link somebody set in the app.
+- The pickers (`Concerns\PicksAccountAndContact`) search on the server across
+  everything the viewer can see, and every chosen id is re-read through
+  `visibleTo()` before it is saved — `exists` proves a record is real, not
+  reachable.
+- `LeadForm` can also create them on save: a filled `new_account_name` /
+  `new_contact_first_name`+`new_contact_last_name` (only while nothing is
+  linked, only with `accounts.create` / `contacts.create`) creates the record
+  from the lead's details inside the same transaction as the lead, and links
+  it. Blank means nothing is created until conversion. These are separate from
+  the lead's own first/last name and company in the Person section.
+- "Create a new one" is the picker's empty/clearable state, never an option
+  with value `''`: Tom Select drops empty-value options, which is what once left
+  the convert page's dropdowns blank.
 
 ## Email or phone, not both required
 `LeadForm` uses `required_without` in both directions: a lead captured from a

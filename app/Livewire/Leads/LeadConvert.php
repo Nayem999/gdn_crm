@@ -7,6 +7,7 @@ use App\Domain\Accounts\Models\Account;
 use App\Domain\Contacts\ContactDuplicates;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Leads\Actions\ConvertLeadAction;
+use App\Domain\Leads\Concerns\PicksAccountAndContact;
 use App\Domain\Leads\DTOs\LeadConversionData;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Shared\Duplicates\DuplicateFinder;
@@ -24,12 +25,15 @@ use RuntimeException;
  *
  * The screen's job is to let somebody link to records that already exist rather
  * than start second copies of them, so the 2.5 matcher runs over the lead's
- * company name and email and offers what it finds.
+ * company name and email and offers what it finds. Both pickers still search
+ * everything the operator can see, with those look-alikes first, and start on
+ * whatever the lead was already linked to on its form.
  */
 #[Title('Convert lead')]
 class LeadConvert extends Component
 {
     use AuthorizesRequests;
+    use PicksAccountAndContact;
 
     #[Locked]
     public int $leadId;
@@ -42,6 +46,15 @@ class LeadConvert extends Component
     public string $accountName = '';
 
     public ?string $contactId = null;
+
+    /**
+     * The new person's name, when no existing contact is chosen. Prefilled
+     * from the lead and editable, since a lead's name is often a nickname or
+     * a chat handle.
+     */
+    public string $contactFirstName = '';
+
+    public string $contactLastName = '';
 
     public bool $createDeal = true;
 
@@ -58,6 +71,10 @@ class LeadConvert extends Component
         $this->authorize('convert', $lead);
 
         $this->leadId = $lead->id;
+        $this->accountId = $lead->account_id !== null ? (string) $lead->account_id : null;
+        $this->contactId = $lead->contact_id !== null ? (string) $lead->contact_id : null;
+        $this->contactFirstName = (string) $lead->first_name;
+        $this->contactLastName = (string) $lead->last_name;
         $this->accountName = (string) ($lead->company_name ?? $lead->fullName());
         $this->dealName = $this->accountName.' opportunity';
         $this->dealValue = $lead->estimated_value;
@@ -130,35 +147,32 @@ class LeadConvert extends Component
     }
 
     /**
-     * @return array<string, string>
+     * @return array<int, int>
      */
-    public function accountOptions(): array
+    protected function suggestedAccountIds(): array
     {
-        $options = ['' => 'Create a new account'];
-
-        foreach ($this->accountMatches() as $match) {
-            /** @var Account $account */
-            $account = $match->record;
-            $options[(string) $account->id] = $account->name;
-        }
-
-        return $options;
+        return array_map(fn (DuplicateMatch $match): int => (int) $match->record->getKey(), $this->accountMatches());
     }
 
     /**
-     * @return array<string, string>
+     * @return array<int, int>
      */
-    public function contactOptions(): array
+    protected function suggestedContactIds(): array
     {
-        $options = ['' => 'Create a new contact'];
+        return array_map(fn (DuplicateMatch $match): int => (int) $match->record->getKey(), $this->contactMatches());
+    }
 
-        foreach ($this->contactMatches() as $match) {
-            /** @var Contact $contact */
-            $contact = $match->record;
-            $options[(string) $contact->id] = $contact->fullName();
+    /**
+     * Choosing somebody on file whose account is known picks that account too,
+     * unless one is already chosen.
+     */
+    public function updatedContactId(): void
+    {
+        $contact = $this->visibleContact($this->contactId);
+
+        if ($contact !== null && $contact->account_id !== null && ($this->accountId === null || $this->accountId === '')) {
+            $this->accountId = (string) $contact->account_id;
         }
-
-        return $options;
     }
 
     // -- Converting -------------------------------------------------------------
@@ -170,11 +184,25 @@ class LeadConvert extends Component
     {
         return [
             'accountName' => ['required_without:accountId', 'nullable', 'string', 'max:255'],
+            'contactFirstName' => ['required_without:contactId', 'nullable', 'string', 'max:255'],
+            'contactLastName' => ['required_without:contactId', 'nullable', 'string', 'max:255'],
             'dealName' => ['nullable', 'string', 'max:255'],
             // Matches the DECIMAL(15,2) column, so MySQL cannot silently truncate.
             'dealValue' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'dealCloseDate' => ['nullable', 'date'],
             'ownerId' => ['nullable', 'integer', 'exists:users,id'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'accountName' => 'new account name',
+            'contactFirstName' => 'first name',
+            'contactLastName' => 'last name',
         ];
     }
 
@@ -207,6 +235,8 @@ class LeadConvert extends Component
                 accountId: $accountId,
                 accountName: $this->accountName,
                 contactId: $contactId,
+                contactFirstName: $this->contactFirstName,
+                contactLastName: $this->contactLastName,
                 createDeal: $this->createDeal,
                 dealName: $this->dealName,
                 dealValue: $this->dealValue,
@@ -230,8 +260,8 @@ class LeadConvert extends Component
     {
         return view('livewire.leads.lead-convert', [
             'lead' => $this->lead(),
-            'accounts' => $this->accountOptions(),
-            'contacts' => $this->contactOptions(),
+            'accounts' => $this->accountPickerOptions($this->accountId, $this->suggestedAccountIds()),
+            'contacts' => $this->contactPickerOptions($this->contactId, $this->suggestedContactIds()),
             'owners' => $this->ownerOptions(),
         ]);
     }

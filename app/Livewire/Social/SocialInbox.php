@@ -69,6 +69,12 @@ class SocialInbox extends Component
     public string $reply = '';
 
     /**
+     * Which of the chat's records a note or task goes on, as "lead:12" or
+     * "contact:3". Blank means the first of them.
+     */
+    public string $recordKey = '';
+
+    /**
      * The template chosen for a conversation whose window has closed, and the
      * values its placeholders need.
      */
@@ -101,6 +107,7 @@ class SocialInbox extends Component
     {
         $this->conversation = $conversationId;
         $this->reply = '';
+        $this->recordKey = '';
         $this->error = null;
         $this->notice = null;
 
@@ -247,7 +254,7 @@ class SocialInbox extends Component
 
         $this->authorize('assign', $conversation);
 
-        $subject = $conversation->subject();
+        $subject = $this->targetRecord($conversation);
         $body = trim($this->note);
 
         if ($subject === null) {
@@ -274,10 +281,10 @@ class SocialInbox extends Component
 
         $this->authorize('assign', $conversation);
 
-        $subject = $conversation->subject();
+        $subject = $this->targetRecord($conversation);
 
         if ($subject === null) {
-            $this->error = 'Create a lead first — a task belongs to a record.';
+            $this->error = 'Convert it to a lead first — a task belongs to a record.';
 
             return;
         }
@@ -385,6 +392,7 @@ class SocialInbox extends Component
             'conversations' => $this->conversations(),
             'selected' => $selected,
             'subject' => $selected?->subject(),
+            'records' => $selected === null ? [] : $this->chatRecords($selected),
             'waiting' => $this->waitingCount(),
             // Only WhatsApp has templates; Messenger's way past a closed window
             // is a message tag, which is not something an agent picks from a
@@ -441,6 +449,51 @@ class SocialInbox extends Component
             ->with('campaign')
             ->where('meta_ad_id', $referral->adId)
             ->first()?->campaign?->name;
+    }
+
+    /**
+     * Every record this chat is about, that the viewer can see: the contact or
+     * lead it is linked to, then the leads converted from it, newest first.
+     * A link to a record since deleted simply drops out.
+     *
+     * @return array<string, Lead|Contact>
+     */
+    public function chatRecords(SocialConversation $conversation): array
+    {
+        $records = [];
+        $subject = $conversation->subject();
+
+        if ($subject !== null) {
+            $records[$this->recordKeyFor($subject)] = $subject;
+        }
+
+        $leads = Lead::query()
+            ->visibleTo(auth()->user())
+            ->fromConversation($conversation)
+            ->latest('leads.id')
+            ->get();
+
+        foreach ($leads as $lead) {
+            $records[$this->recordKeyFor($lead)] ??= $lead;
+        }
+
+        return $records;
+    }
+
+    public function recordKeyFor(Lead|Contact $record): string
+    {
+        return ($record instanceof Contact ? 'contact' : 'lead').':'.$record->getKey();
+    }
+
+    /**
+     * The record a note or task goes on: the one picked, when it is still one
+     * of the chat's, otherwise the first of them.
+     */
+    private function targetRecord(SocialConversation $conversation): Lead|Contact|null
+    {
+        $records = $this->chatRecords($conversation);
+
+        return $records[$this->recordKey] ?? (reset($records) ?: null);
     }
 
     public function subjectRoute(Lead|Contact|null $subject): ?string

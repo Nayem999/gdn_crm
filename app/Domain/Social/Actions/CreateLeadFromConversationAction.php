@@ -98,7 +98,8 @@ class CreateLeadFromConversationAction
     /**
      * Tie a lead to the chat it came from: the attribution the conversation
      * kept (the advertisement, when there was one), the lead's own pointer
-     * back to the chat, and the chat's link to the lead when it has none yet.
+     * back to the chat, and the chat's link to the lead when it has none yet
+     * (or its linked record has been deleted).
      */
     public function link(Lead $lead, SocialConversation $conversation, ?Carbon $capturedAt = null): void
     {
@@ -120,7 +121,9 @@ class CreateLeadFromConversationAction
 
         $lead->forceFill(['social_conversation_id' => $conversation->getKey()])->save();
 
-        if (! $conversation->isLinked()) {
+        // Linked when it has nobody — or only somebody since deleted, whose
+        // id would otherwise keep the chat pointing at nothing.
+        if ($conversation->subject() === null) {
             $conversation->forceFill(['lead_id' => $lead->getKey()])->save();
         }
     }

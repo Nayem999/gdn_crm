@@ -3,6 +3,7 @@
 namespace App\Domain\CustomModules;
 
 use App\Domain\CustomModules\Models\CustomRecord;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -72,7 +73,7 @@ class CustomRecordExportSource implements DataViewExportSource
         /** @var CustomRecord $record */
         return array_map(fn (string $key) => match ($key) {
             'owner' => $record->owner?->name,
-            'created_at' => $record->created_at?->format('Y-m-d'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             // Custom field cells are filled by DataViewExport, which is where
             // every module's are — see .ai/rules/custom-fields.md.
             default => $record->getAttribute($key),

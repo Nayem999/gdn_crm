@@ -187,7 +187,7 @@ class TicketsIndex extends Component
      */
     private function moment(?CarbonInterface $moment): string|HtmlString
     {
-        return $moment === null ? $this->blank() : DisplayTime::display($moment)->format('j M Y, H:i');
+        return $moment === null ? $this->blank() : DisplayTime::dateTime($moment);
     }
 
     /**

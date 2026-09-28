@@ -4,6 +4,7 @@ namespace App\Domain\Reports\Models;
 
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\Reports\Enums\ScheduleFrequency;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Enums\ExportFormat;
 use App\Models\User;
 use Database\Factories\ReportScheduleFactory;
@@ -165,11 +166,12 @@ class ReportSchedule extends Model
     }
 
     /**
-     * A short phrase for a screen: "Every week on Monday at 08:00".
+     * A short phrase for a screen: "Every week on Monday at 8:00 AM", in the
+     * office's time format.
      */
     public function summary(): string
     {
-        $at = str_pad((string) $this->hour, 2, '0', STR_PAD_LEFT).':00';
+        $at = Carbon::createFromTime((int) $this->hour)->format(DisplayTime::timeFormat());
 
         return match ($this->frequency()) {
             ScheduleFrequency::Daily => 'Every day at '.$at,

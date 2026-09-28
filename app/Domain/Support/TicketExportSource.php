@@ -2,6 +2,7 @@
 
 namespace App\Domain\Support;
 
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -73,9 +74,9 @@ class TicketExportSource implements DataViewExportSource
             // Minutes, and a number rather than a phrase: a column of
             // "3.5 h overdue" cannot be averaged. Negative means late.
             'sla' => app(SlaClock::class)->minutesRemaining($record, SlaClock::RESOLUTION),
-            'created_at' => $record->created_at?->format('Y-m-d H:i'),
-            'resolved_at' => $record->resolved_at?->format('Y-m-d H:i'),
-            'closed_at' => $record->closed_at?->format('Y-m-d H:i'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d H:i') : null,
+            'resolved_at' => $record->resolved_at ? DisplayTime::display($record->resolved_at)->format('Y-m-d H:i') : null,
+            'closed_at' => $record->closed_at ? DisplayTime::display($record->closed_at)->format('Y-m-d H:i') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

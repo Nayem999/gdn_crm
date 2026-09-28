@@ -180,7 +180,7 @@
 
                             <p class="mt-1 text-xs text-muted-foreground">
                                 @if ($schedule->next_run_at)
-                                    Next {{ \App\Domain\Settings\DisplayTime::display($schedule->next_run_at)->format('j M Y, H:i') }}
+                                    Next {{ \App\Domain\Settings\DisplayTime::dateTime($schedule->next_run_at) }}
                                 @else
                                     Not scheduled
                                 @endif

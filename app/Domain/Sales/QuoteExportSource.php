@@ -3,6 +3,7 @@
 namespace App\Domain\Sales;
 
 use App\Domain\Sales\Models\Quote;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -61,7 +62,7 @@ class QuoteExportSource implements DataViewExportSource
             'owner' => $record->owner?->name,
             'issue_date' => $record->issue_date->format('Y-m-d'),
             'valid_until' => $record->valid_until?->format('Y-m-d'),
-            'created_at' => $record->created_at?->format('Y-m-d'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

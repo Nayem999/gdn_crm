@@ -108,7 +108,7 @@
                 <section class="rounded-xl border border-emerald-300 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10 sm:p-6">
                     <h2 class="flex items-center gap-2 text-base font-semibold text-emerald-900 dark:text-emerald-200">
                         <x-icon name="lucide-circle-check-big" class="h-4 w-4" />
-                        Converted{{ $lead->converted_at ? ' on '.$lead->converted_at->format('j M Y') : '' }}
+                        Converted{{ $lead->converted_at ? ' on '.\App\Domain\Settings\DisplayTime::date($lead->converted_at) : '' }}
                     </h2>
 
                     <dl class="mt-4 grid gap-4 sm:grid-cols-3">
@@ -330,13 +330,13 @@
 
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-muted-foreground">Captured</dt>
-                        <dd class="mt-1 text-sm text-foreground">{{ $lead->created_at?->format('j M Y') }}</dd>
+                        <dd class="mt-1 text-sm text-foreground">{{ $lead->created_at ? \App\Domain\Settings\DisplayTime::date($lead->created_at) : '' }}</dd>
                     </div>
 
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-muted-foreground">Status changed</dt>
                         <dd class="mt-1 text-sm text-foreground">
-                            {{ $lead->status_changed_at?->format('j M Y') ?? '—' }}
+                            {{ $lead->status_changed_at ? \App\Domain\Settings\DisplayTime::date($lead->status_changed_at) : '—' }}
                         </dd>
                     </div>
                 </dl>

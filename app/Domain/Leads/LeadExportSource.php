@@ -4,6 +4,7 @@ namespace App\Domain\Leads;
 
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadAssignee;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -69,7 +70,7 @@ class LeadExportSource implements DataViewExportSource
             'days_in_status' => $record->daysInStatus(),
             // The number on its own says little outside the app.
             'score' => $record->score.' ('.$record->grade()->label().')',
-            'created_at' => $record->created_at?->format('Y-m-d'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

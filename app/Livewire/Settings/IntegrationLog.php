@@ -9,6 +9,7 @@ use App\Domain\Ingestion\IntegrationEventFields;
 use App\Domain\Ingestion\IntegrationHealth;
 use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Ingestion\Models\IntegrationEvent;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Concerns\ExportsDataView;
 use App\Domain\Shared\Concerns\WithDataView;
 use App\Domain\Shared\DataView\Column;
@@ -193,7 +194,7 @@ class IntegrationLog extends Component
                 ? $this->blank()
                 : new HtmlString('<span class="text-destructive">'.e(mb_substr($record->error, 0, 160)).'</span>'),
             'payload_size' => number_format($record->payloadBytes()).' B',
-            'processed_at' => $record->processed_at?->format('j M Y, H:i') ?? $this->blank(),
+            'processed_at' => ($record->processed_at ? DisplayTime::dateTime($record->processed_at) : $this->blank()),
             default => $this->defaultCellFor($record, $column),
         };
     }
@@ -203,7 +204,7 @@ class IntegrationLog extends Component
         return new HtmlString(
             '<button type="button" wire:click="inspect('.$record->id.')" '
             .'class="font-medium text-foreground hover:text-accent hover:underline">'
-            .e($record->received_at->format('j M Y, H:i:s')).'</button>'
+            .e(DisplayTime::dateTime($record->received_at)).'</button>'
         );
     }
 

@@ -124,7 +124,7 @@
                                 <span class="font-medium text-foreground">{{ $source->label($option) }}</span>
                             </span>
                             <span class="mt-1 block text-xs text-muted-foreground">
-                                Captured {{ $option->created_at?->format('j M Y') }}
+                                Captured {{ $option->created_at ? \App\Domain\Settings\DisplayTime::date($option->created_at) : '' }}
                             </span>
                         </button>
                     @endforeach

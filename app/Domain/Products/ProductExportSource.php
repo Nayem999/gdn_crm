@@ -3,6 +3,7 @@
 namespace App\Domain\Products;
 
 use App\Domain\Products\Models\Product;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -61,7 +62,7 @@ class ProductExportSource implements DataViewExportSource
             'unit' => $record->unit()->label(),
             'margin' => $record->margin(),
             'owner' => $record->owner?->name,
-            'created_at' => $record->created_at?->format('Y-m-d'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

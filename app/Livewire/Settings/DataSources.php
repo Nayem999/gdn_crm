@@ -17,6 +17,7 @@ use App\Domain\Ingestion\IngestionBlueprints;
 use App\Domain\Ingestion\IngestionTargets;
 use App\Domain\Ingestion\IpRange;
 use App\Domain\Ingestion\Models\DataSource;
+use App\Domain\Settings\DisplayTime;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -402,7 +403,7 @@ class DataSources extends Component
             message: $rotating
                 ? ($grace === null
                     ? 'Rotated. The old key stopped working immediately.'
-                    : 'Rotated. The old key keeps working until '.$grace->format('j M Y, H:i').'.')
+                    : 'Rotated. The old key keeps working until '.DisplayTime::dateTime($grace).'.')
                 : 'Key issued. Copy it now — it cannot be shown again.',
         );
     }

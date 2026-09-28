@@ -14,6 +14,7 @@ use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Enums\RecurrenceFrequency;
 use App\Domain\Activities\Models\Activity;
 use App\Domain\CustomFields\Concerns\WithCustomFieldForm;
+use App\Domain\Settings\DisplayTime;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -115,8 +116,10 @@ class ActivityForm extends Component
             $this->subject = $activity->subject;
             $this->description = $activity->description;
             $this->priority = (string) $activity->priority()->value;
-            $this->due_date = $activity->due_at->format('Y-m-d');
-            $this->due_time = $activity->due_at->format('H:i');
+            // On the office clock, the same clock save() reads them back on.
+            $due = $activity->all_day ? $activity->due_at : DisplayTime::display($activity->due_at);
+            $this->due_date = $due->format('Y-m-d');
+            $this->due_time = $due->format('H:i');
             $this->all_day = $activity->all_day;
             $this->duration_minutes = $activity->duration_minutes === null ? null : (string) $activity->duration_minutes;
             $this->location = $activity->location;
@@ -149,7 +152,7 @@ class ActivityForm extends Component
         $this->authorize('create', Activity::class);
 
         $this->owner_id = (string) auth()->id();
-        $this->due_date = now()->format('Y-m-d');
+        $this->due_date = DisplayTime::now()->format('Y-m-d');
 
         // A record handed in by the URL still has to be one this person can
         // reach, or the form would name somebody else's account back to them.

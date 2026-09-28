@@ -2,6 +2,7 @@
 
 namespace App\Domain\Support;
 
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Support\Enums\TicketPriority;
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Models\Ticket;
@@ -116,7 +117,7 @@ final class TicketMergeData
         $data['sla'] = [
             'promise' => $kind === SlaClock::RESPONSE ? 'first response' : 'resolution',
             'policy' => self::policyName($ticket),
-            'due' => $clock->dueAt($ticket, $kind)?->format('j M Y, H:i') ?? 'not set',
+            'due' => ($due = $clock->dueAt($ticket, $kind)) === null ? 'not set' : DisplayTime::dateTime($due),
             'remaining' => $clock->label($ticket, $kind) ?? 'not set',
         ];
 

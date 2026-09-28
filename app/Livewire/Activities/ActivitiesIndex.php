@@ -11,6 +11,7 @@ use App\Domain\Activities\ActivityFields;
 use App\Domain\Activities\ActivityRelations;
 use App\Domain\Activities\Enums\ActivityStatus;
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Concerns\ExportsDataView;
 use App\Domain\Shared\Concerns\WithDataView;
 use App\Domain\Shared\DataView\Column;
@@ -177,7 +178,7 @@ class ActivitiesIndex extends Component
             'duration_minutes' => $record->duration_minutes === null
                 ? $this->blank()
                 : $record->duration_minutes.' min',
-            'completed_at' => $record->completed_at?->format('j M Y, H:i') ?? $this->blank(),
+            'completed_at' => $record->completed_at ? DisplayTime::dateTime($record->completed_at) : $this->blank(),
             default => $this->defaultCellFor($record, $column),
         };
     }

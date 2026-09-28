@@ -49,7 +49,7 @@ final class SettingsRegistry
                     SettingField::select('time_format', 'Time format', [
                         'H:i' => '23:59',
                         'g:i A' => '11:59 PM',
-                    ], 'H:i'),
+                    ], 'g:i A'),
                     SettingField::select('week_starts_on', 'Week starts on', [
                         'monday' => 'Monday',
                         'sunday' => 'Sunday',

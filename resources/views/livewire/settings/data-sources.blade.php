@@ -325,10 +325,10 @@
 
                                 <p class="mt-2 text-xs text-muted-foreground">
                                     @if ($source->hasSecret())
-                                        Key &hellip;{{ $source->secret_hint }}, issued {{ $source->secret_created_at?->format('j M Y') }}
+                                        Key &hellip;{{ $source->secret_hint }}, issued {{ $source->secret_created_at ? \App\Domain\Settings\DisplayTime::date($source->secret_created_at) : '' }}
                                         @if ($source->isInGrace())
                                             <span class="text-amber-600 dark:text-amber-400">
-                                                &middot; previous key works until {{ $source->graceEndsAt()?->format('j M Y, H:i') }}
+                                                &middot; previous key works until {{ $source->graceEndsAt() ? \App\Domain\Settings\DisplayTime::dateTime($source->graceEndsAt()) : '' }}
                                             </span>
                                         @endif
                                     @elseif ($source->secretWasRevoked())

@@ -103,7 +103,7 @@ final class DisplayTime
 
     public static function timeFormat(): string
     {
-        return (string) settings('localisation.time_format', 'H:i');
+        return (string) settings('localisation.time_format', 'g:i A');
     }
 
     public static function date(CarbonInterface $moment): string
@@ -119,6 +119,30 @@ final class DisplayTime
     public static function dateTime(CarbonInterface $moment): string
     {
         return self::date($moment).', '.self::time($moment);
+    }
+
+    /**
+     * A moment to the second, for logs where two deliveries in one minute
+     * have to be told apart. The office's time format with seconds added:
+     * "3:07:42 PM" or "15:07:42".
+     */
+    public static function dateTimeWithSeconds(CarbonInterface $moment): string
+    {
+        $time = str_replace('i', 'i:s', self::timeFormat());
+
+        return self::date($moment).', '.self::display($moment)->format($time);
+    }
+
+    /**
+     * A DATE column — a day, not a moment — in the office's date format.
+     *
+     * Not converted: an expected close date of the 15th is the 15th
+     * everywhere, and shifting its stored midnight by the offset would move it
+     * a day for any timezone west of UTC.
+     */
+    public static function calendarDate(CarbonInterface $day): string
+    {
+        return $day->format(self::dateFormat());
     }
 
     /**

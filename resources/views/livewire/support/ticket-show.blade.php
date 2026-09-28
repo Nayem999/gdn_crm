@@ -321,13 +321,13 @@
                     @if ($ticket->resolved_at)
                         <div class="flex justify-between gap-3">
                             <dt class="text-muted-foreground">Resolved</dt>
-                            <dd class="text-foreground">{{ \App\Domain\Settings\DisplayTime::display($ticket->resolved_at)->format('j M Y, H:i') }}</dd>
+                            <dd class="text-foreground">{{ \App\Domain\Settings\DisplayTime::dateTime($ticket->resolved_at) }}</dd>
                         </div>
                     @endif
                     @if ($ticket->closed_at)
                         <div class="flex justify-between gap-3">
                             <dt class="text-muted-foreground">Closed</dt>
-                            <dd class="text-foreground">{{ \App\Domain\Settings\DisplayTime::display($ticket->closed_at)->format('j M Y, H:i') }}</dd>
+                            <dd class="text-foreground">{{ \App\Domain\Settings\DisplayTime::dateTime($ticket->closed_at) }}</dd>
                         </div>
                     @endif
                 </dl>

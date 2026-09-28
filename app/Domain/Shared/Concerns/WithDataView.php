@@ -4,6 +4,7 @@ namespace App\Domain\Shared\Concerns;
 
 use App\Domain\CustomFields\Concerns\HasCustomFields;
 use App\Domain\CustomFields\CustomFieldColumns;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Enums\ViewMode;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -515,7 +516,11 @@ trait WithDataView
 
         return match (true) {
             $value === null || $value === '' => new HtmlString('<span class="text-muted-foreground">&mdash;</span>'),
-            $value instanceof CarbonInterface => $value->format('j M Y'),
+            // A moment is shown on the office clock; a DATE column is a day
+            // and is shown as it is stored.
+            $value instanceof CarbonInterface => $record->hasCast($column->key, ['date', 'immutable_date'])
+                ? DisplayTime::calendarDate($value)
+                : DisplayTime::date($value),
             is_bool($value) => $value ? 'Yes' : 'No',
             $value instanceof \BackedEnum => (string) $value->value,
             is_array($value) => implode(', ', array_map('strval', $value)),

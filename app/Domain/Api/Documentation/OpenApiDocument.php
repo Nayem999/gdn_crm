@@ -6,6 +6,7 @@ use App\Domain\Api\ApiModules;
 use App\Domain\Api\Contracts\ApiModule;
 use App\Domain\Webhooks\WebhookEvents;
 use App\Domain\Webhooks\WebhookSignature;
+use Illuminate\Validation\Rules\In;
 
 /**
  * The API, described from the registry that implements it.
@@ -133,8 +134,18 @@ class OpenApiDocument
 
         foreach ($module->rules(creating: true) as $field => $rules) {
             $tokens = $this->tokens($rules);
+            $property = $this->property($this->typeOf($tokens));
 
-            $properties[$field] = $this->property($this->typeOf($tokens));
+            // A field the rules do not let be null is not described as
+            // nullable: `first_name` is required, and saying it may be null
+            // tells an integrator the opposite of what the API does.
+            if (! in_array('nullable', $tokens, true) && is_array($property['type'])) {
+                $property['type'] = array_values(array_diff($property['type'], ['null']))[0] ?? 'string';
+            }
+
+            $property += $this->constraints($rules, $property['type']);
+
+            $properties[$field] = $property;
 
             if (in_array('required', $tokens, true)) {
                 $required[] = $field;
@@ -148,6 +159,44 @@ class OpenApiDocument
         }
 
         return $schema;
+    }
+
+    /**
+     * What else the rules say about a field: its longest length, its bounds,
+     * the only values it accepts, and a field it stands in for.
+     *
+     * @param  mixed  $rules
+     * @param  string|array<int, string>  $type
+     * @return array<string, mixed>
+     */
+    private function constraints($rules, string|array $type): array
+    {
+        $numeric = array_intersect((array) $type, ['integer', 'number']) !== [];
+        $constraints = [];
+
+        foreach (is_array($rules) ? $rules : explode('|', (string) $rules) as $rule) {
+            // Rule::in() is an object whose string form is `in:"a","b"`.
+            $rule = $rule instanceof In ? (string) $rule : $rule;
+
+            if (! is_string($rule) || ! str_contains($rule, ':')) {
+                continue;
+            }
+
+            [$name, $argument] = explode(':', $rule, 2);
+
+            match ($name) {
+                'max' => $constraints[$numeric ? 'maximum' : 'maxLength'] = $numeric ? (float) $argument : (int) $argument,
+                'min' => $constraints[$numeric ? 'minimum' : 'minLength'] = $numeric ? (float) $argument : (int) $argument,
+                'in' => $constraints['enum'] = array_map(
+                    fn (string $value): string => trim($value, '"'),
+                    str_getcsv($argument, ',', '"', '\\'),
+                ),
+                'required_without' => $constraints['x-required-without'] = explode(',', $argument),
+                default => null,
+            };
+        }
+
+        return $constraints;
     }
 
     /**

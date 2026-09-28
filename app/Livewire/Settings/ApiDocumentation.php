@@ -28,7 +28,98 @@ class ApiDocumentation extends Component
      */
     public function document(): array
     {
-        return app(OpenApiDocument::class)->build();
+        // Built once per render: several sections read it.
+        return $this->document ??= app(OpenApiDocument::class)->build();
+    }
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    private ?array $document = null;
+
+    /**
+     * What to send when creating or updating each kind of record: every field
+     * the endpoint accepts, whether it is required, and what it allows — read
+     * from the same `*Input` schema the API validates against.
+     *
+     * @return array<string, array{create: string, update: string|null, fields: array<int, array{field: string, type: string, required: bool, notes: string}>, example: string}>
+     */
+    public function requestShapes(): array
+    {
+        $document = $this->document();
+        $shapes = [];
+
+        foreach ($document['paths'] as $path => $operations) {
+            $ref = $operations['post']['requestBody']['content']['application/json']['schema']['$ref'] ?? null;
+
+            if (! is_string($ref)) {
+                continue;
+            }
+
+            $schemaName = basename($ref);
+            $schema = $document['components']['schemas'][$schemaName] ?? null;
+
+            if (! is_array($schema)) {
+                continue;
+            }
+
+            $required = $schema['required'] ?? [];
+            $fields = [];
+            $example = [];
+
+            foreach ($schema['properties'] as $field => $property) {
+                $types = (array) ($property['type'] ?? ['string']);
+                $type = implode(' or ', array_filter($types, fn (string $type): bool => $type !== 'null'))
+                    .(isset($property['format']) ? ' ('.$property['format'].')' : '');
+
+                $notes = array_filter([
+                    isset($property['maxLength']) ? 'up to '.$property['maxLength'].' characters' : null,
+                    isset($property['minimum']) ? 'at least '.$property['minimum'] : null,
+                    isset($property['enum']) ? 'one of: '.implode(', ', $property['enum']) : null,
+                    isset($property['x-required-without']) ? 'required when '.implode(' and ', $property['x-required-without']).' is not sent' : null,
+                ]);
+
+                $fields[] = [
+                    'field' => (string) $field,
+                    'type' => $type,
+                    'required' => in_array($field, $required, true),
+                    'notes' => implode('; ', $notes),
+                ];
+
+                if (in_array($field, $required, true) || in_array($field, ['last_name', 'email', 'phone', 'name', 'company_name'], true)) {
+                    $example[$field] = $this->exampleValue((string) $field, $property);
+                }
+            }
+
+            $shapes[str_replace('Input', '', $schemaName)] = [
+                'create' => 'POST '.$path,
+                'update' => isset($document['paths'][$path.'/{id}']['patch']) ? 'PATCH '.$path.'/{id}' : null,
+                'fields' => $fields,
+                'example' => (string) json_encode($example, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+            ];
+        }
+
+        return $shapes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $property
+     */
+    private function exampleValue(string $field, array $property): mixed
+    {
+        $types = (array) ($property['type'] ?? ['string']);
+
+        return match (true) {
+            isset($property['enum']) => $property['enum'][0],
+            ($property['format'] ?? null) === 'email' => 'dara@example.com',
+            in_array('integer', $types, true) => 1,
+            in_array('number', $types, true) => 1000,
+            $field === 'first_name' => 'Dara',
+            $field === 'last_name' => 'Okafor',
+            $field === 'phone' => '+8801711000000',
+            $field === 'company_name' => 'Acme Ltd',
+            default => 'Example',
+        };
     }
 
     /**

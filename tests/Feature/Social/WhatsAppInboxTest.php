@@ -21,6 +21,7 @@ use App\Domain\Social\Enums\TemplateStatus;
 use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Social\Models\SocialMessage;
 use App\Domain\Social\Models\WhatsAppTemplate;
+use App\Domain\Tenancy\Tenancy;
 use App\Jobs\FetchWhatsAppMedia;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -729,4 +730,41 @@ test('a refusal about the message itself keeps the words Meta chose', function (
 
     expect(fn () => app(SendSocialMessageAction::class)($conversation, 'Hello', User::factory()->create()))
         ->toThrow(RuntimeException::class, 'Template name does not exist');
+});
+
+// -- Nobody signed in ---------------------------------------------------------
+
+test('a real delivery, with no workspace set, threads into the connector\'s workspace', function () {
+    // The suite sets a workspace before every test; Meta's webhook arrives with
+    // nobody signed in and none set. Before the fix every message failed with
+    // "No workspace is set" and the conversation rolled back with the lead.
+    $number = waNumber();
+    $tenant = app(Tenancy::class)->current();
+    app(Tenancy::class)->forget();
+
+    waDeliver(waEnvelope(waMessage()))->assertOk();
+
+    $event = IntegrationEvent::query()->sole();
+
+    expect($event->status())->toBe(IntegrationEventStatus::Processed)
+        ->and($event->error)->toBeNull()
+        ->and(SocialConversation::query()->count())->toBe(1);
+
+    app(Tenancy::class)->set($tenant);
+
+    $lead = Lead::query()->sole();
+
+    expect($lead->tenant_id)->toBe($number->businessAccount->account->connectedBy->tenant_id)
+        // Nothing is left set for the next piece of work in this process.
+        ->and(SocialMessage::query()->count())->toBe(1);
+});
+
+test('with no connector to name a workspace, the delivery fails and says why', function () {
+    $number = waNumber();
+    $number->businessAccount->account->forceFill(['connected_by_id' => null])->save();
+    app(Tenancy::class)->forget();
+
+    waDeliver(waEnvelope(waMessage()))->assertOk();
+
+    expect(IntegrationEvent::query()->sole()->error)->toContain('Cannot tell which workspace');
 });

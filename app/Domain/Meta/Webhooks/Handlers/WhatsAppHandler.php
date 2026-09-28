@@ -10,6 +10,7 @@ use App\Domain\Social\Actions\RecordInboundMessageAction;
 use App\Domain\Social\DTOs\InboundSocialMessage;
 use App\Domain\Social\Enums\MessageType;
 use App\Domain\Social\Enums\SocialChannel;
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -40,6 +41,7 @@ class WhatsAppHandler implements MetaChannelHandler
     public function __construct(
         private readonly RecordInboundMessageAction $record,
         private readonly RecordDeliveryReceiptAction $receipts,
+        private readonly Tenancy $tenancy,
     ) {}
 
     /**
@@ -73,7 +75,12 @@ class WhatsAppHandler implements MetaChannelHandler
                     continue;
                 }
 
-                $conversation = ($this->record)($inbound, $this->owner($number));
+                // Nobody is signed in to a webhook, so the workspace comes
+                // from whoever connected the number. Without it the lead the
+                // conversation creates has nowhere to go, and the whole
+                // message rolls back with it.
+                $owner = $this->owner($number);
+                $conversation = $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
                 $threaded++;
             }
 

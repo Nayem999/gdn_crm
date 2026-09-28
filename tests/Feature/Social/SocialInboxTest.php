@@ -16,6 +16,7 @@ use App\Domain\Social\Enums\SocialChannel;
 use App\Domain\Social\MessagingWindow;
 use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Social\Models\SocialMessage;
+use App\Domain\Tenancy\Tenancy;
 use App\Domain\Timeline\Communications\CommunicationChannel;
 use App\Domain\Timeline\Communications\CommunicationGatherer;
 use App\Models\User;
@@ -447,4 +448,16 @@ test('the conversation appears on the lead\'s timeline', function () {
         // would bury every other strand on the page.
         ->and(collect($entries)->where('channel', CommunicationChannel::Messenger)->count())
         ->toBe(1);
+});
+
+// -- Nobody signed in ---------------------------------------------------------
+
+test('a real Messenger delivery, with no workspace set, still threads', function () {
+    socialPage();
+    app(Tenancy::class)->forget();
+
+    socialDeliver(socialEnvelope())->assertOk();
+
+    expect(IntegrationEvent::query()->sole()->status())->toBe(IntegrationEventStatus::Processed)
+        ->and(SocialConversation::query()->count())->toBe(1);
 });

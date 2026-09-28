@@ -23,6 +23,7 @@ use App\Domain\Notifications\Notifier;
 use App\Domain\Notifications\Recipient;
 use App\Domain\Shared\Duplicates\MatchStrategy;
 use App\Domain\Shared\Models\DuplicateKey;
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -69,6 +70,7 @@ class MetaLeadService
         private readonly MetaForms $forms,
         private readonly PayloadMapper $mapper,
         private readonly Notifier $notifier,
+        private readonly Tenancy $tenancy,
     ) {}
 
     /**
@@ -95,6 +97,15 @@ class MetaLeadService
      */
     public function ingest(array $lead, DataSource $source, ?MetaPage $page = null): array
     {
+        // A webhook, or the job behind one, has nobody signed in, so it acts
+        // for the owner's workspace. With no owner at all the checks below
+        // fail with their own, clearer, message.
+        $owner = $this->owner($source, $page);
+
+        if ($owner !== null && ! $this->tenancy->has()) {
+            return $this->tenancy->forOwner($owner, fn (): array => $this->ingest($lead, $source, $page));
+        }
+
         $metaLeadId = $this->leadId($lead);
 
         if ($metaLeadId === null) {

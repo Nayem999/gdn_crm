@@ -4,6 +4,7 @@ use App\Domain\Chat\Models\ChatConversation;
 use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadCaptureForm;
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -188,4 +189,21 @@ it('tells the widget where to post and does not pretend to ship a front end', fu
 
     expect($widget->endpoint())->toEndWith('/c/'.$widget->token)
         ->and($widget->embedSnippet())->toBe($widget->endpoint());
+});
+
+// -- Nobody signed in ---------------------------------------------------------
+
+it('makes the lead in the widget owner\'s workspace when no workspace is set', function () {
+    $owner = User::factory()->create();
+    $widget = chatWidget(['owner_id' => $owner->id]);
+    $tenant = app(Tenancy::class)->current();
+    app(Tenancy::class)->forget();
+
+    say($widget, (string) Str::uuid(), 'Send me a quote.', ['name' => 'Priya Ramanathan', 'email' => 'priya@example.com'])
+        ->assertOk()
+        ->assertJson(['identified' => true]);
+
+    app(Tenancy::class)->set($tenant);
+
+    expect(Lead::query()->sole()->tenant_id)->toBe($owner->tenant_id);
 });

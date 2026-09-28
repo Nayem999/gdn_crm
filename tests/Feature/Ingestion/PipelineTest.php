@@ -15,6 +15,7 @@ use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Ingestion\PayloadReader;
 use App\Domain\Leads\LeadImportSource;
 use App\Domain\Leads\Models\Lead;
+use App\Domain\Tenancy\Tenancy;
 use App\Jobs\ProcessIntegrationEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -529,4 +530,20 @@ test('the pipeline writes into other modules too', function () {
     expect($event->status())->toBe(IntegrationEventStatus::Processed)
         ->and(Account::query()->firstOrFail()->name)->toBe('Acme Industries')
         ->and(Contact::query()->count())->toBe(0);
+});
+
+// -- Nobody signed in ---------------------------------------------------------
+
+test('a delivery processed with no workspace set writes into the source owner\'s workspace', function () {
+    $source = ingestionLeadSource();
+    $tenant = app(Tenancy::class)->current();
+    app(Tenancy::class)->forget();
+
+    $event = ingestionDeliver($source, ingestionTaskPayload());
+
+    expect($event->status())->toBe(IntegrationEventStatus::Processed);
+
+    app(Tenancy::class)->set($tenant);
+
+    expect(Lead::query()->sole()->tenant_id)->toBe($source->defaultOwner->tenant_id);
 });

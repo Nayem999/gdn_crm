@@ -7,6 +7,7 @@ use App\Domain\Leads\Capture\CaptureTimestamp;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadCaptureForm;
+use App\Domain\Tenancy\Tenancy;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -29,7 +30,10 @@ use Illuminate\Support\Facades\Validator;
  */
 class SubmitLeadCaptureAction
 {
-    public function __construct(private readonly CreateLeadAction $createLead) {}
+    public function __construct(
+        private readonly CreateLeadAction $createLead,
+        private readonly Tenancy $tenancy,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
@@ -76,7 +80,9 @@ class SubmitLeadCaptureAction
             $attributes[$field->key] = is_string($value) ? trim($value) : $value;
         }
 
-        $lead = $this->createLead->__invoke(
+        // A public form has nobody signed in, so the lead lands in the form
+        // owner's workspace.
+        $lead = $this->tenancy->forOwner($form->owner, fn (): Lead => $this->createLead->__invoke(
             LeadData::fromArray([
                 ...$attributes,
                 // From the form, never the payload.
@@ -87,7 +93,7 @@ class SubmitLeadCaptureAction
                 'assignees' => [['user_id' => $form->owner_id, 'priority' => null]],
             ]),
             $form->owner,
-        );
+        ));
 
         $form->forceFill([
             'submission_count' => $form->submission_count + 1,

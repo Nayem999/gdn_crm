@@ -3,6 +3,7 @@
 namespace App\Domain\Tenancy;
 
 use App\Domain\Tenancy\Models\Tenant;
+use App\Models\User;
 use Closure;
 use RuntimeException;
 
@@ -99,6 +100,45 @@ class Tenancy
             $this->tenant = $previous;
             $this->unscoped = $previouslyUnscoped;
         }
+    }
+
+    /**
+     * Run something as the workspace of the user an unauthenticated delivery
+     * belongs to — the person who connected the WhatsApp number or Facebook
+     * page it arrived at, who owns the capture form or the data source.
+     *
+     * Webhooks, public forms and their jobs have nobody signed in, so the
+     * middleware never set a tenant for them; the asset's owner is how they
+     * name one. A workspace that is already set (a signed-in replay, a test)
+     * is kept, and a suspended one is refused, exactly as the middleware does.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $callback
+     * @return TReturn
+     *
+     * @throws RuntimeException when there is no workspace to act for
+     */
+    public function forOwner(?User $owner, Closure $callback): mixed
+    {
+        if ($this->tenant !== null) {
+            return $callback();
+        }
+
+        $tenant = $owner?->tenant_id === null ? null : Tenant::query()->find($owner->tenant_id);
+
+        if ($tenant === null) {
+            throw new RuntimeException(
+                'Cannot tell which workspace this belongs to: it has no owner with a workspace. '
+                .'Reconnect the integration, or give the form or source an owner.'
+            );
+        }
+
+        if (! $tenant->is_active) {
+            throw new RuntimeException('The workspace this belongs to is suspended.');
+        }
+
+        return $this->for($tenant, $callback);
     }
 
     /**

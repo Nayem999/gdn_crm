@@ -21,3 +21,19 @@ Writes across workspaces throw. Cross-tenant work goes through `Tenancy::without
 `tests/Feature/Tenancy/TenancyCoverageTest.php` is the enforcement: its pending-tables list only ever shrinks, and a new untenanted table has to be named there deliberately. Note it lists tables for the **connection's own database** — `Schema::getTableListing()` answers for every schema on a shared MySQL server.
 
 Unique indexes must include `tenant_id`, or one customer's product SKU, pipeline name, invoice number or settings key blocks another's.
+
+## Entry points with nobody signed in act for the asset owner's workspace — Tenancy::forOwner()
+`SetTenantFromUser` only runs for a signed-in user. Meta webhooks, the generic
+ingest endpoint, public lead-capture forms and the chat widget have nobody signed
+in, and their processing runs after the response or on the queue — so tenancy
+is unset and the first `Lead` write throws "No workspace is set". The test suite
+hides this: tests/Pest.php sets a workspace before every test.
+
+So each of those paths wraps its tenant work in `Tenancy::forOwner($owner, ...)`,
+where the owner is the person the asset belongs to: the Meta account's
+`connectedBy` (WhatsApp number, Facebook page), the data source's default owner
+or creator, the capture form's / widget's owner. `forOwner()` keeps a workspace
+that is already set (a signed-in replay), refuses a suspended one, and throws a
+readable error when there is no owner. Any new unauthenticated entry point that
+touches tenant data must do the same, and its test must `forget()` the tenant
+first to prove it.

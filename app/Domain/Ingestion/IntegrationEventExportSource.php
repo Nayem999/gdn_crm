@@ -3,6 +3,7 @@
 namespace App\Domain\Ingestion;
 
 use App\Domain\Ingestion\Models\IntegrationEvent;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -64,8 +65,8 @@ class IntegrationEventExportSource implements DataViewExportSource
             'status' => $record->status()->label(),
             'record' => $record->record_id === null ? null : class_basename((string) $record->record_type).' #'.$record->record_id,
             'payload_size' => $record->payloadBytes(),
-            'received_at' => $record->received_at->format('Y-m-d H:i:s'),
-            'processed_at' => $record->processed_at?->format('Y-m-d H:i:s'),
+            'received_at' => DisplayTime::display($record->received_at)->format('Y-m-d H:i:s'),
+            'processed_at' => $record->processed_at ? DisplayTime::display($record->processed_at)->format('Y-m-d H:i:s') : null,
             // Truncated: a database error can echo an entire query, and a
             // spreadsheet cell is not where anybody reads one.
             'error' => $record->error === null ? null : mb_substr($record->error, 0, 300),

@@ -11,6 +11,7 @@ use App\Domain\Deals\Enums\StageOutcome;
 use App\Domain\Deals\Models\Deal;
 use App\Domain\Deals\Models\Pipeline;
 use App\Domain\Deals\Models\PipelineStage;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Settings\NumberFormat;
 use App\Domain\Shared\Concerns\ExportsDataView;
 use App\Domain\Shared\Concerns\WithDataView;
@@ -271,7 +272,7 @@ class DealsIndex extends Component
                     $record->closeReason()->label(),
                     $record->closeReason()->color()
                 )),
-            'closed_at' => $record->closed_at?->format('j M Y') ?? $this->blank(),
+            'closed_at' => $record->closed_at ? DisplayTime::date($record->closed_at) : $this->blank(),
             default => $this->defaultCellFor($record, $column),
         };
     }
@@ -300,7 +301,7 @@ class DealsIndex extends Component
             return $this->blank();
         }
 
-        $formatted = $record->expected_close_date->format('j M Y');
+        $formatted = DisplayTime::calendarDate($record->expected_close_date);
 
         if (! $record->isOverdue()) {
             return $formatted;

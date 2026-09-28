@@ -121,7 +121,7 @@ test('the strand reads on the office clock, like the calendar does', function ()
     // the same thing the calendar cell does.
     expect(strandTimeline($contact, $viewer, [TimelineEntryKind::Activity])->entries[0]->occurredLabel())
         ->toContain('21 Oct 2026')
-        ->toContain('01:30');
+        ->toContain('1:30 AM');
 });
 
 test('somebody without the activities permission gets no strand and no chip', function () {

@@ -203,11 +203,11 @@
                     </div>
 
                     @foreach ([
-                        'Expected close' => $deal->expected_close_date?->format('j M Y'),
-                        'Closed' => $deal->closed_at?->format('j M Y'),
+                        'Expected close' => $deal->expected_close_date ? \App\Domain\Settings\DisplayTime::calendarDate($deal->expected_close_date) : null,
+                        'Closed' => $deal->closed_at ? \App\Domain\Settings\DisplayTime::date($deal->closed_at) : null,
                         'Contact' => $deal->contact?->fullName(),
                         'Pipeline' => $deal->pipeline?->name,
-                        'Created' => $deal->created_at?->format('j M Y'),
+                        'Created' => $deal->created_at ? \App\Domain\Settings\DisplayTime::date($deal->created_at) : null,
                     ] as $label => $value)
                         <div>
                             <dt class="text-xs uppercase tracking-wide text-muted-foreground">{{ $label }}</dt>
@@ -302,8 +302,8 @@
                                     </div>
 
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        <time datetime="{{ $entry->entered_at->toIso8601String() }}" title="{{ $entry->entered_at->format('j M Y, H:i') }}">
-                                            {{ $entry->entered_at->format('j M Y') }}
+                                        <time datetime="{{ $entry->entered_at->toIso8601String() }}" title="{{ \App\Domain\Settings\DisplayTime::dateTime($entry->entered_at) }}">
+                                            {{ \App\Domain\Settings\DisplayTime::date($entry->entered_at) }}
                                         </time>
 
                                         @if ($entry->movedBy)

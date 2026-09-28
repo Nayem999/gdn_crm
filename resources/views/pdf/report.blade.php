@@ -33,7 +33,7 @@
         <div class="muted">
             {{ $company?->name }}
             @if ($report->description) &middot; {{ $report->description }} @endif
-            &middot; produced {{ $generatedAt->format('j M Y, H:i') }}
+            &middot; produced {{ \App\Domain\Settings\DisplayTime::dateTime($generatedAt) }}
         </div>
     </div>
 

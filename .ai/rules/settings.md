@@ -74,6 +74,12 @@ pointing at a guaranteed 403.
 
 The consequence worth knowing: a task stored at 23:30 UTC is *tomorrow* in Dhaka. So a calendar window is chosen in display terms and converted before it hits SQL (`CalendarPeriod::from()`/`to()`), never queried as though the stored day and the displayed day were the same. Changing the company timezone moves every existing row's apparent time by the offset; that is inherent to having a display timezone at all, not a bug.
 
+Formatting rules that follow (a raw `->format()` on a stored timestamp shows UTC, which is what people report as "the date is global"):
+- A timestamp on screen, in a PDF or in an export: `DisplayTime::date()` / `time()` / `dateTime()`, or `DisplayTime::display($t)->format(...)`.
+- A DATE column (cast `date`, e.g. `expected_close_date`, an all-day task's `due_at`) is a day, not a moment: `DisplayTime::calendarDate()` — never converted.
+- The data-view kit's default cell already does both (`WithDataView::cellFor`), keyed on the model's cast.
+- A time typed on a form is office time: load it with `display()` and save it through `store()`. `ActivityData::due()` does this; code that hands it a Carbon keeps its offset (it is passed as ISO 8601), so it is not converted twice.
+
 ## A select whose values are numbers must be an Integer field
 PHP turns a numeric array key into an int however it was quoted, so `SettingField::select('x', 'X', ['30' => '30 minutes'])` produces int keys. A `SettingType::String` field's own `string` rule then rejects the very options it offers, and `Rule::in(array_keys(...))` carries ints into a string field.
 

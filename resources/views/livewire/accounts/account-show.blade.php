@@ -268,7 +268,7 @@
 
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-muted-foreground">Created</dt>
-                        <dd class="mt-1 text-sm text-foreground">{{ $account->created_at?->format('j M Y') }}</dd>
+                        <dd class="mt-1 text-sm text-foreground">{{ $account->created_at ? \App\Domain\Settings\DisplayTime::date($account->created_at) : '' }}</dd>
                     </div>
                 </dl>
             </section>

@@ -10,6 +10,7 @@ use App\Domain\Leads\Actions\UpdateLeadAction;
 use App\Domain\Leads\DTOs\LeadData;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadCaptureForm;
+use App\Domain\Tenancy\Tenancy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -35,6 +36,7 @@ class RecordChatMessageAction
     public function __construct(
         private readonly CreateLeadAction $createLead,
         private readonly UpdateLeadAction $updateLead,
+        private readonly Tenancy $tenancy,
     ) {}
 
     /**
@@ -44,7 +46,9 @@ class RecordChatMessageAction
      */
     public function handle(LeadCaptureForm $widget, string $sessionId, string $body, array $visitor = []): ChatConversation
     {
-        return DB::transaction(function () use ($widget, $sessionId, $body, $visitor): ChatConversation {
+        // The widget is public, so the conversation acts for its owner's
+        // workspace — that is where the lead it produces belongs.
+        return $this->tenancy->forOwner($widget->owner, fn (): ChatConversation => DB::transaction(function () use ($widget, $sessionId, $body, $visitor): ChatConversation {
             $now = Carbon::now();
 
             $conversation = ChatConversation::query()->firstOrNew(['session_id' => $sessionId]);
@@ -83,7 +87,7 @@ class RecordChatMessageAction
             $this->syncLead($widget, $conversation);
 
             return $conversation;
-        });
+        }));
     }
 
     private function syncLead(LeadCaptureForm $widget, ChatConversation $conversation): void

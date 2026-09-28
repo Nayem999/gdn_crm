@@ -14,7 +14,7 @@
 
         <div class="text-right text-xs text-muted-foreground">
             <p>{{ config('app.name') }}</p>
-            <p>{{ now()->format('j M Y, H:i') }}</p>
+            <p>{{ \App\Domain\Settings\DisplayTime::dateTime(now()) }}</p>
         </div>
     </header>
 

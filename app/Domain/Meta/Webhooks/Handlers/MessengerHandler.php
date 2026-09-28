@@ -9,6 +9,7 @@ use App\Domain\Social\Actions\RecordInboundMessageAction;
 use App\Domain\Social\DTOs\InboundSocialMessage;
 use App\Domain\Social\Enums\MessageType;
 use App\Domain\Social\Enums\SocialChannel;
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -35,7 +36,10 @@ use Illuminate\Support\Carbon;
  */
 class MessengerHandler implements MetaChannelHandler
 {
-    public function __construct(private readonly RecordInboundMessageAction $record) {}
+    public function __construct(
+        private readonly RecordInboundMessageAction $record,
+        private readonly Tenancy $tenancy,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
@@ -73,7 +77,10 @@ class MessengerHandler implements MetaChannelHandler
                 continue;
             }
 
-            $conversation = ($this->record)($inbound, $this->owner($page));
+            // The workspace is the page connector's: nobody is signed in to a
+            // webhook, and the lead a conversation creates needs one.
+            $owner = $this->owner($page);
+            $conversation = $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
             $recorded++;
         }
 

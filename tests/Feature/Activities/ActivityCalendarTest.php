@@ -183,7 +183,7 @@ test('an evening activity is drawn on the day the calendar asked for', function 
     );
 
     expect($grid->day('2026-10-15')?->count())->toBe(1)
-        ->and($grid->day('2026-10-15')?->events[0]->timeLabel())->toBe('20:00');
+        ->and($grid->day('2026-10-15')?->events[0]->timeLabel())->toBe('8:00 PM');
 });
 
 test('an activity stored before the window but displayed inside it is still found', function () {

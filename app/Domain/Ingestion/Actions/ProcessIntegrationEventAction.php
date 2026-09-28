@@ -14,6 +14,7 @@ use App\Domain\Ingestion\Writers\ImportBackedWriter;
 use App\Domain\Meta\Webhooks\MetaEventProcessor;
 use App\Domain\Meta\Webhooks\MetaSources;
 use App\Domain\Notifications\Notifier;
+use App\Domain\Tenancy\Tenancy;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +85,16 @@ class ProcessIntegrationEventAction
             $result = app(MetaEventProcessor::class)($event, $channel);
 
             return $this->settle($event, $result['status'], $result['outcome'], $result['record'] ?? null);
+        }
+
+        // Nobody is signed in to an inbound delivery, so it acts for the
+        // workspace of the source's owner: dedupe reads that workspace's
+        // records and the write lands in it. Without an owner the check further
+        // down fails with its own message.
+        $owner = $this->owner($source);
+
+        if ($owner !== null && ! app(Tenancy::class)->has()) {
+            return app(Tenancy::class)->forOwner($owner, fn (): IntegrationEvent => $this->run($event, $source));
         }
 
         $payload = PayloadReader::decode((string) $event->payload);

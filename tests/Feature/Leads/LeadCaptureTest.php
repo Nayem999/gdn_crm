@@ -8,6 +8,7 @@ use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadCaptureForm;
+use App\Domain\Tenancy\Tenancy;
 use App\Livewire\Leads\LeadCaptureForms;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -439,3 +440,18 @@ test('every catalogue field has a label, a type and rules', function (string $ke
         ->and($spec['rules'])->not->toBeEmpty()
         ->and($spec['type'])->not->toBeEmpty();
 })->with(fn () => array_keys(CaptureField::catalogue()));
+
+// -- Nobody signed in ---------------------------------------------------------
+
+test('a public submission, with no workspace set, lands in the form owner\'s workspace', function () {
+    $owner = User::factory()->create();
+    $form = LeadCaptureForm::factory()->ownedBy($owner)->create();
+    $tenant = app(Tenancy::class)->current();
+    app(Tenancy::class)->forget();
+
+    $this->post(route('lead-capture.submit', $form->token), capturePayload())->assertOk();
+
+    app(Tenancy::class)->set($tenant);
+
+    expect(Lead::query()->sole()->tenant_id)->toBe($owner->tenant_id);
+});

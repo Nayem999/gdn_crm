@@ -17,7 +17,7 @@
 </head>
 <body>
     <h1>{{ $title }}</h1>
-    <p class="meta">{{ config('app.name') }} &mdash; {{ now()->format('j M Y, H:i') }} &mdash; {{ number_format(count($rows)) }} rows</p>
+    <p class="meta">{{ config('app.name') }} &mdash; {{ \App\Domain\Settings\DisplayTime::dateTime(now()) }} &mdash; {{ number_format(count($rows)) }} rows</p>
 
     <table>
         <thead>

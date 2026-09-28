@@ -10,6 +10,7 @@ use App\Domain\Activities\Enums\ActivityType;
 use App\Domain\Activities\Enums\RecurrenceFrequency;
 use App\Domain\Audit\Concerns\RecordsActivity;
 use App\Domain\CustomFields\Concerns\HasCustomFields;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Models\User;
 use Database\Factories\ActivityFactory;
@@ -273,9 +274,11 @@ class Activity extends Model
      */
     public function dueLabel(): string
     {
+        // An all-day task is a day, stored at its midnight; a timed one is a
+        // moment, shown on the office clock.
         return $this->all_day
-            ? $this->due_at->format('j M Y')
-            : $this->due_at->format('j M Y, H:i');
+            ? DisplayTime::calendarDate($this->due_at)
+            : DisplayTime::dateTime($this->due_at);
     }
 
     /**

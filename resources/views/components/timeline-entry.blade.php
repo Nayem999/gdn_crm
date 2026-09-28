@@ -28,7 +28,7 @@
 
             <time
                 datetime="{{ $entry->occurredAt->toIso8601String() }}"
-                title="{{ $entry->occurredAt->format('j M Y, H:i') }}"
+                title="{{ \App\Domain\Settings\DisplayTime::dateTime($entry->occurredAt) }}"
                 class="shrink-0 text-xs text-muted-foreground"
             >{{ $entry->occurredAt->diffForHumans() }}</time>
         </div>

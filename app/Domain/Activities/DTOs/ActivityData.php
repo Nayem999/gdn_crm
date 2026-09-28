@@ -4,6 +4,8 @@ namespace App\Domain\Activities\DTOs;
 
 use App\Domain\Activities\Enums\ActivityPriority;
 use App\Domain\Activities\Enums\ActivityType;
+use App\Domain\Settings\DisplayTime;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -57,7 +59,11 @@ readonly class ActivityData
 
         return new self(
             subject: trim((string) ($attributes['subject'] ?? '')),
-            dueAt: (string) ($attributes['due_at'] ?? ''),
+            // A moment handed over in code keeps its own offset, so due() can
+            // tell it from a wall-clock time somebody typed.
+            dueAt: ($attributes['due_at'] ?? null) instanceof CarbonInterface
+                ? $attributes['due_at']->toIso8601String()
+                : (string) ($attributes['due_at'] ?? ''),
             type: ActivityType::tryFrom((string) ($attributes['type'] ?? '')) ?? ActivityType::Task,
             priority: ActivityPriority::tryFrom((int) ($attributes['priority'] ?? 0)) ?? ActivityPriority::Normal,
             description: $text('description'),
@@ -84,9 +90,15 @@ readonly class ActivityData
      */
     public function due(): Carbon
     {
-        $due = Carbon::parse($this->dueAt);
+        // An all-day task is a day, kept at its midnight as stored.
+        if ($this->allDay) {
+            return Carbon::parse($this->dueAt)->startOfDay();
+        }
 
-        return $this->allDay ? $due->startOfDay() : $due;
+        // A time somebody typed means the office clock — "10:30" is half past
+        // ten in Dhaka, not UTC. A value carrying its own offset (the API, a
+        // workflow) keeps it; store() only supplies the zone when none is given.
+        return DisplayTime::store($this->dueAt);
     }
 
     /**

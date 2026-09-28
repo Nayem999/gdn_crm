@@ -35,9 +35,9 @@
                     <h2 class="text-sm font-semibold text-foreground">A real payload</h2>
                     <p class="mt-1 text-xs text-muted-foreground">
                         @if ($source->isListening())
-                            Listening until {{ $source->listening_until?->format('H:i') }} &mdash; send one delivery from the other system.
+                            Listening until {{ $source->listening_until ? \App\Domain\Settings\DisplayTime::time($source->listening_until) : '' }} &mdash; send one delivery from the other system.
                         @elseif ($source->hasSample())
-                            Captured {{ $source->sample_captured_at?->format('j M Y, H:i') }}.
+                            Captured {{ $source->sample_captured_at ? \App\Domain\Settings\DisplayTime::dateTime($source->sample_captured_at) : '' }}.
                         @else
                             None yet. Turn listening on, then make the other system send one.
                         @endif

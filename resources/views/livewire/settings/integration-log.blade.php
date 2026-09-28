@@ -147,7 +147,7 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-base font-semibold text-foreground">
-                                {{ $event->received_at->format('j M Y, H:i:s') }}
+                                {{ \App\Domain\Settings\DisplayTime::dateTimeWithSeconds($event->received_at) }}
                             </h2>
                             <p class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 {{ $event->dataSource?->name }}

@@ -69,9 +69,9 @@ class BookMeetingAction
         return ($this->createActivity)(
             new ActivityData(
                 subject: $subject,
-                // The DTO parses this itself; handing it the stored value keeps
-                // one conversion in one place.
-                dueAt: $startsAt->format('Y-m-d H:i:s'),
+                // With its offset, so the DTO keeps the moment rather than
+                // reading it as a wall-clock time and converting it again.
+                dueAt: $startsAt->toIso8601String(),
                 type: ActivityType::Meeting,
                 description: $description,
                 allDay: false,

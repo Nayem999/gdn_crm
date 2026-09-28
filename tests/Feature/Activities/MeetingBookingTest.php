@@ -94,8 +94,8 @@ test('slots cover the working day at the configured interval', function () {
     $slots = app(AvailabilityFinder::class)->slotsFor($owner->id, Carbon::parse('2026-10-14'), 30);
 
     expect($slots)->toHaveCount(6)
-        ->and($slots[0]->label())->toBe('09:00')
-        ->and(end($slots)->label())->toBe('11:30');
+        ->and($slots[0]->label())->toBe('9:00 AM')
+        ->and(end($slots)->label())->toBe('11:30 AM');
 });
 
 test('a slot outside the working week is not offered at all', function () {
@@ -130,7 +130,7 @@ test('a booked appointment takes its slot out of circulation', function () {
     $taken = array_values(array_filter($slots, fn ($slot) => ! $slot->isFree()));
 
     expect($taken)->toHaveCount(1)
-        ->and($taken[0]->label())->toBe('10:00')
+        ->and($taken[0]->label())->toBe('10:00 AM')
         ->and($taken[0]->conflictLabel())->toContain('Standup');
 });
 
@@ -149,9 +149,9 @@ test('a long meeting needs every slot it spans, not just the first', function ()
     $slots = app(AvailabilityFinder::class)->slotsFor($owner->id, Carbon::parse('2026-10-14'), 60);
     $free = array_map(fn ($slot) => $slot->label(), array_filter($slots, fn ($slot) => $slot->isFree()));
 
-    expect(array_values($free))->not->toContain('09:30')
-        ->and(array_values($free))->toContain('09:00')
-        ->and(array_values($free))->toContain('10:30');
+    expect(array_values($free))->not->toContain('9:30 AM')
+        ->and(array_values($free))->toContain('9:00 AM')
+        ->and(array_values($free))->toContain('10:30 AM');
 });
 
 test('back to back meetings do not count as a clash', function () {

@@ -21,7 +21,7 @@
 
         <p class="mt-0.5 text-sm text-amber-800/80 dark:text-amber-200/70">
             @if ($oldest !== null)
-                The oldest has been waiting since {{ $oldest->format('j M, H:i') }} ({{ $oldest->diffForHumans(short: true) }}).
+                The oldest has been waiting since {{ \App\Domain\Settings\DisplayTime::dateTime($oldest) }} ({{ $oldest->diffForHumans(short: true) }}).
             @endif
             Nothing new will appear on this screen until they are — which usually means the queue worker is not running.
         </p>

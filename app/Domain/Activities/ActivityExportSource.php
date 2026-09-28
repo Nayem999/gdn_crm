@@ -3,6 +3,7 @@
 namespace App\Domain\Activities;
 
 use App\Domain\Activities\Models\Activity;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -73,9 +74,9 @@ class ActivityExportSource implements DataViewExportSource
             'recurrence' => $record->recurrence()?->label(),
             'due_at' => $record->all_day
                 ? $record->due_at->format('Y-m-d')
-                : $record->due_at->format('Y-m-d H:i'),
-            'completed_at' => $record->completed_at?->format('Y-m-d H:i'),
-            'created_at' => $record->created_at?->format('Y-m-d'),
+                : DisplayTime::display($record->due_at)->format('Y-m-d H:i'),
+            'completed_at' => $record->completed_at ? DisplayTime::display($record->completed_at)->format('Y-m-d H:i') : null,
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

@@ -3,6 +3,7 @@
 namespace App\Domain\Deals;
 
 use App\Domain\Deals\Models\Deal;
+use App\Domain\Settings\DisplayTime;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Exports\ExportRequest;
 use App\Domain\Shared\Filters\FilterApplier;
@@ -71,9 +72,9 @@ class DealExportSource implements DataViewExportSource
             // column of "£1,200.00" cannot be summed.
             'weighted_value' => $record->weightedValue(),
             'close_reason' => $record->closeReason()?->label(),
-            'closed_at' => $record->closed_at?->format('Y-m-d'),
+            'closed_at' => $record->closed_at ? DisplayTime::display($record->closed_at)->format('Y-m-d') : null,
             'expected_close_date' => $record->expected_close_date?->format('Y-m-d'),
-            'created_at' => $record->created_at?->format('Y-m-d'),
+            'created_at' => $record->created_at ? DisplayTime::display($record->created_at)->format('Y-m-d') : null,
             default => $record->getAttribute($key),
         }, $request->columnKeys());
     }

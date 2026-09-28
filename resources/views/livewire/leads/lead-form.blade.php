@@ -15,6 +15,16 @@
         @endunless
     </div>
 
+    @if ($chat = $this->conversation())
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
+            <span class="text-foreground">
+                Converting the {{ $chat->channel()->label() }} chat with <strong>{{ $chat->displayName() }}</strong> (#{{ $chat->id }}).
+                Filled in from the chat — check it before saving.
+            </span>
+            <a href="{{ route('social.inbox', ['channel' => $chat->channel()->value, 'conversation' => $chat->id]) }}" wire:navigate class="font-medium text-accent hover:underline">Back to the chat</a>
+        </div>
+    @endif
+
     <x-duplicate-warning
         :matches="$this->draftDuplicates()"
         :route="fn ($record) => route('leads.show', $record)"

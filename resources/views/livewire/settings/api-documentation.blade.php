@@ -57,6 +57,64 @@
                 </table>
             </div>
 
+            {{-- What to send. Read from the same rules the API validates
+                 against, so required here is required there. --}}
+            @foreach ($this->requestShapes() as $name => $shape)
+                <div class="rounded-xl border border-border bg-card">
+                    <div class="border-b border-border px-5 py-3">
+                        <h2 class="text-sm font-semibold text-foreground">Creating a {{ strtolower($name) }}</h2>
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            <code class="text-foreground">{{ $shape['create'] }}</code> with a JSON body.
+                            @if ($shape['update'])
+                                <code class="text-foreground">{{ $shape['update'] }}</code> takes the same fields, all optional — only what you send changes.
+                            @endif
+                        </p>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-xs uppercase tracking-wide text-muted-foreground">
+                                <tr>
+                                    <th class="px-5 py-2 font-medium">Field</th>
+                                    <th class="px-3 py-2 font-medium">Type</th>
+                                    <th class="px-3 py-2 font-medium">Required</th>
+                                    <th class="px-5 py-2 font-medium">Allowed</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                @foreach ($shape['fields'] as $field)
+                                    <tr>
+                                        <td class="whitespace-nowrap px-5 py-2 align-top"><code class="text-foreground">{{ $field['field'] }}</code></td>
+                                        <td class="whitespace-nowrap px-3 py-2 align-top text-muted-foreground">{{ $field['type'] }}</td>
+                                        <td class="whitespace-nowrap px-3 py-2 align-top">
+                                            @if ($field['required'])
+                                                <span class="font-semibold text-destructive">Required</span>
+                                            @else
+                                                <span class="text-muted-foreground">Optional</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-5 py-2 align-top text-xs text-muted-foreground">{{ $field['notes'] ?: '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t border-border px-5 py-3">
+                        <p class="text-xs font-medium text-muted-foreground">Example</p>
+                        <pre class="mt-1.5 overflow-x-auto rounded-lg bg-muted p-3 text-xs text-foreground">curl -X {{ explode(' ', $shape['create'])[0] }} {{ $server }}{{ explode(' ', $shape['create'])[1] }} \
+  -H "Authorization: Bearer &lt;your key&gt;" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{{ $shape['example'] }}'</pre>
+                        <p class="mt-2 text-xs text-muted-foreground">
+                            A missing or invalid field is answered <code class="text-foreground">422</code>, with an
+                            <code class="text-foreground">errors</code> object naming each field and what is wrong with it.
+                        </p>
+                    </div>
+                </div>
+            @endforeach
+
             <div class="rounded-xl border border-border bg-card p-5 sm:p-6">
                 <h2 class="text-sm font-semibold text-foreground">What a record looks like</h2>
 

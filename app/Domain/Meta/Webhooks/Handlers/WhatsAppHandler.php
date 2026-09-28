@@ -75,12 +75,14 @@ class WhatsAppHandler implements MetaChannelHandler
                     continue;
                 }
 
-                // Nobody is signed in to a webhook, so the workspace comes
-                // from whoever connected the number. Without it the lead the
-                // conversation creates has nowhere to go, and the whole
-                // message rolls back with it.
+                // Nobody is signed in to a webhook, so matching the sender to
+                // somebody on file happens in the workspace of whoever
+                // connected the number. With no connector the message is
+                // still recorded, just not matched.
                 $owner = $this->owner($number);
-                $conversation = $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
+                $conversation = $owner === null
+                    ? ($this->record)($inbound, null)
+                    : $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
                 $threaded++;
             }
 

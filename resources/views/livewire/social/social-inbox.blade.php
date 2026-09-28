@@ -313,13 +313,34 @@
                             </p>
                         @else
                             <p class="mt-2 text-sm text-muted-foreground">Not linked to anybody yet.</p>
-
-                            @can('assign', $selected)
-                                <x-button type="button" variant="secondary" wire:click="createLead" class="mt-3">
-                                    Create a lead
-                                </x-button>
-                            @endcan
                         @endif
+
+                        {{-- A chat is never a lead by itself: converting opens the
+                             lead form filled in from it, to check before saving. --}}
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @can('create', \App\Domain\Leads\Models\Lead::class)
+                                <a
+                                    href="{{ route('leads.create', ['conversation' => $selected->id]) }}"
+                                    wire:navigate
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                                >
+                                    <x-icon name="lucide-user-plus" class="h-4 w-4" />
+                                    Convert to lead
+                                </a>
+                            @endcan
+
+                            @can('viewAny', \App\Domain\Leads\Models\Lead::class)
+                                @php($fromChat = $this->leadsFromChatCount($selected))
+                                <a
+                                    href="{{ route('leads.index', ['conversation' => $selected->id]) }}"
+                                    wire:navigate
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+                                >
+                                    <x-icon name="lucide-list" class="h-4 w-4" />
+                                    Leads ({{ $fromChat }})
+                                </a>
+                            @endcan
+                        </div>
                     </div>
 
                     @can('assign', $selected)

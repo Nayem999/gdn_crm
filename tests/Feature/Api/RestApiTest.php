@@ -273,3 +273,51 @@ test('a lead in the API carries its optional owner', function () {
 
     expect($owners)->toBe([null, $manager->id]);
 });
+
+// -- Leads -------------------------------------------------------------------------
+
+it('creates a lead with every detail the API documents', function () {
+    $user = apiUser(['leads.view', 'leads.create', 'leads.update']);
+    $key = keyFor($user, ['read', 'write']);
+
+    $this->withHeader('Authorization', 'Bearer '.$key)
+        ->postJson('/api/v1/leads', [
+            'first_name' => 'Dara',
+            'last_name' => 'Okafor',
+            'email' => 'dara@example.com',
+            'mobile' => '+8801711000000',
+            'city' => 'Dhaka',
+            'estimated_value' => 45000,
+            'source' => 'web_form',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.mobile', '+8801711000000')
+        ->assertJsonPath('data.city', 'Dhaka')
+        ->assertJsonPath('data.estimated_value', '45000.00');
+
+    $this->withHeader('Authorization', 'Bearer '.$key)
+        ->postJson('/api/v1/leads', ['last_name' => 'Okafor'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('first_name');
+});
+
+it('leaves lead details it was not sent alone on a partial update', function () {
+    $user = apiUser(['leads.view', 'leads.update']);
+    $lead = Lead::factory()->ownedBy($user)->create([
+        'mobile' => '+8801711000000',
+        'website' => 'acme.test',
+        'city' => 'Dhaka',
+        'estimated_value' => '45000.00',
+    ]);
+
+    // Before the fix a PATCH wrote null into every column it did not list.
+    $this->withHeader('Authorization', 'Bearer '.keyFor($user, ['read', 'write']))
+        ->patchJson('/api/v1/leads/'.$lead->id, ['company_name' => 'Acme Ltd'])
+        ->assertOk();
+
+    expect($lead->refresh()->company_name)->toBe('Acme Ltd')
+        ->and($lead->mobile)->toBe('+8801711000000')
+        ->and($lead->website)->toBe('acme.test')
+        ->and($lead->city)->toBe('Dhaka')
+        ->and($lead->estimated_value)->toBe('45000.00');
+});

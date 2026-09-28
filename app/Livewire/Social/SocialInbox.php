@@ -9,7 +9,6 @@ use App\Domain\Ingestion\IntegrationHealth;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaAd;
 use App\Domain\Social\Actions\AssignConversationAction;
-use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Actions\SendSocialMessageAction;
 use App\Domain\Social\Actions\SendWhatsAppTemplateAction;
 use App\Domain\Social\Enums\ConversationStatus;
@@ -230,24 +229,16 @@ class SocialInbox extends Component
     }
 
     /**
-     * Make a lead from a conversation that has none.
-     *
-     * The same action the first inbound message uses, so a lead made here and
-     * one made automatically are the same lead, attribution and all.
+     * How many leads have been converted from this chat, for the "leads from
+     * this chat" button. Counted among the leads the viewer can see, the same
+     * set the list it links to shows.
      */
-    public function createLead(CreateLeadFromConversationAction $create): void
+    public function leadsFromChatCount(SocialConversation $conversation): int
     {
-        $conversation = $this->requireSelected();
-
-        $this->authorize('assign', $conversation);
-
-        if ($conversation->isLinked()) {
-            return;
-        }
-
-        $lead = $create($conversation, auth()->user());
-
-        $this->notice = sprintf('%s is now a lead.', $lead->fullName());
+        return Lead::query()
+            ->visibleTo(auth()->user())
+            ->fromConversation($conversation)
+            ->count();
     }
 
     public function addNote(SaveNoteAction $notes): void
@@ -262,7 +253,7 @@ class SocialInbox extends Component
         if ($subject === null) {
             // Honest rather than silent: a note has to hang off a record, and
             // this conversation has none yet.
-            $this->error = 'Create a lead first — a note belongs to a record.';
+            $this->error = 'Convert it to a lead first — a note belongs to a record.';
 
             return;
         }

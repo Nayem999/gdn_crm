@@ -13,6 +13,7 @@ use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Meta\Models\WhatsAppBusinessAccount;
 use App\Domain\Meta\Models\WhatsAppPhoneNumber;
 use App\Domain\Settings\SettingsManager;
+use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Models\SocialConversation;
 use App\Livewire\Social\SocialInbox;
 use App\Models\User;
@@ -128,6 +129,16 @@ function ctwaDeliver(array $message): TestResponse
     ], $body);
 }
 
+/**
+ * An agent converting the chat, which is the only way it becomes a lead now.
+ */
+function ctwaConvert(): Lead
+{
+    expect(Lead::query()->count())->toBe(0);
+
+    return app(CreateLeadFromConversationAction::class)(SocialConversation::query()->firstOrFail(), User::factory()->create());
+}
+
 // -- Attribution ---------------------------------------------------------------
 
 test('a referral attributes the lead to the campaign that paid for it', function () {
@@ -136,7 +147,7 @@ test('a referral attributes the lead to the campaign that paid for it', function
 
     ctwaDeliver(['referral' => ctwaReferral()])->assertOk();
 
-    $lead = Lead::query()->firstOrFail();
+    $lead = ctwaConvert();
     $attribution = $lead->attribution();
 
     expect($attribution->metaAdId)->toBe('120200000000003')
@@ -159,7 +170,7 @@ test('an advertisement the CRM has not synced still attributes what it knows', f
     // account was never connected.
     ctwaDeliver(['referral' => ctwaReferral()])->assertOk();
 
-    $attribution = Lead::query()->firstOrFail()->attribution();
+    $attribution = ctwaConvert()->attribution();
 
     expect($attribution->metaAdId)->toBe('120200000000003')
         ->and($attribution->metaAdName)->toBeNull()
@@ -175,7 +186,7 @@ test('a message with no referral is attributed to the channel and nothing more',
 
     ctwaDeliver([])->assertOk();
 
-    $attribution = Lead::query()->firstOrFail()->attribution();
+    $attribution = ctwaConvert()->attribution();
 
     // Unattributed rather than wrongly attributed: an organic enquiry credited
     // to whichever campaign was running would overstate that campaign and
@@ -243,7 +254,7 @@ test('a second advertisement does not rewrite the first', function () {
     // First touch: the advertisement that started the relationship is the one
     // that won it. A later click is a second visit, not a correction.
     expect($conversation->referral()?->adId)->toBe('120200000000003')
-        ->and(Lead::query()->firstOrFail()->attribution()->metaAdId)->toBe('120200000000003')
+        ->and(ctwaConvert()->attribution()->metaAdId)->toBe('120200000000003')
         ->and(RecordAttribution::query()->count())->toBe(1);
 });
 
@@ -253,7 +264,7 @@ test('a shortlink referral records the link without inventing a campaign', funct
     // A `ref` and no advertisement: somebody put a wa.me link on a poster.
     ctwaDeliver(['referral' => ['ref' => 'autumn-poster', 'source_type' => 'shortlink']])->assertOk();
 
-    $attribution = Lead::query()->firstOrFail()->attribution();
+    $attribution = ctwaConvert()->attribution();
 
     expect($attribution->sourceDetail)->toBe('autumn-poster')
         ->and($attribution->metaAdId)->toBeNull()
@@ -298,7 +309,7 @@ test('Messenger names the advertisement differently and is read all the same', f
         'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, 'the-app-secret'),
     ], $body)->assertOk();
 
-    $attribution = Lead::query()->firstOrFail()->attribution();
+    $attribution = ctwaConvert()->attribution();
 
     expect($attribution->metaAdId)->toBe('120200000000003')
         ->and($attribution->metaCampaignName)->toBe('Monsoon plant hire')

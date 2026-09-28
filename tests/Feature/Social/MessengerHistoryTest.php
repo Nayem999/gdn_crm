@@ -151,7 +151,7 @@ test('an import creates no leads unless somebody asks for them', function () {
         ->and(SocialConversation::query()->count())->toBe(2);
 });
 
-test('leads are created when they are asked for', function () {
+test('an imported thread becomes a conversation, not a lead', function () {
     $page = importPage();
     $owner = User::factory()->create();
 
@@ -161,10 +161,10 @@ test('leads are created when they are asked for', function () {
 
     app(ImportMessengerHistoryAction::class)($page, $owner);
 
-    $lead = Lead::query()->firstOrFail();
-
-    expect($lead->first_name)->toBe('Ibrahim')
-        ->and(SocialConversation::query()->value('lead_id'))->toBe($lead->id);
+    // Like a live message: an agent converts it from the inbox if it is worth it.
+    expect(SocialConversation::query()->count())->toBe(1)
+        ->and(SocialConversation::query()->value('lead_id'))->toBeNull()
+        ->and(Lead::query()->count())->toBe(0);
 });
 
 test('a conversation Meta returns with nothing readable leaves no empty thread', function () {

@@ -4,7 +4,6 @@ use App\Domain\Access\PermissionResolver;
 use App\Domain\Contacts\Models\Contact;
 use App\Domain\Ingestion\Enums\IntegrationEventStatus;
 use App\Domain\Ingestion\Models\IntegrationEvent;
-use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaAccount;
 use App\Domain\Meta\Models\WhatsAppBusinessAccount;
@@ -123,7 +122,7 @@ function waDeliver(array $payload): TestResponse
 
 // -- Threading -------------------------------------------------------------------
 
-test('a new number creates a lead and a conversation', function () {
+test('a new number creates a conversation, and no lead until it is converted', function () {
     $number = waNumber();
 
     waDeliver(waEnvelope(waMessage()))->assertOk();
@@ -138,12 +137,8 @@ test('a new number creates a lead and a conversation', function () {
         ->and($conversation->participant_name)->toBe('Dara Okafor')
         ->and($conversation->participant_handle)->toBe('+447700900123');
 
-    $lead = Lead::query()->firstOrFail();
-
-    expect($lead->first_name)->toBe('Dara')
-        ->and($lead->source)->toBe(LeadSource::WhatsApp->value)
-        ->and($conversation->lead_id)->toBe($lead->id)
-        ->and(leadOwnerId($lead))->toBe($number->businessAccount->account->connected_by_id);
+    expect(Lead::query()->count())->toBe(0)
+        ->and($conversation->lead_id)->toBeNull();
 });
 
 test('a known number attaches to the existing contact rather than making a lead', function () {
@@ -734,12 +729,12 @@ test('a refusal about the message itself keeps the words Meta chose', function (
 
 // -- Nobody signed in ---------------------------------------------------------
 
-test('a real delivery, with no workspace set, threads into the connector\'s workspace', function () {
+test('a real delivery, with no workspace set, is matched in the connector\'s workspace', function () {
     // The suite sets a workspace before every test; Meta's webhook arrives with
-    // nobody signed in and none set. Before the fix every message failed with
-    // "No workspace is set" and the conversation rolled back with the lead.
-    $number = waNumber();
-    $tenant = app(Tenancy::class)->current();
+    // nobody signed in and none set. Matching the sender reads leads, which
+    // only exist inside a workspace — before the fix every message failed.
+    waNumber();
+    $known = Lead::factory()->create(['phone' => '+447700900123']);
     app(Tenancy::class)->forget();
 
     waDeliver(waEnvelope(waMessage()))->assertOk();
@@ -748,23 +743,19 @@ test('a real delivery, with no workspace set, threads into the connector\'s work
 
     expect($event->status())->toBe(IntegrationEventStatus::Processed)
         ->and($event->error)->toBeNull()
-        ->and(SocialConversation::query()->count())->toBe(1);
-
-    app(Tenancy::class)->set($tenant);
-
-    $lead = Lead::query()->sole();
-
-    expect($lead->tenant_id)->toBe($number->businessAccount->account->connectedBy->tenant_id)
+        ->and(SocialMessage::query()->count())->toBe(1)
+        ->and(SocialConversation::query()->sole()->lead_id)->toBe($known->id)
         // Nothing is left set for the next piece of work in this process.
-        ->and(SocialMessage::query()->count())->toBe(1);
+        ->and(app(Tenancy::class)->has())->toBeFalse();
 });
 
-test('with no connector to name a workspace, the delivery fails and says why', function () {
+test('with no connector, the message is still recorded, just not matched', function () {
     $number = waNumber();
     $number->businessAccount->account->forceFill(['connected_by_id' => null])->save();
     app(Tenancy::class)->forget();
 
     waDeliver(waEnvelope(waMessage()))->assertOk();
 
-    expect(IntegrationEvent::query()->sole()->error)->toContain('Cannot tell which workspace');
+    expect(IntegrationEvent::query()->sole()->status())->toBe(IntegrationEventStatus::Processed)
+        ->and(SocialConversation::query()->sole()->isLinked())->toBeFalse();
 });

@@ -7,12 +7,14 @@ paths:
 
 # Social
 
-## An unknown social sender becomes a lead on the first message
-A Messenger or WhatsApp conversation from somebody not already linked to a lead or contact creates a lead immediately, on the first inbound message — it does not wait for an email or phone number the way the website chat widget does.
+## A social chat becomes a lead only when an agent converts it
+Changed 2026-09-28 at the user's request (every "hi" was becoming a lead). A Messenger or WhatsApp message from somebody new creates a **conversation only**. A sender already on file (matched by telephone number) is still linked to their contact or lead — that adds nothing.
 
-Why: unlike an anonymous website visitor, a social sender is durably reachable — the thread itself is the address, and an agent can answer it tomorrow. Confirmed as the intended behaviour when 12.8 was built, with the volume trade-off understood: every "hi" becomes a lead.
-
-How to apply: keep the immediate creation in RecordInboundMessageAction for every channel, including 12.10's WhatsApp. The lead carries the channel's own LeadSource and no email or phone, which is legitimate here even though the lead *form* requires one of the two.
+How to apply:
+- `RecordInboundMessageAction::identify()` and `ImportMessengerHistoryAction` must not create leads.
+- The inbox's **Convert to lead** opens `leads.create?conversation={id}`; `LeadForm` prefills from `CreateLeadFromConversationAction::draft()` (profile name, WhatsApp number, an email or phone typed in the chat, channel source) and on save calls `link()`, which records the conversation's attribution, sets `leads.social_conversation_id`, and sets the conversation's `lead_id` if it has none.
+- A chat can be converted more than once. The **Leads (N)** button opens `leads.index?conversation={id}`, scoped by `Lead::scopeFromConversation()` (converted from it, or the lead the chat is linked to); a chat the viewer cannot open shows nothing.
+- With no Meta connector to name a workspace, a delivery is still recorded, just not matched — nothing tenanted is written at delivery any more.
 
 ## WhatsApp timestamps are seconds; Messenger's are milliseconds
 Meta sends `messaging[].timestamp` in **milliseconds** on Messenger and
@@ -45,9 +47,9 @@ the customer's **first** message. It is not repeated on their second, it is not
 on the conversation, and it cannot be fetched afterwards — so a thread that did
 not store it has permanently lost which campaign won the customer.
 
-`social_conversations.referral` keeps it, first touch wins, and both the
-automatic lead and the inbox's "create lead" button read it from there, so they
-attribute identically however long apart they happen.
+`social_conversations.referral` keeps it, first touch wins, and converting the
+chat to a lead (`CreateLeadFromConversationAction::link()`) reads it from there,
+so a lead converted weeks later is still attributed to the advertisement.
 
 Meta spells the same fact differently per channel: WhatsApp `source_id` +
 `ctwa_clid`, Messenger `ad_id` + `ref`. `ClickToMessageReferral` reads both;
@@ -68,5 +70,4 @@ nothing to backfill; say so rather than offering a button that returns nothing.
 `ImportMessengerHistoryAction` threads on the **customer's page-scoped id**, not
 Meta's `t_` conversation id, so an imported thread and a later live delivery are
 one conversation. It is idempotent on the message id, and it creates **no leads**
-unless an owner is passed: a stranger writing today is an enquiry worth a lead,
-two years of history is not.
+— an imported thread is converted from the inbox like a live one.

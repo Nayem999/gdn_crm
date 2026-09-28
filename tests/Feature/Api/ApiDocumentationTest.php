@@ -162,3 +162,24 @@ it('renders the readable page from the same document', function () {
         ->assertSee('contacts.created')
         ->assertSee('X-CRM-Signature');
 });
+
+test('the page says what to send when creating a lead, and what is required', function () {
+    Livewire::actingAs(docsUser())
+        ->test(ApiDocumentation::class)
+        ->assertSee('Creating a lead')
+        ->assertSee('POST /leads')
+        ->assertSeeInOrder(['first_name', 'Required'])
+        ->assertSee('up to 255 characters')
+        ->assertSee('one of: web_form');
+});
+
+test('a required field is not described as nullable, and its limits are', function () {
+    $lead = spec()['components']['schemas']['LeadInput'];
+
+    expect($lead['required'])->toBe(['first_name'])
+        ->and($lead['properties']['first_name']['type'])->toBe('string')
+        ->and($lead['properties']['first_name']['maxLength'])->toBe(255)
+        ->and($lead['properties']['last_name']['type'])->toBe(['string', 'null'])
+        ->and($lead['properties']['source']['enum'])->toContain('web_form', 'whatsapp')
+        ->and($lead['properties']['estimated_value']['minimum'])->toEqual(0);
+});

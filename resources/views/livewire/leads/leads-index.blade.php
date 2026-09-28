@@ -35,6 +35,26 @@
         </div>
     </div>
 
+    @if ($conversationId !== null)
+        @php($chat = $this->fromConversation())
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
+            <span class="text-foreground">
+                @if ($chat)
+                    Leads from the {{ $chat->channel()->label() }} chat with <strong>{{ $chat->displayName() }}</strong> (#{{ $chat->id }}).
+                @else
+                    That chat is not one you can open.
+                @endif
+            </span>
+
+            <span class="flex items-center gap-3">
+                @if ($chat)
+                    <a href="{{ route('social.inbox', ['channel' => $chat->channel()->value, 'conversation' => $chat->id]) }}" wire:navigate class="font-medium text-accent hover:underline">Back to the chat</a>
+                @endif
+                <a href="{{ route('leads.index') }}" wire:navigate class="text-muted-foreground hover:text-foreground">Show all leads</a>
+            </span>
+        </div>
+    @endif
+
     <div
         x-data="{ message: '', tone: 'success' }"
         x-on:lead-deleted.window="tone = 'success'; message = `${$event.detail.name} was removed.`; setTimeout(() => message = '', 3000)"

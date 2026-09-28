@@ -2,11 +2,11 @@
 
 use App\Domain\Ingestion\Enums\IntegrationEventStatus;
 use App\Domain\Ingestion\Models\IntegrationEvent;
-use App\Domain\Leads\Enums\LeadSource;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaPage;
 use App\Domain\Settings\SettingsManager;
 use App\Domain\Social\Actions\AssignConversationAction;
+use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Actions\SendSocialMessageAction;
 use App\Domain\Social\Enums\ConversationStatus;
 use App\Domain\Social\Enums\MessageDirection;
@@ -212,22 +212,7 @@ test('an attachment with no text still reads as something', function () {
 
 // -- Becoming a lead ---------------------------------------------------------------
 
-test('an unknown sender becomes a lead, attributed to the channel', function () {
-    $page = socialPage();
-
-    socialDeliver(socialEnvelope())->assertOk();
-
-    $lead = Lead::query()->firstOrFail();
-
-    expect($lead->source)->toBe(LeadSource::FacebookMessenger->value)
-        // Owned by whoever connected Meta: a lead owned by nobody is how the
-        // visibility scope springs a leak.
-        ->and(leadOwnerId($lead))->toBe($page->account->connected_by_id)
-        ->and($lead->attribution()->source)->toBe(LeadSource::FacebookMessenger->value)
-        ->and(SocialConversation::query()->value('lead_id'))->toBe($lead->id);
-});
-
-test('a second message does not make a second lead', function () {
+test('an unknown sender stays a conversation until an agent converts it', function () {
     socialPage();
 
     socialDeliver(socialEnvelope())->assertOk();
@@ -235,7 +220,8 @@ test('a second message does not make a second lead', function () {
         'message' => ['mid' => 'mid.TWO', 'text' => 'Hello again'],
     ]))->assertOk();
 
-    expect(Lead::query()->count())->toBe(1);
+    expect(Lead::query()->count())->toBe(0)
+        ->and(SocialConversation::query()->sole()->lead_id)->toBeNull();
 });
 
 test('a conversation already tied to a lead is left tied to it', function () {
@@ -436,7 +422,7 @@ test('the conversation appears on the lead\'s timeline', function () {
 
     socialDeliver(socialEnvelope())->assertOk();
 
-    $lead = Lead::query()->firstOrFail();
+    $lead = app(CreateLeadFromConversationAction::class)(SocialConversation::query()->sole(), User::factory()->create());
 
     $entries = app(CommunicationGatherer::class)->for($lead, 20);
 

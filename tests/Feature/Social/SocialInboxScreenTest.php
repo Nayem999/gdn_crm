@@ -12,6 +12,8 @@ use App\Domain\Social\Enums\SocialChannel;
 use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Social\Models\SocialMessage;
 use App\Domain\Timeline\Models\Note;
+use App\Livewire\Leads\LeadForm;
+use App\Livewire\Leads\LeadsIndex;
 use App\Livewire\Social\SocialInbox;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -144,35 +146,97 @@ test('closing from the screen leaves it able to reopen', function () {
 
 // -- The panel ---------------------------------------------------------------------
 
-test('the panel makes a lead, carrying the channel\'s attribution', function () {
-    $conversation = SocialConversation::factory()->create(['participant_name' => 'Dara Okafor']);
+// -- Converting a chat to a lead ----------------------------------------------
 
-    Livewire::actingAs(socialAgent())
+test('the panel offers to convert the chat and to list the leads it produced', function () {
+    $agent = socialAgent(['social.inbox.view', 'social.inbox.assign', 'leads.view', 'leads.create']);
+    $conversation = SocialConversation::factory()->create();
+
+    Livewire::actingAs($agent)
         ->test(SocialInbox::class)
         ->call('select', $conversation->id)
-        ->call('createLead');
+        ->assertSee('Convert to lead')
+        ->assertSee(route('leads.create', ['conversation' => $conversation->id]), escape: false)
+        ->assertSee('Leads (0)')
+        ->assertSee(route('leads.index', ['conversation' => $conversation->id]), escape: false);
 
-    $lead = Lead::query()->firstOrFail();
-
-    expect($lead->first_name)->toBe('Dara')
-        ->and($lead->last_name)->toBe('Okafor')
-        ->and($lead->source)->toBe(SocialChannel::Messenger->leadSource())
-        // The whole point: a lead that came from nowhere cannot be counted in
-        // 12.13's figures or reported back in 12.12.
-        ->and($lead->attribution()->source)->toBe(SocialChannel::Messenger->leadSource())
-        ->and($conversation->fresh()?->lead_id)->toBe($lead->id);
+    // Selecting the chat made nothing.
+    expect(Lead::query()->count())->toBe(0);
 });
 
-test('a conversation that already has a lead does not get a second one', function () {
-    $lead = Lead::factory()->create();
-    $conversation = SocialConversation::factory()->forLead($lead)->create();
+test('converting opens the lead form filled in from the chat', function () {
+    $agent = socialAgent(['social.inbox.view', 'leads.view', 'leads.create']);
+    $conversation = SocialConversation::factory()->create([
+        'channel' => SocialChannel::WhatsApp->value,
+        'participant_name' => 'Dara Okafor',
+        'participant_handle' => '+8801711000000',
+    ]);
+    SocialMessage::factory()->create([
+        'social_conversation_id' => $conversation->id,
+        'channel' => SocialChannel::WhatsApp->value,
+        'direction' => 'inbound',
+        'body' => 'Please quote me — dara@acme.test',
+    ]);
 
-    Livewire::actingAs(socialAgent())
+    $this->actingAs($agent)
+        ->get(route('leads.create', ['conversation' => $conversation->id]))
+        ->assertOk()
+        ->assertSee('Converting the WhatsApp chat with');
+
+    Livewire::withQueryParams(['conversation' => $conversation->id])
+        ->actingAs($agent)
+        ->test(LeadForm::class)
+        ->assertSet('conversationId', $conversation->id)
+        ->assertSet('first_name', 'Dara')
+        ->assertSet('last_name', 'Okafor')
+        ->assertSet('phone', '+8801711000000')
+        ->assertSet('email', 'dara@acme.test')
+        ->assertSet('source', SocialChannel::WhatsApp->leadSource())
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $lead = Lead::query()->sole();
+
+    expect($lead->social_conversation_id)->toBe($conversation->id)
+        ->and($conversation->fresh()?->lead_id)->toBe($lead->id)
+        // The attribution the automatic lead used to carry.
+        ->and($lead->attribution()->source)->toBe(SocialChannel::WhatsApp->leadSource());
+});
+
+test('a chat can be converted more than once, and lists every lead it produced', function () {
+    $agent = socialAgent(['social.inbox.view', 'leads.view', 'leads.create']);
+    $conversation = SocialConversation::factory()->create(['participant_name' => 'Dara Okafor']);
+    $first = Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+    $conversation->forceFill(['lead_id' => $first->id])->save();
+    $second = Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+    $unrelated = Lead::factory()->ownedBy($agent)->create();
+
+    Livewire::actingAs($agent)
         ->test(SocialInbox::class)
         ->call('select', $conversation->id)
-        ->call('createLead');
+        ->assertSee('Leads (2)');
 
-    expect(Lead::query()->count())->toBe(1);
+    $rows = Livewire::withQueryParams(['conversation' => $conversation->id])
+        ->actingAs($agent)
+        ->test(LeadsIndex::class)
+        ->assertSee('Leads from the Messenger chat with')
+        ->instance()->dataViewQuery()->pluck('leads.id')->all();
+
+    expect($rows)->toEqualCanonicalizing([$first->id, $second->id])
+        ->and($rows)->not->toContain($unrelated->id);
+});
+
+test('the chat filter shows nothing to somebody who cannot open the inbox', function () {
+    $user = socialAgent(['leads.view']);
+    $conversation = SocialConversation::factory()->create();
+    Lead::factory()->ownedBy($user)->create(['social_conversation_id' => $conversation->id]);
+
+    $rows = Livewire::withQueryParams(['conversation' => $conversation->id])
+        ->actingAs($user)
+        ->test(LeadsIndex::class)
+        ->instance()->dataViewQuery()->count();
+
+    expect($rows)->toBe(0);
 });
 
 test('a note from the panel lands on the linked record', function () {
@@ -199,7 +263,7 @@ test('a note with nothing to hang off says so rather than vanishing', function (
         ->call('select', $conversation->id)
         ->set('note', 'Something')
         ->call('addNote')
-        ->assertSee('Create a lead first');
+        ->assertSee('Convert it to a lead first');
 
     expect(Note::query()->count())->toBe(0);
 });

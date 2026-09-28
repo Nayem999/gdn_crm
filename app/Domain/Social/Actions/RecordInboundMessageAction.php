@@ -37,28 +37,22 @@ use Illuminate\Support\Facades\DB;
  * it would make the inbox believe a thread is open long after Meta has closed
  * it, which is how a number's quality rating gets damaged.
  *
- * **An unknown sender becomes a lead.** Not on a "hello" alone — on the first
- * message from somebody this installation cannot already name, because unlike an
- * anonymous website visitor a Messenger or WhatsApp sender **is** durably
- * reachable: the thread itself is the address, and an agent can answer it
- * tomorrow. That is what makes it a lead worth having rather than a row somebody
- * deletes. A conversation already tied to a lead or a contact never makes a
- * second one, however many messages arrive.
+ * **An unknown sender stays a conversation.** A sender the CRM already knows
+ * (by telephone number) is linked to their record; anybody else becomes a lead
+ * only when an agent converts the chat from the inbox, which opens the lead form
+ * prefilled from it (CreateLeadFromConversationAction::draft()).
  */
 class RecordInboundMessageAction
 {
     public function __construct(
-        private readonly CreateLeadFromConversationAction $createLeadFromConversation,
         private readonly MatchConversationToRecordAction $match,
         private readonly ReferralAttributionAction $referralAttribution,
     ) {}
 
     /**
-     * @param  User|null  $owner  Who a created lead belongs to. A conversation
-     *                            with nobody to own what it produces records the
-     *                            message and creates nothing — losing a message
-     *                            because the integration is half configured
-     *                            would be the worse failure.
+     * @param  User|null  $owner  Whose workspace the conversation is matched
+     *                            in. With nobody, the message is still recorded
+     *                            and simply not linked to a record.
      */
     public function __invoke(InboundSocialMessage $inbound, ?User $owner = null): SocialConversation
     {
@@ -239,7 +233,8 @@ class RecordInboundMessageAction
     }
 
     /**
-     * Give the conversation a lead, when it has nothing yet.
+     * Link the conversation to somebody the CRM already knows, when it has
+     * nobody yet. Never creates a lead.
      */
     private function identify(SocialConversation $conversation, InboundSocialMessage $inbound, ?User $owner): void
     {
@@ -258,12 +253,10 @@ class RecordInboundMessageAction
             // history. `enrichAttribution` fills the gaps only — which is how
             // the campaign still gets credit for starting the conversation.
             $this->enrich($matched, $conversation);
-
-            return;
         }
 
-        // The same action the inbox panel's "create lead" button calls, so an
-        // automatic lead and a hand-made one are the same lead.
-        ($this->createLeadFromConversation)($conversation, $owner, $inbound->sentAt());
+        // Somebody new stays a conversation. A chat is not a lead until an
+        // agent converts it from the inbox — most first messages are a
+        // question, not an enquiry worth a pipeline row.
     }
 }

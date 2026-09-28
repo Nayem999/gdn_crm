@@ -303,17 +303,21 @@
                     <div>
                         <h2 class="text-sm font-semibold text-foreground">In the CRM</h2>
 
-                        @if ($subject)
-                            <a href="{{ $this->subjectRoute($subject) }}" wire:navigate
-                               class="mt-2 block text-sm font-medium text-foreground underline decoration-border underline-offset-4">
-                                {{ $subject->fullName() }}
-                            </a>
-                            <p class="text-xs text-muted-foreground">
-                                {{ $subject instanceof \App\Domain\Contacts\Models\Contact ? 'Contact' : 'Lead' }}
-                            </p>
-                        @else
+                        {{-- The record the chat is linked to, then every lead
+                             converted from it. --}}
+                        @forelse ($records as $record)
+                            <div class="mt-2">
+                                <a href="{{ $this->subjectRoute($record) }}" wire:navigate
+                                   class="block text-sm font-medium text-foreground underline decoration-border underline-offset-4">
+                                    {{ $record->fullName() }}
+                                </a>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ $record instanceof \App\Domain\Contacts\Models\Contact ? 'Contact' : 'Lead #'.$record->id }}
+                                </p>
+                            </div>
+                        @empty
                             <p class="mt-2 text-sm text-muted-foreground">Not linked to anybody yet.</p>
-                        @endif
+                        @endforelse
 
                         {{-- A chat is never a lead by itself: converting opens the
                              lead form filled in from it, to check before saving. --}}
@@ -344,6 +348,20 @@
                     </div>
 
                     @can('assign', $selected)
+                        {{-- Where the note and task go. Asked only when the chat
+                             has more than one record; with one, it is that one. --}}
+                        @if (count($records) > 1)
+                            <div class="border-t border-border pt-4" wire:key="inbox-record-{{ $selected->id }}">
+                                <x-select
+                                    name="inbox-record"
+                                    label="Add notes and tasks to"
+                                    :options="collect($records)->mapWithKeys(fn ($record, $key) => [$key => $record->fullName().' — '.($record instanceof \App\Domain\Contacts\Models\Contact ? 'Contact' : 'Lead #'.$record->id)])->all()"
+                                    :selected="$recordKey !== '' ? $recordKey : array_key_first($records)"
+                                    wire:model.live="recordKey"
+                                />
+                            </div>
+                        @endif
+
                         <div class="border-t border-border pt-4">
                             <label for="inbox-note" class="text-sm font-semibold text-foreground">Add a note</label>
                             <textarea

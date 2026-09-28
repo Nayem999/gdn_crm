@@ -7,6 +7,7 @@ use App\Domain\Ingestion\Models\DataSource;
 use App\Domain\Ingestion\Models\IntegrationEvent;
 use App\Domain\Leads\Models\Lead;
 use App\Domain\Meta\Models\MetaPage;
+use App\Domain\Social\Actions\CreateLeadFromConversationAction;
 use App\Domain\Social\Enums\ConversationStatus;
 use App\Domain\Social\Enums\SocialChannel;
 use App\Domain\Social\Models\SocialConversation;
@@ -354,4 +355,58 @@ test('a working inbox is not told about the queue', function () {
     Livewire::actingAs(socialAgent())
         ->test(SocialInbox::class)
         ->assertDontSee('waiting to be processed');
+});
+
+// -- Notes and tasks on converted leads -----------------------------------------
+
+test('a chat whose linked lead was deleted puts notes and tasks on the leads converted from it', function () {
+    $agent = socialAgent(['social.inbox.view', 'social.inbox.assign', 'leads.view', 'activities.create']);
+    $gone = Lead::factory()->ownedBy($agent)->create();
+    $conversation = SocialConversation::factory()->forLead($gone)->create();
+    $older = Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+    $newer = Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+    $gone->delete();
+
+    Livewire::actingAs($agent)
+        ->test(SocialInbox::class)
+        ->call('select', $conversation->id)
+        ->assertSee('Add notes and tasks to')
+        ->set('note', 'Wants delivery before Friday.')
+        ->call('addNote')
+        ->assertHasNoErrors()
+        ->assertSet('error', null)
+        ->set('taskSubject', 'Ring about delivery')
+        ->set('taskDueAt', now()->addDay()->toDateString())
+        ->call('addTask')
+        ->assertSet('error', null);
+
+    // Newest first when nobody picked.
+    expect(Note::query()->sole()->notable_id)->toBe($newer->id)
+        ->and(Activity::query()->sole()->related_id)->toBe($newer->id);
+});
+
+test('with several leads, the note goes on the one picked', function () {
+    $agent = socialAgent(['social.inbox.view', 'social.inbox.assign', 'leads.view']);
+    $conversation = SocialConversation::factory()->create();
+    $older = Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+    Lead::factory()->ownedBy($agent)->create(['social_conversation_id' => $conversation->id]);
+
+    Livewire::actingAs($agent)
+        ->test(SocialInbox::class)
+        ->call('select', $conversation->id)
+        ->set('recordKey', 'lead:'.$older->id)
+        ->set('note', 'For the first one.')
+        ->call('addNote');
+
+    expect(Note::query()->sole()->notable_id)->toBe($older->id);
+});
+
+test('converting a chat whose linked lead was deleted links it to the new lead', function () {
+    $gone = Lead::factory()->create();
+    $conversation = SocialConversation::factory()->forLead($gone)->create();
+    $gone->delete();
+
+    $lead = app(CreateLeadFromConversationAction::class)($conversation->fresh(), User::factory()->create());
+
+    expect($conversation->fresh()->lead_id)->toBe($lead->id);
 });

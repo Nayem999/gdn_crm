@@ -16,6 +16,7 @@ use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Shared\Concerns\MergesWithDuplicates;
 use App\Domain\Shared\Concerns\ScopesByAccessLevel;
 use App\Domain\Shared\Enums\DataAccessLevel;
+use App\Domain\Social\Models\SocialConversation;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\User;
@@ -58,6 +59,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $campaign_id
  * @property int|null $lead_owner_id
  * @property int|null $account_id
+ * @property int|null $social_conversation_id
  * @property Carbon|null $converted_at
  * @property int|null $converted_account_id
  * @property int|null $converted_contact_id
@@ -236,6 +238,17 @@ class Lead extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * The social inbox conversation this lead was converted from, if any.
+     * Set by CreateLeadFromConversationAction::link(), never by a form field.
+     *
+     * @return BelongsTo<SocialConversation, $this>
+     */
+    public function socialConversation(): BelongsTo
+    {
+        return $this->belongsTo(SocialConversation::class);
     }
 
     /**
@@ -452,5 +465,24 @@ class Lead extends Model
             LeadStatus::Converted->value,
             LeadStatus::Unqualified->value,
         ]);
+    }
+
+    /**
+     * Leads that came from one social inbox chat: those converted from it,
+     * and the lead the chat itself is linked to (one made before conversion
+     * was manual, or somebody already on file it was matched to).
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    public function scopeFromConversation(Builder $query, SocialConversation $conversation): Builder
+    {
+        return $query->where(function (Builder $inner) use ($conversation): void {
+            $inner->where($inner->qualifyColumn('social_conversation_id'), $conversation->getKey());
+
+            if ($conversation->lead_id !== null) {
+                $inner->orWhere($inner->qualifyColumn('id'), $conversation->lead_id);
+            }
+        });
     }
 }

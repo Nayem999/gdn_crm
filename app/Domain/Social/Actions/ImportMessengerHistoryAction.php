@@ -236,11 +236,8 @@ class ImportMessengerHistoryAction
                 : MessagingWindow::expiresAt(SocialChannel::Messenger, $lastInbound),
         ], fn (mixed $value): bool => $value !== null))->save();
 
-        if ($owner !== null && ! $conversation->refresh()->isLinked()) {
-            // The same action a live message uses, so an imported conversation
-            // and a delivered one produce the same lead.
-            app(CreateLeadFromConversationAction::class)($conversation, $owner, $lastAt);
-        }
+        // No lead: an imported thread, like a live one, becomes a lead only
+        // when an agent converts it from the inbox.
 
         return $written;
     }

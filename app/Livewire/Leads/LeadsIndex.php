@@ -17,6 +17,7 @@ use App\Domain\Shared\DataView\Column;
 use App\Domain\Shared\Exports\DataViewExportSource;
 use App\Domain\Shared\Filters\FilterField;
 use App\Domain\Shared\UI\ChipPalette;
+use App\Domain\Social\Models\SocialConversation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,6 +51,13 @@ class LeadsIndex extends Component
     #[Url(as: 'chip', except: '')]
     public string $quickFilter = '';
 
+    /**
+     * Only the leads from one social inbox chat — the inbox's "leads from
+     * this chat" button opens the list with this set.
+     */
+    #[Url(as: 'conversation', except: null)]
+    public ?int $conversationId = null;
+
     public function mount(): void
     {
         $this->authorize('viewAny', Lead::class);
@@ -81,6 +89,16 @@ class LeadsIndex extends Component
             ->visibleTo(auth()->user())
             ->with(['assignees.user:id,name', 'leadOwner:id,name']);
 
+        $conversation = $this->fromConversation();
+
+        if ($this->conversationId !== null) {
+            // A chat that is gone, or one this person cannot open, shows
+            // nothing rather than quietly falling back to every lead.
+            $conversation === null
+                ? $query->whereRaw('1 = 0')
+                : $query->fromConversation($conversation);
+        }
+
         return match ($this->quickFilter) {
             'mine' => $query->whereHas('assignedUsers', fn ($assignees) => $assignees->where('users.id', auth()->id())),
             'open' => $query->open(),
@@ -88,6 +106,18 @@ class LeadsIndex extends Component
             'this_week' => $query->where('leads.created_at', '>=', now()->startOfWeek()),
             default => $query,
         };
+    }
+
+    /**
+     * The chat the list is narrowed to, when the viewer may open the inbox.
+     */
+    public function fromConversation(): ?SocialConversation
+    {
+        if ($this->conversationId === null || ! auth()->user()?->can('social.inbox.view')) {
+            return null;
+        }
+
+        return SocialConversation::query()->find($this->conversationId);
     }
 
     /**

@@ -16,6 +16,8 @@ use App\Domain\Leads\Models\Lead;
 use App\Domain\Leads\Models\LeadAssignee;
 use App\Domain\Shared\Concerns\WarnsAboutDuplicates;
 use App\Domain\Shared\Duplicates\DuplicateSource;
+use App\Domain\Social\Actions\CreateLeadFromConversationAction;
+use App\Domain\Social\Models\SocialConversation;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -46,6 +48,13 @@ class LeadForm extends Component
 
     #[Locked]
     public ?int $leadId = null;
+
+    /**
+     * The social inbox chat this new lead is being converted from, when the
+     * inbox's "Convert to lead" opened the form.
+     */
+    #[Locked]
+    public ?int $conversationId = null;
 
     public string $first_name = '';
 
@@ -115,6 +124,38 @@ class LeadForm extends Component
         $this->assignees = [['user_id' => (string) auth()->id(), 'priority' => '']];
         $this->contacts = [$this->blankContactRow()];
         $this->loadCustomFields();
+        $this->fillFromConversation(request()->integer('conversation') ?: null);
+    }
+
+    /**
+     * Start the form from a chat: the name on their profile, their number,
+     * an email they typed. Everything stays editable, and saving links the
+     * lead back to the chat.
+     */
+    private function fillFromConversation(?int $conversationId): void
+    {
+        $conversation = $conversationId === null ? null : SocialConversation::query()->find($conversationId);
+
+        if ($conversation === null) {
+            return;
+        }
+
+        $this->authorize('view', $conversation);
+
+        $draft = app(CreateLeadFromConversationAction::class)->draft($conversation);
+
+        $this->conversationId = $conversation->id;
+        $this->first_name = $draft['first_name'];
+        $this->last_name = $draft['last_name'];
+        $this->phone = $draft['phone'];
+        $this->email = $draft['email'];
+        $this->source = $draft['source'];
+        $this->description = $draft['description'];
+    }
+
+    public function conversation(): ?SocialConversation
+    {
+        return $this->conversationId === null ? null : SocialConversation::query()->find($this->conversationId);
     }
 
     public function addAssigneeRow(): void
@@ -249,6 +290,12 @@ class LeadForm extends Component
             if ($lead === null) {
                 $created = app(CreateLeadAction::class)($data, $this->currentUser());
                 $created->saveCustomFields($this->customFields);
+
+                $conversation = $this->conversation();
+
+                if ($conversation !== null) {
+                    app(CreateLeadFromConversationAction::class)->link($created, $conversation);
+                }
 
                 return $created;
             }

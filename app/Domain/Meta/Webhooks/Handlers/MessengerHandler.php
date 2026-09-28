@@ -77,10 +77,13 @@ class MessengerHandler implements MetaChannelHandler
                 continue;
             }
 
-            // The workspace is the page connector's: nobody is signed in to a
-            // webhook, and the lead a conversation creates needs one.
+            // Matching the sender to somebody on file happens in the page
+            // connector's workspace; nobody is signed in to a webhook. With no
+            // connector the message is still recorded, just not matched.
             $owner = $this->owner($page);
-            $conversation = $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
+            $conversation = $owner === null
+                ? ($this->record)($inbound, null)
+                : $this->tenancy->forOwner($owner, fn () => ($this->record)($inbound, $owner));
             $recorded++;
         }
 
